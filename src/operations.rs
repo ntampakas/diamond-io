@@ -5,7 +5,6 @@ use phantom_zone_math::{
 };
 use rand::{thread_rng, Rng};
 
-use crate::utils::print_vector;
 use crate::{BggRlwe, Parameters};
 
 pub fn poly_add(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
@@ -174,6 +173,7 @@ pub fn m_eval_mul_x(
     params: &Parameters,
     ct_inner_1: &Vec<Vec<u64>>,
     ct_inner_2: &Vec<Vec<u64>>,
+    pub_key_1: &Vec<Vec<u64>>,
     x_2: u64,
 ) -> Vec<Vec<u64>> {
     let mut ct_inner_1_times_ct_inner_2 = vec![vec![]; params.m];
@@ -198,15 +198,15 @@ pub fn m_eval_mul_x(
         ct_inner_1_times_ct_inner_2[i] = ct_inner_1_times_x_2_i.to_vec();
     }
 
-    // Compute -C1 and its bit decomposition τ
-    let mut minus_ct_inner_1 = vec![vec![ring.zero(); ring.ring_size()]; params.m];
+    // Compute τ which is the bit decomposition of pubkey_1
+    let mut minus_pub_key_1 = vec![vec![ring.zero(); ring.ring_size()]; params.m];
     for i in 0..params.m {
         for j in 0..ring.ring_size() {
             // To get -1 * coefficient in the ring, we subtract the coefficient from 0
-            minus_ct_inner_1[i][j] = ring.sub(&ring.zero(), &ct_inner_1[i][j]);
+            minus_pub_key_1[i][j] = ring.sub(&ring.zero(), &pub_key_1[i][j]);
         }
     }
-    let tau = bit_decompose(params, &minus_ct_inner_1);
+    let tau = bit_decompose(params, &minus_pub_key_1);
 
     // Add τᵀC₂ to the result
     // Note: When accessing tau[i][h] instead of tau[h][i], we're effectively using τᵀ
@@ -256,7 +256,6 @@ mod tests {
     use phantom_zone_math::prelude::ElemFrom;
 
     use super::*;
-    use crate::utils::print_vector_ring;
     use crate::BggRlwe;
 
     #[test]
@@ -304,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_matrix_encoding_homomorphism_mul_gate() {
-        let bgg_rlwe = BggRlwe::new(2, 6, 4);
+        let bgg_rlwe = BggRlwe::new(12, 51, 4);
         let mut rng = thread_rng();
         let mut x = (0..bgg_rlwe.params.ell + 1)
             .map(|_| rng.gen_range(0..2))
@@ -325,6 +324,7 @@ mod tests {
             &bgg_rlwe.params,
             &ct_inner[1],
             &ct_inner[2],
+            &bgg_rlwe.public_key[1],
             x[2], // Pass x[2] as the scalar multiplier
         );
 

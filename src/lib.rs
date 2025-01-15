@@ -19,7 +19,7 @@ impl BggRlwe {
     }
 
     /// Encode an attribute vector into a ciphertext
-    /// 
+    ///
     /// # Returns
     /// - `ct_inner`: The inner component ciphertext `(1, x) ⊗ G + B`
     /// - `ct_in`: The entire ciphertext `((1, x) ⊗ G + B) s + e_0`
