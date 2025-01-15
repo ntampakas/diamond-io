@@ -138,6 +138,36 @@ pub fn m_eval_add_x(
     ct_inner_1_plus_2
 }
 
+pub fn m_eval_mul(params: &Parameters, bu: &Vec<Vec<u64>>, bv: &Vec<Vec<u64>>) -> Vec<Vec<u64>> {
+    let mut bw = vec![vec![]; params.m];
+    let ring = &params.ring;
+    // Compute minus_bu by multiplying each coefficient by -1
+    let mut minus_bu = vec![vec![ring.zero(); ring.ring_size()]; params.m];
+    for i in 0..params.m {
+        for j in 0..ring.ring_size() {
+            // To get -1 * coefficient in the ring, we subtract the coefficient from 0
+            minus_bu[i][j] = ring.sub(&ring.zero(), &bu[i][j]);
+        }
+    }
+    let tau = bit_decompose(params, &minus_bu);
+
+    // Compute bw = bv * TAU
+    for i in 0..params.m {  // For each polynomial in bv
+        for h in 0..params.m {  // For each row of TAU
+            let mut scratch = ring.allocate_scratch(1, 2, 0);
+            let mut scratch = scratch.borrow_mut();
+            let product = ring.take_poly(&mut scratch);
+            
+            // Multiply bv[h] by tau[h][i]
+            ring.poly_mul(product, &bv[h], &tau[h][i], scratch.reborrow());
+            
+            // Add to the result
+            bw[i] = poly_add(ring, &bw[i], &product.to_vec());
+        }
+    }
+    bw
+}
+
 pub fn bit_decompose(params: &Parameters, bu: &Vec<Vec<u64>>) -> Vec<Vec<Vec<u64>>> {
     let ring = &params.ring;
     let ring_size = ring.ring_size();
