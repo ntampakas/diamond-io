@@ -138,6 +138,29 @@ pub fn m_eval_add_x(
     ct_inner_1_plus_2
 }
 
+pub fn bit_decompose(params: &Parameters, bu: &Vec<Vec<u64>>) -> Vec<Vec<Vec<u64>>> {
+    let ring = &params.ring;
+    let ring_size = ring.ring_size();
+    // Create a matrix of dimension m × m, where each element is a binary polynomial
+    let mut tau = vec![vec![vec![ring.zero(); ring_size]; params.m]; params.m];
+
+    // For each row h in the output matrix
+    for h in 0..params.m {
+        // For each column i in the output matrix
+        for i in 0..params.m {
+            // For each coefficient j in the polynomial
+            for j in 0..ring_size {
+                // Get the h-th bit of the j-th coefficient of the i-th polynomial
+                let coeff = bu[i][j];
+                // Check if the h-th bit is set
+                let bit = (coeff >> h) & 1;
+                tau[h][i][j] = bit;
+            }
+        }
+    }
+    tau
+}
+
 #[cfg(test)]
 mod tests {
     use phantom_zone_math::prelude::ElemFrom;
@@ -185,6 +208,39 @@ mod tests {
         }
         for i in 0..bgg_rlwe.params.m {
             assert_eq!(lhs[i], rhs[i]);
+        }
+    }
+
+    #[test]
+    fn test_bit_decompose() {
+        let bgg_rlwe = BggRlwe::new(12, 51, 4);
+        let bu = bgg_rlwe.public_key[1].clone();
+        let ring = &bgg_rlwe.params.ring;
+        let tau = bit_decompose(&bgg_rlwe.params, &bu);
+
+        // Reconstruct the original input by multiplying tau with G
+        let mut reconstructed = vec![vec![ring.zero(); ring.ring_size()]; bgg_rlwe.params.m];
+
+        // For each column i of the output
+        for i in 0..bgg_rlwe.params.m {
+            // For each row h of tau
+            for h in 0..bgg_rlwe.params.m {
+                // Multiply tau[h][i] by g[h] and add to the result
+                let mut scratch = ring.allocate_scratch(1, 2, 0);
+                let mut scratch = scratch.borrow_mut();
+                let product = ring.take_poly(&mut scratch);
+                ring.poly_mul(
+                    product,
+                    &tau[h][i],
+                    &bgg_rlwe.params.g[h],
+                    scratch.reborrow(),
+                );
+                reconstructed[i] = poly_add(ring, &reconstructed[i], &product.to_vec());
+            }
+        }
+
+        for i in 0..bgg_rlwe.params.m {
+            assert_eq!(bu[i], reconstructed[i]);
         }
     }
 }
