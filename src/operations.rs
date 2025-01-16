@@ -1,4 +1,4 @@
-use crate::{BggRlwe, Parameters};
+use crate::Parameters;
 use phantom_zone_crypto::util::distribution::NoiseDistribution;
 use phantom_zone_math::{
     prelude::{ElemFrom, Gaussian, ModulusOps, Sampler},
@@ -21,76 +21,105 @@ pub fn pub_key_gen(params: &Parameters) -> Vec<Vec<Vec<u64>>> {
     b
 }
 
-/// Encode the attribute vector `x` into the ciphertext `ct_cin`
-///
-/// # Arguments
-///
-/// * `bgg_rlwe`: BGG+ RLWE system
-/// * `x`: attribute vector
-///
-/// # Returns
-///
-/// * `ct_inner`: ciphertext inner component
-/// * `ct_cin`: ciphertext cin component
-pub fn encode_attribute_vector(
-    bgg_rlwe: &BggRlwe,
-    x: &Vec<u64>,
-) -> (Vec<Vec<Vec<u64>>>, Vec<Vec<Vec<u64>>>) {
-    assert!(x.len() == bgg_rlwe.params.ell + 1);
+/// A ciphertext in the BGG+ RLWE encoding scheme
+#[derive(Clone, Debug)]
+pub struct Ciphertext {
+    /// The inner component matrix of size (ell + 1) × m where the rows are equal to the vectors G+b_0, x_1G+b_1, ..., x_ellG+b_ell
+    inner: Vec<Vec<Vec<u64>>>,
 
-    let mut rng = thread_rng();
-    let ring = &bgg_rlwe.params.ring;
-    let s = ring.sample_uniform_vec(ring.ring_size(), &mut rng);
-    let mut ct_cin = bgg_rlwe.public_key.clone();
-    let mut ct_inner = bgg_rlwe.public_key.clone();
+    /// The secret vector which is a polynomial in the ring
+    secret: Vec<u64>,
 
-    let mut err_a: Vec<Vec<u64>> = vec![vec![]; bgg_rlwe.params.m];
-    let gaussian: NoiseDistribution = Gaussian(3.19).into();
+    /// The error matrix of size (ell + 1) × m where each row is equal to e_aS_0, e_aS_1, ..., e_aS_ell
+    error: Vec<Vec<Vec<u64>>>,
+}
 
-    for i in 0..bgg_rlwe.params.m {
-        let mut err = vec![ring.zero(); ring.ring_size()];
-        ring.sample_into::<i64>(&mut err, gaussian, rng.clone());
-        err_a[i] = err;
-    }
+impl Ciphertext {
+    /// Create a new ciphertext by encoding an attribute vector
+    ///
+    /// # Arguments
+    /// * `public_key`: The public key matrix
+    /// * `params`: System parameters
+    /// * `x`: Attribute vector to encode
+    pub fn new(public_key: &Vec<Vec<Vec<u64>>>, params: &Parameters, x: &Vec<u64>) -> Self {
+        assert!(x.len() == params.ell + 1);
 
-    for i in 0..bgg_rlwe.params.ell + 1 {
-        // for each i
-        // compute the ciphertext error part `err_cin_i`
-        let mut err_cin_i = vec![vec![ring.zero(); ring.ring_size()]; bgg_rlwe.params.m];
-        for si in 0..bgg_rlwe.params.m {
-            for sj in 0..bgg_rlwe.params.m {
-                let random_bit = if rng.gen_bool(0.5) { 1 } else { -1 };
-                if random_bit == 1 {
-                    err_cin_i[si] = poly_add(ring, &err_cin_i[si], &err_a[sj]);
+        let mut rng = thread_rng();
+        let ring = &params.ring;
+        let s = ring.sample_uniform_vec(ring.ring_size(), &mut rng);
+        let mut ct_inner = public_key.clone();
+
+        // Generate error vectors
+        let mut err_a = vec![vec![ring.zero(); ring.ring_size()]; params.m];
+        let gaussian: NoiseDistribution = Gaussian(3.19).into();
+
+        for i in 0..params.m {
+            ring.sample_into::<i64>(&mut err_a[i], gaussian, rng.clone());
+        }
+
+        // Initialize error matrix
+        let mut error = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; params.ell + 1];
+
+        for i in 0..params.ell + 1 {
+            for si in 0..params.m {
+                for sj in 0..params.m {
+                    let random_bit = if rng.gen_bool(0.5) { 1 } else { -1 };
+                    if random_bit == 1 {
+                        error[i][si] = poly_add(ring, &error[i][si], &err_a[sj]);
+                    }
+                    if random_bit == -1 {
+                        error[i][si] = poly_sub(ring, &error[i][si], &err_a[sj]);
+                    }
                 }
-                if random_bit == -1 {
-                    err_cin_i[si] = poly_sub(ring, &err_cin_i[si], &err_a[sj]);
+            }
+
+            // Add gadget vector to ct_inner if x[i] = 1
+            for j in 0..params.m {
+                if x[i] == 1 {
+                    ct_inner[i][j] = poly_add(ring, &ct_inner[i][j], &params.g[j]);
                 }
             }
         }
 
-        let mut ct_inner_i = bgg_rlwe.public_key[i].clone();
+        Self {
+            inner: ct_inner,
+            secret: s,
+            error,
+        }
+    }
 
-        for j in 0..bgg_rlwe.params.m {
-            if x[i] == 1 {
-                ct_inner_i[j] = poly_add(ring, &ct_inner_i[j], &bgg_rlwe.params.g[j]);
+    pub fn inner(&self) -> &Vec<Vec<Vec<u64>>> {
+        &self.inner
+    }
+
+    pub fn secret(&self) -> &Vec<u64> {
+        &self.secret
+    }
+
+    pub fn error(&self) -> &Vec<Vec<Vec<u64>>> {
+        &self.error
+    }
+
+    /// Compute the ct_full as inner * secret + error
+    pub fn compute_ct_full(&self, ring: &PrimeRing) -> Vec<Vec<Vec<u64>>> {
+        let mut ct_full = self.inner.clone();
+
+        for i in 0..self.inner.len() {
+            for j in 0..self.inner[0].len() {
+                let mut scratch = ring.allocate_scratch(1, 2, 0);
+                let mut scratch = scratch.borrow_mut();
+                let c = ring.take_poly(&mut scratch);
+
+                // Compute inner * secret
+                ring.poly_mul(c, &self.inner[i][j], &self.secret, scratch.reborrow());
+
+                // Add error
+                ct_full[i][j] = super::poly_add(ring, &c.to_vec(), &self.error[i][j]);
             }
         }
 
-        let mut ct_cin_i = ct_inner_i.clone();
-
-        for j in 0..bgg_rlwe.params.m {
-            let mut scratch = ring.allocate_scratch(1, 2, 0);
-            let mut scratch = scratch.borrow_mut();
-            let c = ring.take_poly(&mut scratch);
-            ring.poly_mul(c, &ct_inner_i[j], &s, scratch.reborrow());
-            ct_cin_i[j] = poly_add(ring, &c.to_vec(), &err_cin_i[j]);
-        }
-
-        ct_inner[i] = ct_inner_i;
-        ct_cin[i] = ct_cin_i;
+        ct_full
     }
-    (ct_inner, ct_cin)
 }
 
 pub fn m_eval_add(params: &Parameters, bu: &Vec<Vec<u64>>, bv: &Vec<Vec<u64>>) -> Vec<Vec<u64>> {
@@ -265,7 +294,8 @@ mod tests {
             .collect::<Vec<_>>();
         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just for easier arithmetic during encoding
 
-        let (ct_inner, _) = encode_attribute_vector(&bgg_rlwe, &x);
+        let ciphertext = Ciphertext::new(&bgg_rlwe.public_key, &bgg_rlwe.params, &x);
+        let ct_inner = ciphertext.inner();
 
         // Perform plus gate of b[1] and b[2]
         let h_1_plus_2 = m_eval_add(
@@ -308,7 +338,8 @@ mod tests {
             .collect::<Vec<_>>();
         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just for easier arithmetic during encoding
 
-        let (ct_inner, _) = encode_attribute_vector(&bgg_rlwe, &x);
+        let ciphertext = Ciphertext::new(&bgg_rlwe.public_key, &bgg_rlwe.params, &x);
+        let ct_inner = ciphertext.inner();
 
         // Perform multiplication gate of b[1] and b[2]
         let h_1_times_2 = m_eval_mul(
