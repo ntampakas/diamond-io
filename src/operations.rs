@@ -1,3 +1,4 @@
+use crate::{BggRlwe, Parameters};
 use phantom_zone_crypto::util::distribution::NoiseDistribution;
 use phantom_zone_math::{
     prelude::{ElemFrom, Gaussian, ModulusOps, Sampler},
@@ -5,39 +6,16 @@ use phantom_zone_math::{
 };
 use rand::{thread_rng, Rng};
 
-use crate::{BggRlwe, Parameters};
-
-pub fn poly_add(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
-    assert_eq!(a.len(), b.len());
-    let mut c = vec![ring.zero(); a.len()];
-    for i in 0..a.len() {
-        let elem = ring.add(&a[i], &b[i]);
-        c[i] = elem;
-    }
-    c
-}
-
-pub fn poly_sub(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
-    assert_eq!(a.len(), b.len());
-    let mut c = vec![ring.zero(); a.len()];
-    for i in 0..a.len() {
-        let elem = ring.sub(&a[i], &b[i]);
-        c[i] = elem;
-    }
-    c
-}
-
 /// Generate the public key `b` for the BGG+ RLWE attribute encoding
 /// where `b` is a matrix of ring elements of size `(ell + 1) x m`
-/// Using the notation of [DDP+17] each row is the vector b_i
+/// where `b[i][j]` is the polynomial at row i and column j
 pub fn pub_key_gen(params: &Parameters) -> Vec<Vec<Vec<u64>>> {
     let mut rng = thread_rng();
     let ring = &params.ring;
-    let mut b = vec![vec![vec![]; params.m]; params.ell + 1];
+    let mut b = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; params.ell + 1];
     for i in 0..(params.ell + 1) {
         for j in 0..params.m {
-            let b_ij = ring.sample_uniform_vec(ring.ring_size(), &mut rng);
-            b[i][j] = b_ij;
+            b[i][j] = ring.sample_uniform_vec(ring.ring_size(), &mut rng);
         }
     }
     b
@@ -249,6 +227,26 @@ pub fn bit_decompose(params: &Parameters, bu: &Vec<Vec<u64>>) -> Vec<Vec<Vec<u64
         }
     }
     tau
+}
+
+pub fn poly_add(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
+    assert_eq!(a.len(), b.len());
+    let mut c = vec![ring.zero(); a.len()];
+    for i in 0..a.len() {
+        let elem = ring.add(&a[i], &b[i]);
+        c[i] = elem;
+    }
+    c
+}
+
+pub fn poly_sub(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
+    assert_eq!(a.len(), b.len());
+    let mut c = vec![ring.zero(); a.len()];
+    for i in 0..a.len() {
+        let elem = ring.sub(&a[i], &b[i]);
+        c[i] = elem;
+    }
+    c
 }
 
 #[cfg(test)]

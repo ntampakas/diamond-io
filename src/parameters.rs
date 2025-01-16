@@ -10,7 +10,7 @@ use phantom_zone_math::{
 /// * `ell`: number of attributes
 /// * `m`: k + 2, where k is the number of bits in the modulus
 /// * `ring`: RLWE ring associated to the parameters
-/// * `g`: gadget vector
+/// * `g`: gadget vector, which each element is a constant polynomial and there are m of them (m - 2 of them are non-zero)
 #[derive(Debug)]
 pub struct Parameters {
     pub ell: usize,
@@ -25,7 +25,7 @@ impl Parameters {
     /// # Arguments
     ///
     /// * `log_ring_size`: log2 of ring size
-    /// * `k`: number of bits in the modulus
+    /// * `k`: number of bits in the ring modulus (q)
     /// * `ell`: number of attributes
     pub fn new(log_ring_size: usize, k: usize, ell: usize) -> Self {
         let q: Modulus = Prime::gen(k, log_ring_size + 1).into();
@@ -40,22 +40,12 @@ impl Parameters {
 
 /// Initialize the gadget vector `g` for the BGG+ RLWE attribute encoding
 ///
-/// `g = [2^0, 2^1, ..., 2^(k-1), 0, 0]` where each element is a monomial of degree 0
+/// `g = [2^0, 2^1, ..., 2^(k-1), 0, 0]` where each element is a constant polynomial
 pub fn init_gadget_vector(ring: &PrimeRing, m: usize) -> Vec<Vec<u64>> {
-    let mut g = vec![];
+    let mut g = vec![vec![ring.zero(); ring.ring_size()]; m];
 
-    // For each position in the gadget vector
     for i in 0..m - 2 {
-        // Create a polynomial with ring_size coefficients, all set to 0
-        let mut poly = vec![ring.zero(); ring.ring_size()];
-        // Set only the constant term (first coefficient) to 2^i
-        poly[0] = ring.elem_from(2u64.pow(i as u32));
-        g.push(poly);
+        g[i][0] = ring.elem_from(2u64.pow(i as u32));
     }
-
-    // Add two zero polynomials at the end
-    g.push(vec![ring.zero(); ring.ring_size()]);
-    g.push(vec![ring.zero(); ring.ring_size()]);
-
     g
 }
