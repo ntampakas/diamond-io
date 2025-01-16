@@ -147,7 +147,9 @@ pub fn m_eval_add_x(params: &Parameters) -> Vec<Vec<Vec<u64>>> {
 
 pub fn m_eval_mul(params: &Parameters, bu: &Vec<Vec<u64>>, bv: &Vec<Vec<u64>>) -> Vec<Vec<u64>> {
     let ring = &params.ring;
+
     let mut bw = vec![vec![ring.zero(); ring.ring_size()]; params.m];
+
     // Compute minus_bu by multiplying each coefficient by -1
     let mut minus_bu = vec![vec![ring.zero(); ring.ring_size()]; params.m];
     for i in 0..params.m {
@@ -160,9 +162,7 @@ pub fn m_eval_mul(params: &Parameters, bu: &Vec<Vec<u64>>, bv: &Vec<Vec<u64>>) -
 
     // Compute bw = bv * TAU
     for i in 0..params.m {
-        // For each polynomial in bv
         for h in 0..params.m {
-            // For each row of TAU
             let mut scratch = ring.allocate_scratch(1, 2, 0);
             let mut scratch = scratch.borrow_mut();
             let product = ring.take_poly(&mut scratch);
@@ -179,61 +179,39 @@ pub fn m_eval_mul(params: &Parameters, bu: &Vec<Vec<u64>>, bv: &Vec<Vec<u64>>) -
 
 pub fn m_eval_mul_x(
     params: &Parameters,
-    ct_inner_1: &Vec<Vec<u64>>,
-    ct_inner_2: &Vec<Vec<u64>>,
     pub_key_1: &Vec<Vec<u64>>,
     x_2: u64,
-) -> Vec<Vec<u64>> {
-    let mut ct_inner_1_times_ct_inner_2 = vec![vec![]; params.m];
+) -> Vec<Vec<Vec<u64>>> {
     let ring = &params.ring;
+    let mut h_mul_x = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; 2 * params.m];
 
-    // First compute x_2 * ct_inner_1
+    // First matrix: Identity matrix scaled by x_2
+    let mut x = vec![ring.zero(); ring.ring_size()];
+    x[0] = ring.elem_from(x_2);
     for i in 0..params.m {
-        let mut scratch = ring.allocate_scratch(1, 2, 0);
-        let mut scratch = scratch.borrow_mut();
-        let ct_inner_1_times_x_2_i = ring.take_poly(&mut scratch);
-
-        // Create polynomial for x_2
-        let mut x = vec![ring.zero(); ring.ring_size()];
-        x[0] = ring.elem_from(x_2);
-
-        ring.poly_mul(
-            ct_inner_1_times_x_2_i,
-            &x,
-            &ct_inner_1[i],
-            scratch.reborrow(),
-        );
-        ct_inner_1_times_ct_inner_2[i] = ct_inner_1_times_x_2_i.to_vec();
+        h_mul_x[i][i] = x.clone();
     }
 
-    // Compute τ which is the bit decomposition of pubkey_1
+    // Second matrix: Tau(b1)
+    // First compute -b1
     let mut minus_pub_key_1 = vec![vec![ring.zero(); ring.ring_size()]; params.m];
     for i in 0..params.m {
         for j in 0..ring.ring_size() {
-            // To get -1 * coefficient in the ring, we subtract the coefficient from 0
             minus_pub_key_1[i][j] = ring.sub(&ring.zero(), &pub_key_1[i][j]);
         }
     }
+
+    // Compute tau of -b1
     let tau = bit_decompose(params, &minus_pub_key_1);
 
-    // Add τᵀC₂ to the result
-    // Note: When accessing tau[i][h] instead of tau[h][i], we're effectively using τᵀ
-    for i in 0..params.m {
-        for h in 0..params.m {
-            let mut scratch = ring.allocate_scratch(1, 2, 0);
-            let mut scratch = scratch.borrow_mut();
-            let product = ring.take_poly(&mut scratch);
-
-            // Multiply C₂[h] by τᵀ[i][h] (which is tau[h][i])
-            ring.poly_mul(product, &ct_inner_2[h], &tau[h][i], scratch.reborrow());
-
-            // Add to the result
-            ct_inner_1_times_ct_inner_2[i] =
-                poly_add(ring, &ct_inner_1_times_ct_inner_2[i], &product.to_vec());
+    // Copy tau into the bottom half of h_mul_x
+    for h in 0..params.m {
+        for i in 0..params.m {
+            h_mul_x[h + params.m][i] = tau[h][i].clone();
         }
     }
 
-    ct_inner_1_times_ct_inner_2
+    h_mul_x
 }
 
 pub fn bit_decompose(params: &Parameters, bu: &Vec<Vec<u64>>) -> Vec<Vec<Vec<u64>>> {
@@ -306,8 +284,7 @@ mod tests {
         // Perform plus gate of ct_inner[1] and ct_inner[2] to obtain the matrix h_1_plus_2_x
         let h_1_plus_2_x = m_eval_add_x(&params);
 
-        // Verify homomorphism of plus gate such that (ct_inner[1] | ct_inner[2]) * h_1_plus_2_x = b_1_plus_2 + (x1*x2)G
-
+        // Verify homomorphism of plus gate such that (ct_inner[1] | ct_inner[2]) * h_1_plus_2_x = b_1_plus_2 + (x1+x2)G
         let mut lhs = vec![vec![params.ring.zero(); params.ring.ring_size()]; params.m];
         for i in 0..params.m {
             for j in 0..params.m {
@@ -335,7 +312,7 @@ mod tests {
             }
         }
 
-        let mut rhs = b_1_plus_2.clone();  
+        let mut rhs = b_1_plus_2.clone();
         let mut fx = vec![ring.zero(); ring.ring_size()];
         fx[0] = ring.elem_from(x[1] + x[2]);
 
@@ -356,49 +333,71 @@ mod tests {
     fn test_matrix_encoding_homomorphism_mul_gate() {
         let bgg_rlwe = BggRlwe::new(12, 51, 4);
         let mut rng = thread_rng();
-        let mut x = (0..bgg_rlwe.params.ell + 1)
+        let params = &bgg_rlwe.params;
+        let ring = &params.ring;
+        let mut x = (0..params.ell + 1)
             .map(|_| rng.gen_range(0..2))
             .collect::<Vec<_>>();
         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just for easier arithmetic during encoding
 
-        let ciphertext = Ciphertext::new(&bgg_rlwe.public_key, &bgg_rlwe.params, &x);
+        let ciphertext = Ciphertext::new(&bgg_rlwe.public_key, &params, &x);
         let ct_inner = ciphertext.inner();
 
         // Perform multiplication gate of b[1] and b[2]
-        let h_1_times_2 = m_eval_mul(
+        let b_1_times_2 = m_eval_mul(
             &bgg_rlwe.params,
             &bgg_rlwe.public_key[1],
             &bgg_rlwe.public_key[2],
         );
 
-        // Perform multiplication gate of ct_inner[1] and ct_inner[2]
+        // Perform plus gate of ct_inner[1] and ct_inner[2] to obtain the matrix h_1_plus_2_x
         let h_1_times_2_x = m_eval_mul_x(
             &bgg_rlwe.params,
-            &ct_inner[1],
-            &ct_inner[2],
             &bgg_rlwe.public_key[1],
             x[2], // Pass x[2] as the scalar multiplier
         );
 
-        // Verify homomorphism of multiplication gate
-        let lhs = h_1_times_2_x;
+        // Verify homomorphism of multiplication gate such that (ct_inner[1] | ct_inner[2]) * h_1_times_2_x = b_1_times_2 + (x1*x2)G
+        let mut lhs = vec![vec![params.ring.zero(); params.ring.ring_size()]; params.m];
+        for i in 0..params.m {
+            for j in 0..params.m {
+                let mut scratch = ring.allocate_scratch(1, 2, 0);
+                let mut scratch = scratch.borrow_mut();
+                let product = ring.take_poly(&mut scratch);
+                ring.poly_mul(
+                    product,
+                    &ct_inner[1][j],
+                    &h_1_times_2_x[j][i],
+                    scratch.reborrow(),
+                );
+                lhs[i] = poly_add(ring, &lhs[i], &product.to_vec());
 
-        let ring = &bgg_rlwe.params.ring;
-        let mut rhs = h_1_times_2.clone();
-        // Create fx such that the constant term (first coefficient) is x[1] * x[2]
+                let mut scratch = ring.allocate_scratch(1, 2, 0);
+                let mut scratch = scratch.borrow_mut();
+                let product_2 = ring.take_poly(&mut scratch);
+                ring.poly_mul(
+                    product_2,
+                    &ct_inner[2][j],
+                    &h_1_times_2_x[j + params.m][i],
+                    scratch.reborrow(),
+                );
+                lhs[i] = poly_add(ring, &lhs[i], &product_2.to_vec());
+            }
+        }
+
+        let mut rhs = b_1_times_2.clone();
         let mut fx = vec![ring.zero(); ring.ring_size()];
         fx[0] = ring.elem_from(x[1] * x[2]);
 
-        for i in 0..bgg_rlwe.params.m {
+        for i in 0..params.m {
             let mut scratch = ring.allocate_scratch(1, 2, 0);
             let mut scratch = scratch.borrow_mut();
             let gi_times_fx = ring.take_poly(&mut scratch);
-            ring.poly_mul(gi_times_fx, &bgg_rlwe.params.g[i], &fx, scratch.reborrow());
+            ring.poly_mul(gi_times_fx, &params.g[i], &fx, scratch.reborrow());
             let gi_times_fx_vec = gi_times_fx.to_vec();
             rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx_vec);
         }
-
-        for i in 0..bgg_rlwe.params.m {
+        for i in 0..params.m {
             assert_eq!(lhs[i], rhs[i]);
         }
     }
