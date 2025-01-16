@@ -131,17 +131,18 @@ pub fn m_eval_add(params: &Parameters, bu: &Vec<Vec<u64>>, bv: &Vec<Vec<u64>>) -
     bw
 }
 
-pub fn m_eval_add_x(
-    params: &Parameters,
-    ct_inner_1: &Vec<Vec<u64>>,
-    ct_inner_2: &Vec<Vec<u64>>,
-) -> Vec<Vec<u64>> {
-    let mut ct_inner_1_plus_ct_inner_2 = vec![vec![]; params.m];
+pub fn m_eval_add_x(params: &Parameters) -> Vec<Vec<Vec<u64>>> {
     let ring = &params.ring;
+    let mut h_add_x = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; 2 * params.m];
+
+    // Fill both identity matrices at once
     for i in 0..params.m {
-        ct_inner_1_plus_ct_inner_2[i] = poly_add(ring, &ct_inner_1[i], &ct_inner_2[i]);
+        // Set constant polynomial 1 on diagonals of both identity matrices
+        h_add_x[i][i][0] = ring.elem_from(1u64);
+        h_add_x[i + params.m][i][0] = ring.elem_from(1u64);
     }
-    ct_inner_1_plus_ct_inner_2
+
+    h_add_x
 }
 
 pub fn m_eval_mul(params: &Parameters, bu: &Vec<Vec<u64>>, bv: &Vec<Vec<u64>>) -> Vec<Vec<u64>> {
@@ -289,42 +290,64 @@ mod tests {
     fn test_matrix_encoding_homomorphism_add_gate() {
         let bgg_rlwe = BggRlwe::new(12, 51, 4);
         let mut rng = thread_rng();
-        let mut x = (0..bgg_rlwe.params.ell + 1)
+        let params = &bgg_rlwe.params;
+        let ring = &params.ring;
+        let mut x = (0..params.ell + 1)
             .map(|_| rng.gen_range(0..2))
             .collect::<Vec<_>>();
         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just for easier arithmetic during encoding
 
-        let ciphertext = Ciphertext::new(&bgg_rlwe.public_key, &bgg_rlwe.params, &x);
+        let ciphertext = Ciphertext::new(&bgg_rlwe.public_key, &params, &x);
         let ct_inner = ciphertext.inner();
 
         // Perform plus gate of b[1] and b[2]
-        let h_1_plus_2 = m_eval_add(
-            &bgg_rlwe.params,
-            &bgg_rlwe.public_key[1],
-            &bgg_rlwe.public_key[2],
-        );
+        let b_1_plus_2 = m_eval_add(&params, &bgg_rlwe.public_key[1], &bgg_rlwe.public_key[2]);
 
-        // Perform plus gate of ct_inner[1] and ct_inner[2]
-        let h_1_plus_2_x = m_eval_add_x(&bgg_rlwe.params, &ct_inner[1], &ct_inner[2]);
+        // Perform plus gate of ct_inner[1] and ct_inner[2] to obtain the matrix h_1_plus_2_x
+        let h_1_plus_2_x = m_eval_add_x(&params);
 
-        // Verify homomorphism of plus gate
-        let lhs = h_1_plus_2_x;
+        // Verify homomorphism of plus gate such that (ct_inner[1] | ct_inner[2]) * h_1_plus_2_x = b_1_plus_2 + (x1*x2)G
 
-        let ring = &bgg_rlwe.params.ring;
-        let mut rhs = h_1_plus_2.clone();
-        // Create fx such that the constant term (first coefficient) is to x[1] + x[2]
+        let mut lhs = vec![vec![params.ring.zero(); params.ring.ring_size()]; params.m];
+        for i in 0..params.m {
+            for j in 0..params.m {
+                let mut scratch = ring.allocate_scratch(1, 2, 0);
+                let mut scratch = scratch.borrow_mut();
+                let product = ring.take_poly(&mut scratch);
+                ring.poly_mul(
+                    product,
+                    &ct_inner[1][j],
+                    &h_1_plus_2_x[j][i],
+                    scratch.reborrow(),
+                );
+                lhs[i] = poly_add(ring, &lhs[i], &product.to_vec());
+
+                let mut scratch = ring.allocate_scratch(1, 2, 0);
+                let mut scratch = scratch.borrow_mut();
+                let product_2 = ring.take_poly(&mut scratch);
+                ring.poly_mul(
+                    product_2,
+                    &ct_inner[2][j],
+                    &h_1_plus_2_x[j + params.m][i],
+                    scratch.reborrow(),
+                );
+                lhs[i] = poly_add(ring, &lhs[i], &product_2.to_vec());
+            }
+        }
+
+        let mut rhs = b_1_plus_2.clone();  
         let mut fx = vec![ring.zero(); ring.ring_size()];
         fx[0] = ring.elem_from(x[1] + x[2]);
 
-        for i in 0..bgg_rlwe.params.m {
+        for i in 0..params.m {
             let mut scratch = ring.allocate_scratch(1, 2, 0);
             let mut scratch = scratch.borrow_mut();
             let gi_times_fx = ring.take_poly(&mut scratch);
-            ring.poly_mul(gi_times_fx, &bgg_rlwe.params.g[i], &fx, scratch.reborrow());
+            ring.poly_mul(gi_times_fx, &params.g[i], &fx, scratch.reborrow());
             let gi_times_fx_vec = gi_times_fx.to_vec();
             rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx_vec);
         }
-        for i in 0..bgg_rlwe.params.m {
+        for i in 0..params.m {
             assert_eq!(lhs[i], rhs[i]);
         }
     }
