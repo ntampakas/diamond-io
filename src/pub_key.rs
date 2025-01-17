@@ -5,9 +5,11 @@ use phantom_zone_math::{
     ring::RingOps,
 };
 use rand::thread_rng;
+
+#[derive(Debug, Clone)]
 pub struct PublicKey {
-    pub b: Vec<Vec<Vec<u64>>>,
-    pub params: Parameters,
+    b: Vec<Vec<Vec<u64>>>,
+    params: Parameters,
 }
 
 impl PublicKey {
@@ -70,5 +72,9 @@ impl PublicKey {
             }
         }
         out
+    }
+
+    pub fn b(&self) -> &Vec<Vec<Vec<u64>>> {
+        &self.b
     }
 }
