@@ -105,9 +105,9 @@ impl Ciphertext {
         ct_full
     }
 
-    /// Perform an add gate over the ciphertext components at indices `idx_1` and `idx_2` and return matrix `out`
+    /// Perform an add gate over the ciphertext components at indices `idx_a` and `idx_b` and return matrix `out`
     /// that satisfies the homorphism property described in [DDP+17] at page 22
-    pub fn add_gate(&self, idx_1: usize, idx_2: usize) -> Vec<Vec<Vec<u64>>> {
+    pub fn add_gate(&self, idx_a: usize, idx_b: usize) -> Vec<Vec<Vec<u64>>> {
         let ring = &self.params.ring;
         let m = self.params.m;
         let mut out = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; 2 * m];
@@ -122,9 +122,9 @@ impl Ciphertext {
         out
     }
 
-    /// Perform a mul gate over the ciphertext components at indices `idx_1` and `idx_2` and return matrix `out`
+    /// Perform a mul gate over the ciphertext components at indices `idx_a` and `idx_b` and return matrix `out`
     /// that satisfies the homorphism property described in [DDP+17] at page 22
-    pub fn mul_gate(&self, idx_1: usize, idx_2: usize) -> Vec<Vec<Vec<u64>>> {
+    pub fn mul_gate(&self, idx_a: usize, idx_b: usize) -> Vec<Vec<Vec<u64>>> {
         let ring = &self.params.ring;
         let m = self.params.m;
 
@@ -132,7 +132,7 @@ impl Ciphertext {
 
         // First matrix: Identity matrix scaled by x_2
         let mut x = vec![ring.zero(); ring.ring_size()];
-        let x_2 = self.x[idx_2];
+        let x_2 = self.x[idx_b];
         x[0] = ring.elem_from(x_2);
         for i in 0..m {
             out[i][i] = x.clone();
@@ -140,7 +140,7 @@ impl Ciphertext {
 
         // Second matrix: Tau(-b1)
         // First compute -b1
-        let b_1 = &self.pub_key.b()[idx_1];
+        let b_1 = &self.pub_key.b()[idx_a];
         let mut minus_b_1 = vec![vec![ring.zero(); ring.ring_size()]; m];
         for i in 0..m {
             for j in 0..ring.ring_size() {

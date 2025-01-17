@@ -31,18 +31,18 @@ impl PublicKey {
         }
     }
 
-    /// Perform a gate addition over the public key components at indices `idx_1` and `idx_2`
-    pub fn add_gate(&self, idx_1: usize, idx_2: usize) -> Vec<Vec<u64>> {
+    /// Perform a gate addition over the public key components at indices `idx_a` and `idx_b`
+    pub fn add_gate(&self, idx_a: usize, idx_b: usize) -> Vec<Vec<u64>> {
         let ring = &self.params.ring;
         let m = self.params.m;
         let mut out = vec![vec![ring.zero(); ring.ring_size()]; m];
         for i in 0..m {
-            out[i] = poly_add(&ring, &self.b[idx_1][i], &self.b[idx_2][i]);
+            out[i] = poly_add(&ring, &self.b[idx_a][i], &self.b[idx_b][i]);
         }
         out
     }
 
-    pub fn mul_gate(&self, idx_1: usize, idx_2: usize) -> Vec<Vec<u64>> {
+    pub fn mul_gate(&self, idx_a: usize, idx_b: usize) -> Vec<Vec<u64>> {
         let ring = &self.params.ring;
         let m = self.params.m;
         let mut out = vec![vec![ring.zero(); ring.ring_size()]; m];
@@ -52,7 +52,7 @@ impl PublicKey {
         for i in 0..m {
             for j in 0..ring.ring_size() {
                 // To get -1 * coefficient in the ring, we subtract the coefficient from 0
-                minus_b1[i][j] = ring.sub(&ring.zero(), &self.b[idx_1][i][j]);
+                minus_b1[i][j] = ring.sub(&ring.zero(), &self.b[idx_a][i][j]);
             }
         }
 
@@ -66,7 +66,7 @@ impl PublicKey {
                 let product = ring.take_poly(&mut scratch);
 
                 // Multiply b2[h] by tau[h][i]
-                ring.poly_mul(product, &self.b[idx_2][h], &tau[h][i], scratch.reborrow());
+                ring.poly_mul(product, &self.b[idx_b][h], &tau[h][i], scratch.reborrow());
 
                 out[i] = poly_add(ring, &out[i], &product.to_vec());
             }
