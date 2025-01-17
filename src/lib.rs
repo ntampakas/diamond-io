@@ -82,7 +82,7 @@ mod tests {
         let b_1_times_2 = pub_key.b()[params.ell + 1].clone();
 
         // Perform mul gate of ct_inner[1] and ct_inner[2]
-        let h_1_times_2_x = ciphertext.mul_gate(1, 2);
+        let h_1_times_2_x = ciphertext.mul_gate(&pub_key, 1, 2);
 
         // Verify homomorphism of mul gate such that (ct_inner[1] | ct_inner[2]) * h_1_times_2_x = b_1_times_2 + (x1*x2)G
         let concat_vec = [ct_inner[1].clone(), ct_inner[2].clone()].concat();
@@ -120,10 +120,10 @@ mod tests {
         let ciphertext = Ciphertext::new(&pub_key, &params, &x);
         let ct_inner = ciphertext.inner();
 
-        // Circuit: (x1 + x2 + x3)
+        // Circuit: ((x1 + x2) * x3)
         // Perform add gate of b[1] and b[2]
         pub_key.add_gate(1, 2);
-        let b_gate_first = pub_key.b()[params.ell + 1].clone();
+        let b_gate_first = &pub_key.b()[params.ell + 1];
 
         // Perform add gate of ct_inner[1] and ct_inner[2]
         let h_gate_first_x = ciphertext.add_gate(1, 2);
@@ -132,7 +132,7 @@ mod tests {
         let concat_vec = [ct_inner[1].clone(), ct_inner[2].clone()].concat();
         let lhs = vec_mat_mul(ring, concat_vec, h_gate_first_x);
 
-        let mut rhs = b_gate_first;
+        let mut rhs = b_gate_first.clone();
         let mut fx = vec![ring.zero(); ring.ring_size()];
         fx[0] = ring.elem_from(x[1] + x[2]);
 
@@ -148,20 +148,20 @@ mod tests {
             assert_eq!(lhs[i], rhs[i]);
         }
 
-        // Perform add gate of b_gate_first and b[3]
-        pub_key.add_gate(params.ell + 1, 3);
+        // Perform mul gate of ct_inner[params.ell + 1] and ct_inner[3]
+        let h_gate_second_x = ciphertext.mul_gate(&pub_key, params.ell + 1, 3);
+
+        // Perform mul gate of b_gate_first and b[3]
+        pub_key.mul_gate(params.ell + 1, 3);
         let b_gate_second = pub_key.b()[params.ell + 1].clone();
 
-        // Perform add gate of ct_inner[params.ell + 1] and ct_inner[3]
-        let h_gate_second_x = ciphertext.add_gate(params.ell + 1, 3);
-
-        // Verify homomorphism of add gate such that (b_gate_first + (x1+x2)G | ct_inner[3]) * h_gate_second_x = b_gate_second + (x1+x2+x3)G
-        let concat_vec = [rhs.clone(), ct_inner[3].clone()].concat();
+        // Verify homomorphism of mul gate such that (b_gate_first + (x1+x2)G | ct_inner[3]) * h_gate_second_x = b_gate_second + ((x1+x2)*x3)G
+        let concat_vec = [rhs, ct_inner[3].clone()].concat();
         let lhs = vec_mat_mul(ring, concat_vec, h_gate_second_x);
 
-        let mut rhs = b_gate_second;
+        let mut rhs = b_gate_second.clone();
         let mut fx = vec![ring.zero(); ring.ring_size()];
-        fx[0] = ring.elem_from(x[1] + x[2] + x[3]);
+        fx[0] = ring.elem_from((x[1] + x[2]) * x[3]);
 
         for i in 0..m {
             let mut scratch = ring.allocate_scratch(1, 2, 0);
