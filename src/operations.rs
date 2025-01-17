@@ -82,6 +82,24 @@ pub fn vec_mat_mul(ring: &PrimeRing, vec: Vec<Vec<u64>>, mat: Vec<Vec<Vec<u64>>>
     out
 }
 
+pub fn mat_mat_mul(
+    ring: &PrimeRing,
+    mat_a: Vec<Vec<Vec<u64>>>,
+    mat_b: Vec<Vec<Vec<u64>>>,
+) -> Vec<Vec<Vec<u64>>> {
+    let mat_a_rows = mat_a.len();
+    let mat_a_cols = mat_a[0].len();
+    let mat_b_rows = mat_b.len();
+    let mat_b_cols = mat_b[0].len();
+    assert_eq!(mat_a_cols, mat_b_rows);
+    let mut out = vec![vec![vec![ring.zero(); ring.ring_size()]; mat_b_cols]; mat_a_rows];
+
+    for i in 0..mat_a_rows {
+        out[i] = vec_mat_mul(ring, mat_a[i].clone(), mat_b.clone());
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use phantom_zone_math::{prelude::ModulusOps, ring::RingOps};

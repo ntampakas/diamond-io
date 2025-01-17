@@ -16,11 +16,12 @@ impl PublicKey {
     /// Generate the public key `b` based on BGG+ RLWE attribute encoding
     /// where `b` is a matrix of ring elements of size `(ell + 1) x m`
     /// where `b[i][j]` is the polynomial at row i and column j
+    /// actually we reserve a further slot in b for a temporary component so the size is `(ell + 2) x m`
     pub fn new(params: &Parameters) -> Self {
         let mut rng = thread_rng();
         let ring = &params.ring;
-        let mut b = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; params.ell + 1];
-        for i in 0..(params.ell + 1) {
+        let mut b = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; params.ell + 2];
+        for i in 0..(params.ell + 2) {
             for j in 0..params.m {
                 b[i][j] = ring.sample_uniform_vec(ring.ring_size(), &mut rng);
             }
@@ -31,7 +32,7 @@ impl PublicKey {
         }
     }
 
-    /// Perform a gate addition over the public key components at indices `idx_a` and `idx_b`
+    /// Perform a gate addition over the public key components at indices `idx_a` and `idx_b` and store the result in the `ell + 2`-th row
     pub fn add_gate(&self, idx_a: usize, idx_b: usize) -> Vec<Vec<u64>> {
         let ring = &self.params.ring;
         let m = self.params.m;
