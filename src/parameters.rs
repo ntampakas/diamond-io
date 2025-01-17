@@ -11,7 +11,7 @@ use phantom_zone_math::{
 /// * `m`: k + 2, where k is the number of bits in the modulus
 /// * `ring`: RLWE ring associated to the parameters
 /// * `g`: gadget vector, which each element is a constant polynomial and there are m of them (m - 2 of them are non-zero)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Parameters {
     pub ell: usize,
     pub m: usize,

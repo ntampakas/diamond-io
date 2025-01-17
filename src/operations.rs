@@ -1,25 +1,10 @@
-use crate::Parameters;
+use crate::{Parameters, PublicKey};
 use phantom_zone_crypto::util::distribution::NoiseDistribution;
 use phantom_zone_math::{
     prelude::{ElemFrom, Gaussian, ModulusOps, Sampler},
     ring::{PrimeRing, RingOps},
 };
 use rand::{thread_rng, Rng};
-
-/// Generate the public key `b` for the BGG+ RLWE attribute encoding
-/// where `b` is a matrix of ring elements of size `(ell + 1) x m`
-/// where `b[i][j]` is the polynomial at row i and column j
-pub fn pub_key_gen(params: &Parameters) -> Vec<Vec<Vec<u64>>> {
-    let mut rng = thread_rng();
-    let ring = &params.ring;
-    let mut b = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; params.ell + 1];
-    for i in 0..(params.ell + 1) {
-        for j in 0..params.m {
-            b[i][j] = ring.sample_uniform_vec(ring.ring_size(), &mut rng);
-        }
-    }
-    b
-}
 
 /// A ciphertext in the BGG+ RLWE encoding scheme
 #[derive(Clone, Debug)]
@@ -41,13 +26,13 @@ impl Ciphertext {
     /// * `public_key`: The public key matrix
     /// * `params`: System parameters
     /// * `x`: Attribute vector to encode
-    pub fn new(public_key: &Vec<Vec<Vec<u64>>>, params: &Parameters, x: &Vec<u64>) -> Self {
+    pub fn new(public_key: &PublicKey, params: &Parameters, x: &Vec<u64>) -> Self {
         assert!(x.len() == params.ell + 1);
 
         let mut rng = thread_rng();
         let ring = &params.ring;
         let s = ring.sample_uniform_vec(ring.ring_size(), &mut rng);
-        let mut ct_inner = public_key.clone();
+        let mut ct_inner = public_key.b.clone();
 
         // Generate error vectors
         let mut err_a = vec![vec![ring.zero(); ring.ring_size()]; params.m];
@@ -122,15 +107,6 @@ impl Ciphertext {
     }
 }
 
-pub fn m_eval_add(params: &Parameters, bu: &Vec<Vec<u64>>, bv: &Vec<Vec<u64>>) -> Vec<Vec<u64>> {
-    let mut bw = vec![vec![]; params.m];
-    let ring = &params.ring;
-    for i in 0..params.m {
-        bw[i] = poly_add(&ring, &bu[i], &bv[i]);
-    }
-    bw
-}
-
 pub fn m_eval_add_x(params: &Parameters) -> Vec<Vec<Vec<u64>>> {
     let ring = &params.ring;
     let mut h_add_x = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; 2 * params.m];
@@ -143,38 +119,6 @@ pub fn m_eval_add_x(params: &Parameters) -> Vec<Vec<Vec<u64>>> {
     }
 
     h_add_x
-}
-
-pub fn m_eval_mul(params: &Parameters, bu: &Vec<Vec<u64>>, bv: &Vec<Vec<u64>>) -> Vec<Vec<u64>> {
-    let ring = &params.ring;
-
-    let mut bw = vec![vec![ring.zero(); ring.ring_size()]; params.m];
-
-    // Compute minus_bu by multiplying each coefficient by -1
-    let mut minus_bu = vec![vec![ring.zero(); ring.ring_size()]; params.m];
-    for i in 0..params.m {
-        for j in 0..ring.ring_size() {
-            // To get -1 * coefficient in the ring, we subtract the coefficient from 0
-            minus_bu[i][j] = ring.sub(&ring.zero(), &bu[i][j]);
-        }
-    }
-    let tau = bit_decompose(params, &minus_bu);
-
-    // Compute bw = bv * TAU
-    for i in 0..params.m {
-        for h in 0..params.m {
-            let mut scratch = ring.allocate_scratch(1, 2, 0);
-            let mut scratch = scratch.borrow_mut();
-            let product = ring.take_poly(&mut scratch);
-
-            // Multiply bv[h] by tau[h][i]
-            ring.poly_mul(product, &bv[h], &tau[h][i], scratch.reborrow());
-
-            // Add to the result
-            bw[i] = poly_add(ring, &bw[i], &product.to_vec());
-        }
-    }
-    bw
 }
 
 pub fn m_eval_mul_x(
@@ -267,6 +211,7 @@ mod tests {
     #[test]
     fn test_matrix_encoding_homomorphism_add_gate() {
         let bgg_rlwe = BggRlwe::new(12, 51, 4);
+        let pub_key = &bgg_rlwe.public_key;
         let mut rng = thread_rng();
         let params = &bgg_rlwe.params;
         let ring = &params.ring;
@@ -279,7 +224,7 @@ mod tests {
         let ct_inner = ciphertext.inner();
 
         // Perform plus gate of b[1] and b[2]
-        let b_1_plus_2 = m_eval_add(&params, &bgg_rlwe.public_key[1], &bgg_rlwe.public_key[2]);
+        let b_1_plus_2 = pub_key.add_gate(1, 2);
 
         // Perform plus gate of ct_inner[1] and ct_inner[2] to obtain the matrix h_1_plus_2_x
         let h_1_plus_2_x = m_eval_add_x(&params);
@@ -332,6 +277,7 @@ mod tests {
     #[test]
     fn test_matrix_encoding_homomorphism_mul_gate() {
         let bgg_rlwe = BggRlwe::new(12, 51, 4);
+        let pub_key = &bgg_rlwe.public_key;
         let mut rng = thread_rng();
         let params = &bgg_rlwe.params;
         let ring = &params.ring;
@@ -344,16 +290,12 @@ mod tests {
         let ct_inner = ciphertext.inner();
 
         // Perform multiplication gate of b[1] and b[2]
-        let b_1_times_2 = m_eval_mul(
-            &bgg_rlwe.params,
-            &bgg_rlwe.public_key[1],
-            &bgg_rlwe.public_key[2],
-        );
+        let b_1_times_2 = pub_key.mul_gate(1, 2);
 
         // Perform plus gate of ct_inner[1] and ct_inner[2] to obtain the matrix h_1_plus_2_x
         let h_1_times_2_x = m_eval_mul_x(
             &bgg_rlwe.params,
-            &bgg_rlwe.public_key[1],
+            &bgg_rlwe.public_key.b[1],
             x[2], // Pass x[2] as the scalar multiplier
         );
 
@@ -405,7 +347,7 @@ mod tests {
     #[test]
     fn test_bit_decompose() {
         let bgg_rlwe = BggRlwe::new(12, 51, 4);
-        let bu = bgg_rlwe.public_key[1].clone();
+        let bu = bgg_rlwe.public_key.b[1].clone();
         let ring = &bgg_rlwe.params.ring;
         let tau = bit_decompose(&bgg_rlwe.params, &bu);
 

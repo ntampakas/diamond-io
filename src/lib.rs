@@ -1,20 +1,22 @@
 mod operations;
 mod parameters;
+mod pub_key;
 mod utils;
 
-pub use operations::{poly_add, poly_sub, pub_key_gen, Ciphertext};
+pub use operations::{poly_add, poly_sub, Ciphertext};
 pub use parameters::Parameters;
+pub use pub_key::PublicKey;
 pub use utils::{print_matrix_ring, print_vector, print_vector_ring};
 
 pub struct BggRlwe {
     params: Parameters,
-    public_key: Vec<Vec<Vec<u64>>>,
+    public_key: PublicKey,
 }
 
 impl BggRlwe {
     pub fn new(log_ring_size: usize, k: usize, ell: usize) -> Self {
         let params = Parameters::new(log_ring_size, k, ell);
-        let public_key = operations::pub_key_gen(&params);
+        let public_key = PublicKey::new(&params);
         Self { params, public_key }
     }
 
