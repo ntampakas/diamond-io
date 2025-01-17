@@ -16,7 +16,7 @@ impl PublicKey {
     /// Generate the public key `b` based on BGG+ RLWE attribute encoding
     /// where `b` is a matrix of ring elements of size `(ell + 1) x m`
     /// where `b[i][j]` is the polynomial at row i and column j
-    /// actually we reserve a further slot in b for a temporary component so the size is `(ell + 2) x m`
+    /// actually we reserve a further special row in b for a temporary component so the size is `(ell + 2) x m`
     pub fn new(params: &Parameters) -> Self {
         let mut rng = thread_rng();
         let ring = &params.ring;
@@ -32,47 +32,48 @@ impl PublicKey {
         }
     }
 
-    /// Perform a gate addition over the public key components at indices `idx_a` and `idx_b` and store the result in the `ell + 2`-th row
-    pub fn add_gate(&self, idx_a: usize, idx_b: usize) -> Vec<Vec<u64>> {
+    /// Perform a gate addition over the public key components at indices `idx_a` and `idx_b` and store the result in the special row
+    pub fn add_gate(&mut self, idx_a: usize, idx_b: usize) {
         let ring = &self.params.ring;
         let m = self.params.m;
         let mut out = vec![vec![ring.zero(); ring.ring_size()]; m];
         for i in 0..m {
             out[i] = poly_add(&ring, &self.b[idx_a][i], &self.b[idx_b][i]);
         }
-        out
+        self.b[self.params.ell + 1] = out;
     }
 
-    pub fn mul_gate(&self, idx_a: usize, idx_b: usize) -> Vec<Vec<u64>> {
+    /// Perform a gate multiplication over the public key components at indices `idx_a` and `idx_b` and store the result in the special row
+    pub fn mul_gate(&mut self, idx_a: usize, idx_b: usize) {
         let ring = &self.params.ring;
         let m = self.params.m;
         let mut out = vec![vec![ring.zero(); ring.ring_size()]; m];
 
-        // Compute minus_b1 by multiplying each coefficient by -1
-        let mut minus_b1 = vec![vec![ring.zero(); ring.ring_size()]; m];
+        // Compute minus_b_a by multiplying each coefficient by -1
+        let mut minus_b_a = vec![vec![ring.zero(); ring.ring_size()]; m];
         for i in 0..m {
             for j in 0..ring.ring_size() {
                 // To get -1 * coefficient in the ring, we subtract the coefficient from 0
-                minus_b1[i][j] = ring.sub(&ring.zero(), &self.b[idx_a][i][j]);
+                minus_b_a[i][j] = ring.sub(&ring.zero(), &self.b[idx_a][i][j]);
             }
         }
 
-        let tau = bit_decompose(&self.params, &minus_b1);
+        let tau = bit_decompose(&self.params, &minus_b_a);
 
-        // Compute out = b2 * TAU
+        // Compute out = b_b * TAU
         for i in 0..m {
             for h in 0..m {
                 let mut scratch = ring.allocate_scratch(1, 2, 0);
                 let mut scratch = scratch.borrow_mut();
                 let product = ring.take_poly(&mut scratch);
 
-                // Multiply b2[h] by tau[h][i]
+                // Multiply b_b[h] by tau[h][i]
                 ring.poly_mul(product, &self.b[idx_b][h], &tau[h][i], scratch.reborrow());
 
                 out[i] = poly_add(ring, &out[i], &product.to_vec());
             }
         }
-        out
+        self.b[self.params.ell + 1] = out;
     }
 
     pub fn b(&self) -> &Vec<Vec<Vec<u64>>> {
