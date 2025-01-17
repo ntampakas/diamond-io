@@ -130,26 +130,26 @@ impl Ciphertext {
 
         let mut out = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; 2 * m];
 
-        // First matrix: Identity matrix scaled by x_b
+        // First matrix: Identity matrix scaled by x_idx_b
         let mut x = vec![ring.zero(); ring.ring_size()];
-        let x_b = self.x[idx_b];
-        x[0] = ring.elem_from(x_b);
+        let x_idx_b = self.x[idx_b];
+        x[0] = ring.elem_from(x_idx_b);
         for i in 0..m {
             out[i][i] = x.clone();
         }
 
-        // Second matrix: Tau(-b_a)
-        // First compute -b_a
-        let b_a = &self.pub_key.b()[idx_a];
-        let mut minus_b_a = vec![vec![ring.zero(); ring.ring_size()]; m];
+        // Second matrix: Tau(-b_idx_a)
+        // First compute -b_idx_a
+        let b_idx_a = &self.pub_key.b()[idx_a];
+        let mut minus_b_idx_a = vec![vec![ring.zero(); ring.ring_size()]; m];
         for i in 0..m {
             for j in 0..ring.ring_size() {
-                minus_b_a[i][j] = ring.sub(&ring.zero(), &b_a[i][j]);
+                minus_b_idx_a[i][j] = ring.sub(&ring.zero(), &b_idx_a[i][j]);
             }
         }
 
-        // Compute tau of -b_a
-        let tau = bit_decompose(&self.params, &minus_b_a);
+        // Compute tau of -b_idx_a
+        let tau = bit_decompose(&self.params, &minus_b_idx_a);
 
         // Copy tau into the bottom half of out
         for h in 0..m {

@@ -21,7 +21,7 @@ mod tests {
 
     #[test]
     fn test_matrix_encoding_homomorphism_add_gate() {
-        let params = Parameters::new(12, 51, 4);
+        let params = Parameters::new(12, 51, 7);
         let mut pub_key = PublicKey::new(&params);
         let mut rng = thread_rng();
         let ring = &params.ring;
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_matrix_encoding_homomorphism_mul_gate() {
-        let params = Parameters::new(12, 51, 4);
+        let params = Parameters::new(12, 51, 7);
         let mut pub_key = PublicKey::new(&params);
         let mut rng = thread_rng();
         let ring = &params.ring;
