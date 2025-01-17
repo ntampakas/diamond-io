@@ -47,23 +47,37 @@ pub fn poly_sub(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
     c
 }
 
+pub fn vec_vec_dot_product(
+    ring: &PrimeRing,
+    vec_a: &Vec<Vec<u64>>,
+    vec_b: &Vec<Vec<u64>>,
+) -> Vec<u64> {
+    assert_eq!(
+        vec_a.len(),
+        vec_b.len(),
+        "Vectors must have the same length"
+    );
+    let mut out = vec![ring.zero(); ring.ring_size()];
+    for i in 0..vec_a.len() {
+        let mut scratch = ring.allocate_scratch(1, 2, 0);
+        let mut scratch = scratch.borrow_mut();
+        let product = ring.take_poly(&mut scratch);
+        ring.poly_mul(product, &vec_a[i], &vec_b[i], scratch.reborrow());
+        out = poly_add(ring, &out, &product.to_vec());
+    }
+    out
+}
+
 pub fn vec_mat_mul(ring: &PrimeRing, vec: Vec<Vec<u64>>, mat: Vec<Vec<Vec<u64>>>) -> Vec<Vec<u64>> {
     let len = vec.len();
-    let rows = mat.len();
-    let cols = mat[0].len();
-    assert_eq!(len, rows);
-    let mut out = vec![vec![ring.zero(); ring.ring_size()]; cols];
+    let mat_rows = mat.len();
+    let mat_cols = mat[0].len();
+    assert_eq!(len, mat_rows);
+    let mut out = vec![vec![ring.zero(); ring.ring_size()]; mat_cols];
 
-    for i in 0..cols {
-        for j in 0..rows {
-            let mut scratch = ring.allocate_scratch(1, 2, 0);
-            let mut scratch = scratch.borrow_mut();
-            let product = ring.take_poly(&mut scratch);
-
-            // Multiply vector element with matrix element
-            ring.poly_mul(product, &vec[j], &mat[j][i], scratch.reborrow());
-            out[i] = poly_add(ring, &out[i], &product.to_vec());
-        }
+    for i in 0..mat_cols {
+        let col_i = mat.iter().map(|row| row[i].clone()).collect::<Vec<_>>();
+        out[i] = vec_vec_dot_product(ring, &vec, &col_i);
     }
     out
 }
