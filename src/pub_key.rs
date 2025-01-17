@@ -21,7 +21,7 @@ impl PublicKey {
         let mut rng = thread_rng();
         let ring = &params.ring;
         let mut b = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; params.ell + 2];
-        for i in 0..(params.ell + 2) {
+        for i in 0..(params.ell + 1) {
             for j in 0..params.m {
                 b[i][j] = ring.sample_uniform_vec(ring.ring_size(), &mut rng);
             }
