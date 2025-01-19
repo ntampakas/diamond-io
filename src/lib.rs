@@ -1,4 +1,5 @@
 pub mod ciphertext;
+pub mod circuit;
 pub mod eval;
 pub mod operations;
 pub mod parameters;

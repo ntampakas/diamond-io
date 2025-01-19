@@ -159,7 +159,7 @@ mod tests {
 
         // Verify homomorphism of add gate such that (ct_inner[1] | ct_inner[2]) * h_1_plus_2_x = b_1_plus_2 + (x1+x2)G
         let concat_vec = [ct_inner[1].clone(), ct_inner[2].clone()].concat();
-        let lhs = vec_mat_mul(ring, concat_vec, h_1_plus_2_x);
+        let lhs = vec_mat_mul(ring, &concat_vec, &h_1_plus_2_x);
 
         let mut rhs = b_1_plus_2;
         let mut fx = vec![ring.zero(); ring.ring_size()];
@@ -203,7 +203,8 @@ mod tests {
 
         // Verify homomorphism of mul gate such that (ct_inner[1] | ct_inner[2]) * h_1_times_2_x = b_1_times_2 + (x1*x2)G
         let concat_vec = [ct_inner[1].clone(), ct_inner[2].clone()].concat();
-        let lhs = vec_mat_mul(ring, concat_vec, h_1_times_2_x);
+
+        let lhs = vec_mat_mul(ring, &concat_vec, &h_1_times_2_x);
 
         let mut rhs = b_1_times_2.clone();
         let mut fx = vec![ring.zero(); ring.ring_size()];
