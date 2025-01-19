@@ -1,4 +1,4 @@
-use crate::Parameters;
+use crate::parameters::Parameters;
 use phantom_zone_math::{
     prelude::ModulusOps,
     ring::{PrimeRing, RingOps},
@@ -87,8 +87,11 @@ pub fn vec_mat_mul(ring: &PrimeRing, vec: Vec<Vec<u64>>, mat: Vec<Vec<Vec<u64>>>
 mod tests {
     use phantom_zone_math::{prelude::ModulusOps, ring::RingOps};
 
-    use crate::{bit_decompose, poly_add, Parameters, PublicKey};
-
+    use crate::{
+        operations::{bit_decompose, poly_add},
+        parameters::Parameters,
+        pub_key::PublicKey,
+    };
     #[test]
     fn test_bit_decompose() {
         let params = Parameters::new(12, 51, 4);

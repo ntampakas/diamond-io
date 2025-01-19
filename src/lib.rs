@@ -1,18 +1,19 @@
-mod ciphertext;
-mod operations;
-mod parameters;
-mod pub_key;
-mod utils;
-
-pub use ciphertext::Ciphertext;
-pub use operations::{bit_decompose, poly_add, poly_sub};
-pub use parameters::Parameters;
-pub use pub_key::PublicKey;
-pub use utils::{print_matrix_ring, print_vector, print_vector_ring};
+pub mod ciphertext;
+pub mod eval;
+pub mod operations;
+pub mod parameters;
+pub mod pub_key;
+pub mod utils;
 
 #[cfg(test)]
 mod tests {
-    use crate::{operations::vec_mat_mul, poly_add, Ciphertext, Parameters, PublicKey};
+    use crate::{
+        ciphertext::Ciphertext,
+        eval::{m_eval_add, m_eval_add_x, m_eval_mul, m_eval_mul_x},
+        operations::{poly_add, vec_mat_mul},
+        parameters::Parameters,
+        pub_key::PublicKey,
+    };
     use phantom_zone_math::{
         prelude::{ElemFrom, ModulusOps},
         ring::RingOps,
@@ -22,7 +23,7 @@ mod tests {
     #[test]
     fn test_matrix_encoding_homomorphism_add_gate() {
         let params = Parameters::new(12, 51, 7);
-        let mut pub_key = PublicKey::new(params);
+        let pub_key = PublicKey::new(params);
         let mut rng = thread_rng();
         let ring = pub_key.params().ring();
         let m = *pub_key.params().m();
@@ -37,10 +38,10 @@ mod tests {
         let ct_inner = ciphertext.inner();
 
         // Perform add gate of b[1] and b[2]
-        let b_1_plus_2 = pub_key.add_gate(1, 2);
+        let b_1_plus_2 = m_eval_add(&pub_key, 1, 2);
 
         // Perform add gate of ct_inner[1] and ct_inner[2]
-        let h_1_plus_2_x = ciphertext.add_gate(&pub_key, 1, 2);
+        let h_1_plus_2_x = m_eval_add_x(&pub_key, &x, 1, 2);
 
         // Verify homomorphism of add gate such that (ct_inner[1] | ct_inner[2]) * h_1_plus_2_x = b_1_plus_2 + (x1+x2)G
         let concat_vec = [ct_inner[1].clone(), ct_inner[2].clone()].concat();
@@ -66,7 +67,7 @@ mod tests {
     #[test]
     fn test_matrix_encoding_homomorphism_mul_gate() {
         let params = Parameters::new(12, 51, 7);
-        let mut pub_key = PublicKey::new(params);
+        let pub_key = PublicKey::new(params);
         let mut rng = thread_rng();
         let ring = pub_key.params().ring();
         let m = *pub_key.params().m();
@@ -81,10 +82,10 @@ mod tests {
         let ct_inner = ciphertext.inner();
 
         // Perform mul gate of b[1] and b[2]
-        let b_1_times_2 = pub_key.mul_gate(1, 2);
+        let b_1_times_2 = m_eval_mul(&pub_key, 1, 2);
 
         // Perform mul gate of ct_inner[1] and ct_inner[2]
-        let h_1_times_2_x = ciphertext.mul_gate(&pub_key, 1, 2);
+        let h_1_times_2_x = m_eval_mul_x(&pub_key, &x, 1, 2);
 
         // Verify homomorphism of mul gate such that (ct_inner[1] | ct_inner[2]) * h_1_times_2_x = b_1_times_2 + (x1*x2)G
         let concat_vec = [ct_inner[1].clone(), ct_inner[2].clone()].concat();
