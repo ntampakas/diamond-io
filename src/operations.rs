@@ -5,15 +5,16 @@ use phantom_zone_math::{
 };
 
 pub fn bit_decompose(params: &Parameters, bu: &Vec<Vec<u64>>) -> Vec<Vec<Vec<u64>>> {
-    let ring = &params.ring;
+    let ring = params.ring();
+    let m = *params.m();
     let ring_size = ring.ring_size();
     // Create a matrix of dimension m × m, where each element is a binary polynomial
-    let mut tau = vec![vec![vec![ring.zero(); ring_size]; params.m]; params.m];
+    let mut tau = vec![vec![vec![ring.zero(); ring_size]; m]; m];
 
     // For each row h in the output matrix
-    for h in 0..params.m {
+    for h in 0..m {
         // For each column i in the output matrix
-        for i in 0..params.m {
+        for i in 0..m {
             // For each coefficient j in the polynomial
             for j in 0..ring_size {
                 // Get the h-th bit of the j-th coefficient of the i-th polynomial
@@ -91,11 +92,12 @@ mod tests {
     #[test]
     fn test_bit_decompose() {
         let params = Parameters::new(12, 51, 4);
-        let pub_key = PublicKey::new(&params);
+        let pub_key = PublicKey::new(params);
         let b1 = &pub_key.b()[1];
-        let ring = &params.ring;
-        let m = params.m;
-        let tau = bit_decompose(&params, b1);
+        let ring = pub_key.params().ring();
+        let m = *pub_key.params().m();
+        let g = pub_key.params().g();
+        let tau = bit_decompose(pub_key.params(), b1);
 
         // Reconstruct the original input by multiplying tau with G
         let mut reconstructed = vec![vec![ring.zero(); ring.ring_size()]; m];
@@ -108,7 +110,7 @@ mod tests {
                 let mut scratch = ring.allocate_scratch(1, 2, 0);
                 let mut scratch = scratch.borrow_mut();
                 let product = ring.take_poly(&mut scratch);
-                ring.poly_mul(product, &tau[h][i], &params.g[h], scratch.reborrow());
+                ring.poly_mul(product, &tau[h][i], &g[h], scratch.reborrow());
                 reconstructed[i] = poly_add(ring, &reconstructed[i], &product.to_vec());
             }
         }

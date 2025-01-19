@@ -13,10 +13,10 @@ use phantom_zone_math::{
 /// * `g`: gadget vector, which each element is a constant polynomial and there are m of them (m - 2 of them are non-zero)
 #[derive(Debug, Clone)]
 pub struct Parameters {
-    pub ell: usize,
-    pub m: usize,
-    pub ring: PrimeRing,
-    pub g: Vec<Vec<u64>>,
+    ell: usize,
+    m: usize,
+    ring: PrimeRing,
+    g: Vec<Vec<u64>>,
 }
 
 impl Parameters {
@@ -35,6 +35,22 @@ impl Parameters {
         let m = k_ + 2;
         let g = init_gadget_vector(&ring, m);
         Self { ell, m, ring, g }
+    }
+
+    pub fn ring(&self) -> &PrimeRing {
+        &self.ring
+    }
+
+    pub fn m(&self) -> &usize {
+        &self.m
+    }
+
+    pub fn ell(&self) -> &usize {
+        &self.ell
+    }
+
+    pub fn g(&self) -> &Vec<Vec<u64>> {
+        &self.g
     }
 }
 
