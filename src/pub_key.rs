@@ -16,11 +16,10 @@ impl PublicKey {
     /// Generate the public key `b` based on BGG+ RLWE attribute encoding
     /// where `b` is a matrix of ring elements of size `(ell + 1) x m`
     /// where `b[i][j]` is the polynomial at row i and column j
-    /// actually we reserve a further special row in b for a temporary component so the size is `(ell + 2) x m`
     pub fn new(params: &Parameters) -> Self {
         let mut rng = thread_rng();
         let ring = &params.ring;
-        let mut b = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; params.ell + 2];
+        let mut b = vec![vec![vec![ring.zero(); ring.ring_size()]; params.m]; params.ell + 1];
         for i in 0..(params.ell + 1) {
             for j in 0..params.m {
                 b[i][j] = ring.sample_uniform_vec(ring.ring_size(), &mut rng);
@@ -32,19 +31,19 @@ impl PublicKey {
         }
     }
 
-    /// Perform a gate addition over the public key components at indices `idx_a` and `idx_b` and store the result in the special row
-    pub fn add_gate(&mut self, idx_a: usize, idx_b: usize) {
+    /// Perform a gate addition over the public key components at indices `idx_a` and `idx_b` and return the result
+    pub fn add_gate(&mut self, idx_a: usize, idx_b: usize) -> Vec<Vec<u64>> {
         let ring = &self.params.ring;
         let m = self.params.m;
         let mut out = vec![vec![ring.zero(); ring.ring_size()]; m];
         for i in 0..m {
             out[i] = poly_add(&ring, &self.b[idx_a][i], &self.b[idx_b][i]);
         }
-        self.b[self.params.ell + 1] = out;
+        out
     }
 
-    /// Perform a gate multiplication over the public key components at indices `idx_a` and `idx_b` and store the result in the special row
-    pub fn mul_gate(&mut self, idx_a: usize, idx_b: usize) {
+    /// Perform a gate multiplication over the public key components at indices `idx_a` and `idx_b` and return the result
+    pub fn mul_gate(&mut self, idx_a: usize, idx_b: usize) -> Vec<Vec<u64>> {
         let ring = &self.params.ring;
         let m = self.params.m;
         let mut out = vec![vec![ring.zero(); ring.ring_size()]; m];
@@ -73,7 +72,7 @@ impl PublicKey {
                 out[i] = poly_add(ring, &out[i], &product.to_vec());
             }
         }
-        self.b[self.params.ell + 1] = out;
+        out
     }
 
     pub fn b(&self) -> &Vec<Vec<Vec<u64>>> {
