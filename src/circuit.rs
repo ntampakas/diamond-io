@@ -24,15 +24,12 @@ impl CircuitX {
         let m = *params.m();
         let ell = *params.ell();
 
-        let mut b_gates = pub_key.b().clone();
-        b_gates.remove(0);
-        let mut x_gates = x.clone();
-        x_gates.remove(0);
+        let b_gates = pub_key.b().clone();
+        let x_gates = x.clone();
+        let mut h_gates = Vec::with_capacity(ell + 1);
 
-        let mut h_gates = Vec::with_capacity(ell);
-
-        for i in 0..ell {
-            let mut h_gate = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; ell * m];
+        for i in 0..ell + 1 {
+            let mut h_gate = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; (ell + 1) * m];
             for j in 0..m {
                 h_gate[i * m + j][j][0] = ring.elem_from(1u64);
             }
@@ -104,7 +101,6 @@ pub struct Circuit {
 impl Circuit {
     pub fn new(pub_key: &PublicKey) -> Self {
         let mut b_gates = pub_key.b().clone();
-        b_gates.remove(0);
 
         Self { b_gates }
     }
@@ -156,14 +152,15 @@ mod tests {
         let mut circuit_x = CircuitX::new(&pub_key, &x);
         let mut circuit = Circuit::new(&pub_key);
 
-        let gate_idx_1 = circuit.add_gate(pub_key.params(), 0, 1); // x1 + x2
-        let gate_idx_2 = circuit.add_gate(pub_key.params(), gate_idx_1, 2); // x1 + x2 + x3
+        let gate_idx_1 = circuit.add_gate(pub_key.params(), 1, 2); // x1 + x2
+        let _ = circuit.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x3
 
-        let gate_idx_1 = circuit_x.add_gate(pub_key.params(), 0, 1); // x1 + x2
-        let gate_idx_2 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 2); // x1 + x2 + x3
+        let gate_idx_1 = circuit_x.add_gate(pub_key.params(), 1, 2); // x1 + x2
+        let gate_idx_2 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x3
 
-        // verify homomorphism such that (ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * h[gate_idx_2] = b[gate_idx_2] + (x1 + x2 + x3)G
+        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * h[gate_idx_2] = b[gate_idx_2] + (x1 + x2 + x3)G
         let concat_vec = [
+            ct_inner[0].clone(),
             ct_inner[1].clone(),
             ct_inner[2].clone(),
             ct_inner[3].clone(),
@@ -213,14 +210,14 @@ mod tests {
         let mut circuit_x = CircuitX::new(&pub_key, &x);
         let mut circuit = Circuit::new(&pub_key);
 
-        assert_eq!(circuit_x.b_gates().len(), ell);
-        assert_eq!(circuit.b_gates().len(), ell);
-        assert_eq!(circuit_x.x_gates().len(), ell);
-        assert_eq!(circuit_x.h_gates().len(), ell);
+        assert_eq!(circuit_x.b_gates().len(), ell + 1);
+        assert_eq!(circuit.b_gates().len(), ell + 1);
+        assert_eq!(circuit_x.x_gates().len(), ell + 1);
+        assert_eq!(circuit_x.h_gates().len(), ell + 1);
 
-        // assert that each h_gate is a matrix of size ell * m X m
+        // assert that each h_gate is a matrix of size (ell + 1) * m X m
         for h_gate in circuit_x.h_gates() {
-            assert_eq!(h_gate.len(), ell * m);
+            assert_eq!(h_gate.len(), (ell + 1) * m);
             assert_eq!(h_gate[0].len(), m);
         }
 
@@ -228,20 +225,21 @@ mod tests {
         let gate_idx_2 = circuit.add_gate(pub_key.params(), gate_idx_1, 2); // x1 + x2 + x3
         let gate_idx_3 = circuit.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x4
 
-        assert_eq!(gate_idx_1, ell - 1 + 1);
-        assert_eq!(gate_idx_2, ell - 1 + 2);
-        assert_eq!(gate_idx_3, ell - 1 + 3);
+        assert_eq!(gate_idx_1, ell + 1);
+        assert_eq!(gate_idx_2, ell + 2);
+        assert_eq!(gate_idx_3, ell + 3);
 
         let gate_idx_1 = circuit_x.add_gate(pub_key.params(), 0, 1); // x1 + x2
         let gate_idx_2 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 2); // x1 + x2 + x3
         let gate_idx_3 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x4
 
-        assert_eq!(gate_idx_1, ell - 1 + 1);
-        assert_eq!(gate_idx_2, ell - 1 + 2);
-        assert_eq!(gate_idx_3, ell - 1 + 3);
+        assert_eq!(gate_idx_1, ell + 1);
+        assert_eq!(gate_idx_2, ell + 2);
+        assert_eq!(gate_idx_3, ell + 3);
 
-        // verify homomorphism such that (ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * (h[gate_idx_2] | h[gate_idx_3]) = [b[gate_idx_2] | b[gate_idx_3]] + [(x1 + x2 + x3)G | (x1 + x2 + x4)G]
+        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * (h[gate_idx_2] | h[gate_idx_3]) = [b[gate_idx_2] | b[gate_idx_3]] + [(x1 + x2 + x3)G | (x1 + x2 + x4)G]
         let concat_vec = [
+            ct_inner[0].clone(),
             ct_inner[1].clone(),
             ct_inner[2].clone(),
             ct_inner[3].clone(),
@@ -254,23 +252,24 @@ mod tests {
 
         // horizontally concatenate the two matrices h[gate_idx_2] and h[gate_idx_3]
         let mut concatenated_h_gates =
-            vec![vec![vec![ring.zero(); ring.ring_size()]; 2 * m]; ell * m];
+            vec![vec![vec![ring.zero(); ring.ring_size()]; 2 * m]; (ell + 1) * m];
 
         // Copy h[gate_idx_2] into the left half
-        for i in 0..ell * m {
+        for i in 0..(ell + 1) * m {
             for j in 0..m {
                 concatenated_h_gates[i][j] = circuit_x.h_gates()[gate_idx_2][i][j].clone();
             }
         }
 
         // Copy h[gate_idx_3] into the right half
-        for i in 0..ell * m {
+        for i in 0..(ell + 1) * m {
             for j in 0..m {
                 concatenated_h_gates[i][j + m] = circuit_x.h_gates()[gate_idx_3][i][j].clone();
             }
         }
+
         // assert that concatenated_h_gates is of size ell * m X 2m
-        assert_eq!(concatenated_h_gates.len(), ell * m);
+        assert_eq!(concatenated_h_gates.len(), (ell + 1) * m);
         assert_eq!(concatenated_h_gates[0].len(), 2 * m);
 
         let lhs = vec_mat_mul(ring, &concat_vec, &concatenated_h_gates);
