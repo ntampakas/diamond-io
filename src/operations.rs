@@ -1,6 +1,6 @@
 use crate::parameters::Parameters;
 use phantom_zone_math::{
-    prelude::ModulusOps,
+    prelude::{ElemFrom, ModulusOps},
     ring::{PrimeRing, RingOps},
 };
 
@@ -48,16 +48,26 @@ pub fn poly_sub(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
     c
 }
 
+pub fn gen_identity_matrix_to_scalar(
+    ring: &PrimeRing,
+    m: usize,
+    scalar: u64,
+) -> Vec<Vec<Vec<u64>>> {
+    let mut identity_matrix = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; m];
+
+    for i in 0..m {
+        identity_matrix[i][i][0] = ring.elem_from(scalar);
+    }
+
+    identity_matrix
+}
+
 pub fn vec_vec_dot_product(
     ring: &PrimeRing,
     vec_a: &Vec<Vec<u64>>,
     vec_b: &Vec<Vec<u64>>,
 ) -> Vec<u64> {
-    assert_eq!(
-        vec_a.len(),
-        vec_b.len(),
-        "Vectors must have the same length"
-    );
+    assert_eq!(vec_a.len(), vec_b.len(),);
     let mut out = vec![ring.zero(); ring.ring_size()];
     for i in 0..vec_a.len() {
         let mut scratch = ring.allocate_scratch(1, 2, 0);

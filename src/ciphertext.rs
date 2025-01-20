@@ -108,6 +108,17 @@ impl Ciphertext {
         &self.inner
     }
 
+    pub fn inner_concat(&self) -> Vec<Vec<u64>> {
+        let ct_inner = self.inner();
+        let mut concat_vec = Vec::new();
+
+        for i in 0..ct_inner.len() {
+            concat_vec.extend(ct_inner[i].clone());
+        }
+
+        concat_vec
+    }
+
     pub fn secret(&self) -> &Vec<u64> {
         &self.secret
     }

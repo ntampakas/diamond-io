@@ -100,8 +100,7 @@ pub struct Circuit {
 
 impl Circuit {
     pub fn new(pub_key: &PublicKey) -> Self {
-        let mut b_gates = pub_key.b().clone();
-
+        let b_gates = pub_key.b().clone();
         Self { b_gates }
     }
 
@@ -134,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_circuit_add_single_output() {
-        let params = Parameters::new(2, 5, 7);
+        let params = Parameters::new(3, 12, 7);
         let pub_key = PublicKey::new(params);
         let mut rng = thread_rng();
         let ring = pub_key.params().ring();
@@ -147,7 +146,7 @@ mod tests {
         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just for easier arithmetic during encoding
 
         let ciphertext = Ciphertext::new(&pub_key, &x);
-        let ct_inner = ciphertext.inner();
+        let ct_inner_concat = ciphertext.inner_concat();
 
         let mut circuit_x = CircuitX::new(&pub_key, &x);
         let mut circuit = Circuit::new(&pub_key);
@@ -159,19 +158,7 @@ mod tests {
         let gate_idx_2 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x3
 
         // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * h[gate_idx_2] = b[gate_idx_2] + (x1 + x2 + x3)G
-        let concat_vec = [
-            ct_inner[0].clone(),
-            ct_inner[1].clone(),
-            ct_inner[2].clone(),
-            ct_inner[3].clone(),
-            ct_inner[4].clone(),
-            ct_inner[5].clone(),
-            ct_inner[6].clone(),
-            ct_inner[7].clone(),
-        ]
-        .concat();
-
-        let lhs = vec_mat_mul(ring, &concat_vec, &circuit_x.h_gates()[gate_idx_2]);
+        let lhs = vec_mat_mul(ring, &ct_inner_concat, &circuit_x.h_gates()[gate_idx_2]);
 
         let mut rhs = circuit.b_gates()[gate_idx_2].clone();
         let mut fx = vec![ring.zero(); ring.ring_size()];
@@ -192,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_circuit_add_multi_output() {
-        let params = Parameters::new(2, 5, 7);
+        let params = Parameters::new(3, 12, 7);
         let pub_key = PublicKey::new(params);
         let mut rng = thread_rng();
         let ring = pub_key.params().ring();
@@ -205,7 +192,7 @@ mod tests {
         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just for easier arithmetic during encoding
 
         let ciphertext = Ciphertext::new(&pub_key, &x);
-        let ct_inner = ciphertext.inner();
+        let ct_inner_concat = ciphertext.inner_concat();
 
         let mut circuit_x = CircuitX::new(&pub_key, &x);
         let mut circuit = Circuit::new(&pub_key);
@@ -238,17 +225,6 @@ mod tests {
         assert_eq!(gate_idx_3, ell + 3);
 
         // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * (h[gate_idx_2] | h[gate_idx_3]) = [b[gate_idx_2] | b[gate_idx_3]] + [(x1 + x2 + x3)G | (x1 + x2 + x4)G]
-        let concat_vec = [
-            ct_inner[0].clone(),
-            ct_inner[1].clone(),
-            ct_inner[2].clone(),
-            ct_inner[3].clone(),
-            ct_inner[4].clone(),
-            ct_inner[5].clone(),
-            ct_inner[6].clone(),
-            ct_inner[7].clone(),
-        ]
-        .concat();
 
         // horizontally concatenate the two matrices h[gate_idx_2] and h[gate_idx_3]
         let mut concatenated_h_gates =
@@ -272,7 +248,7 @@ mod tests {
         assert_eq!(concatenated_h_gates.len(), (ell + 1) * m);
         assert_eq!(concatenated_h_gates[0].len(), 2 * m);
 
-        let lhs = vec_mat_mul(ring, &concat_vec, &concatenated_h_gates);
+        let lhs = vec_mat_mul(ring, &ct_inner_concat, &concatenated_h_gates);
 
         // define rhs as the concatenation of b[gate_idx_2] and b[gate_idx_3]
         let mut rhs = vec![vec![ring.zero(); ring.ring_size()]; 2 * m];
