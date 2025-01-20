@@ -96,7 +96,7 @@ impl CircuitX {
         let ring = params.ring();
 
         // Calculate b for the new gate
-        let b_gate = m_eval_add(
+        let b_gate = m_eval_mul(
             params,
             &self.b_gates()[idx_left],
             &self.b_gates()[idx_right],
@@ -197,18 +197,18 @@ mod tests {
         let mut circuit_x = CircuitX::new(&pub_key, &x);
         let mut circuit = Circuit::new(&pub_key);
 
-        let gate_idx_4 = circuit.add_gate(pub_key.params(), 1, 2); // x1 + x2
-        let _ = circuit.mul_gate(pub_key.params(), gate_idx_4, 3); // (x1 + x2) * x3
+        let gate_idx_4 = circuit.mul_gate(pub_key.params(), 1, 2); // x1 * x2
+        let _ = circuit.mul_gate(pub_key.params(), gate_idx_4, 3); // (x1 * x2) * x3
 
-        let gate_idx_4 = circuit_x.add_gate(pub_key.params(), 1, 2); // x1 + x2
-        let gate_idx_5 = circuit_x.mul_gate(pub_key.params(), gate_idx_4, 3); // (x1 + x2) * x3
+        let gate_idx_4 = circuit_x.mul_gate(pub_key.params(), 1, 2); // x1 * x2
+        let gate_idx_5 = circuit_x.mul_gate(pub_key.params(), gate_idx_4, 3); // (x1 * x2) * x3
 
-        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * h[gate_idx_5] = b[gate_idx_5] + ((x1 + x2) * x3)G
+        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * h[gate_idx_5] = b[gate_idx_5] + ((x1 * x2) * x3)G
         let lhs = vec_mat_mul(ring, &ct_inner_concat, &circuit_x.h_gates()[gate_idx_5]);
 
         let mut rhs = circuit.b_gates()[gate_idx_5].clone();
         let mut fx = vec![ring.zero(); ring.ring_size()];
-        fx[0] = ring.elem_from((x[1] + x[2]) * x[3]);
+        fx[0] = ring.elem_from((x[1] * x[2]) * x[3]);
 
         for i in 0..m {
             let mut scratch = ring.allocate_scratch(1, 2, 0);
