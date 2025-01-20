@@ -1,7 +1,4 @@
-use phantom_zone_math::{
-    prelude::{ElemFrom, ModulusOps},
-    ring::RingOps,
-};
+use phantom_zone_math::{prelude::ModulusOps, ring::RingOps};
 
 use crate::{
     operations::{bit_decompose, gen_identity_matrix_to_scalar, poly_add},
@@ -83,15 +80,8 @@ pub fn m_eval_mul_x(
     let ring = params.ring();
     let m = *params.m();
 
-    let mut out_left = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; m];
-    let mut out_right = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; m];
-
     // First matrix: Identity matrix scaled by x_right
-    let mut poly = vec![ring.zero(); ring.ring_size()];
-    poly[0] = ring.elem_from(*x_right);
-    for i in 0..m {
-        out_left[i][i] = poly.clone();
-    }
+    let out_left = gen_identity_matrix_to_scalar(ring, m, *x_right);
 
     // Second matrix: Tau(-b_left)
     // First compute -b_left
@@ -103,14 +93,7 @@ pub fn m_eval_mul_x(
     }
 
     // Compute tau of -b_left
-    let tau = bit_decompose(params, &minus_b_left);
-
-    // Copy tau into out_right
-    for h in 0..m {
-        for i in 0..m {
-            out_right[h][i] = tau[h][i].clone();
-        }
-    }
+    let out_right = bit_decompose(params, &minus_b_left);
 
     (out_left, out_right)
 }
@@ -120,7 +103,7 @@ mod tests {
     use crate::{
         ciphertext::Ciphertext,
         eval::{m_eval_add, m_eval_add_x, m_eval_mul, m_eval_mul_x},
-        operations::{poly_add, vec_mat_mul},
+        operations::{mat_vert_concat, poly_add, vec_mat_mul},
         parameters::Parameters,
         pub_key::PublicKey,
     };
@@ -160,22 +143,8 @@ mod tests {
         );
 
         // Define h_1_plus_2_x as the vertical concatenation of scalar_left and scalar_right
-        // Define h_1_plus_2_x as the vertical concatenation of scalar_left and scalar_right
-        let mut h_1_plus_2_x = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; 2 * m];
+        let h_1_plus_2_x = mat_vert_concat(ring, &scalar_left, &scalar_right);
 
-        // Copy scalar_left into the top half
-        for i in 0..m {
-            for j in 0..m {
-                h_1_plus_2_x[i][j] = scalar_left[i][j].clone();
-            }
-        }
-
-        // Copy scalar_right into the bottom half
-        for i in 0..m {
-            for j in 0..m {
-                h_1_plus_2_x[i + m][j] = scalar_right[i][j].clone();
-            }
-        }
         // Verify homomorphism of add gate such that (ct_inner[1] | ct_inner[2]) * h_1_plus_2_x = b_1_plus_2 + (x1+x2)G
         let concat_vec = [ct_inner[1].clone(), ct_inner[2].clone()].concat();
         let lhs = vec_mat_mul(ring, &concat_vec, &h_1_plus_2_x);
@@ -227,21 +196,7 @@ mod tests {
         );
 
         // Define h_1_times_2_x as the vertical concatenation of scalar_left and scalar_right
-        let mut h_1_times_2_x = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; 2 * m];
-
-        // Copy scalar_left into the top half
-        for i in 0..m {
-            for j in 0..m {
-                h_1_times_2_x[i][j] = scalar_left[i][j].clone();
-            }
-        }
-
-        // Copy scalar_right into the bottom half
-        for i in 0..m {
-            for j in 0..m {
-                h_1_times_2_x[i + m][j] = scalar_right[i][j].clone();
-            }
-        }
+        let h_1_times_2_x = mat_vert_concat(ring, &scalar_left, &scalar_right);
 
         // Verify homomorphism of mul gate such that (ct_inner[1] | ct_inner[2]) * h_1_times_2_x = b_1_times_2 + (x1*x2)G
         let concat_vec = [ct_inner[1].clone(), ct_inner[2].clone()].concat();

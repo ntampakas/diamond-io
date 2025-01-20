@@ -127,12 +127,86 @@ pub fn mat_mat_add(
 
     let mut out = vec![vec![vec![ring.zero(); ring.ring_size()]; mat_a[0].len()]; mat_a.len()];
 
-    // Add matrices element-wise
     for i in 0..mat_a.len() {
         for j in 0..mat_a[0].len() {
             out[i][j] = poly_add(ring, &mat_a[i][j], &mat_b[i][j]);
         }
     }
+    out
+}
+
+/// Vertically concatenate two matrices of ring elements of equal size
+pub fn mat_vert_concat(
+    ring: &PrimeRing,
+    mat_top: &Vec<Vec<Vec<u64>>>,
+    mat_bottom: &Vec<Vec<Vec<u64>>>,
+) -> Vec<Vec<Vec<u64>>> {
+    assert_eq!(mat_top.len(), mat_bottom.len());
+    assert_eq!(mat_top[0].len(), mat_bottom[0].len(),);
+    assert_eq!(mat_top[0][0].len(), mat_bottom[0][0].len(),);
+
+    let rows = mat_top.len();
+    let cols = mat_top[0].len();
+    let ring_size = mat_top[0][0].len();
+
+    // Create output matrix with combined number of rows
+    let mut out = vec![vec![vec![ring.zero(); ring_size]; cols]; 2 * rows];
+
+    // Copy top matrix
+    for i in 0..rows {
+        for j in 0..cols {
+            out[i][j] = mat_top[i][j].clone();
+        }
+    }
+
+    // Copy bottom matrix
+    for i in 0..rows {
+        for j in 0..cols {
+            out[i + rows][j] = mat_bottom[i][j].clone();
+        }
+    }
+
+    out
+}
+
+/// Horizontally concatenate two matrices of ring elements of equal size
+pub fn mat_horiz_concat(
+    ring: &PrimeRing,
+    mat_left: &Vec<Vec<Vec<u64>>>,
+    mat_right: &Vec<Vec<Vec<u64>>>,
+) -> Vec<Vec<Vec<u64>>> {
+    assert_eq!(mat_left.len(), mat_right.len());
+    assert_eq!(mat_left[0].len(), mat_right[0].len());
+    assert_eq!(mat_left[0][0].len(), mat_right[0][0].len());
+
+    let rows = mat_left.len();
+    let cols = mat_right[0].len();
+    let ring_size = mat_left[0][0].len();
+
+    // Create output matrix with combined number of columns
+    let mut out = vec![vec![vec![ring.zero(); ring_size]; 2 * cols]; rows];
+
+    // Copy left matrix
+    for i in 0..rows {
+        for j in 0..cols {
+            out[i][j] = mat_left[i][j].clone();
+        }
+    }
+
+    // Copy right matrix
+    for i in 0..rows {
+        for j in 0..cols {
+            out[i][j + cols] = mat_right[i][j].clone();
+        }
+    }
+
+    out
+}
+
+pub fn vec_horiz_concat(vec_left: &Vec<Vec<u64>>, vec_right: &Vec<Vec<u64>>) -> Vec<Vec<u64>> {
+    assert_eq!(vec_left.len(), vec_right.len());
+    let mut out = vec_left.clone();
+    out.extend(vec_right.clone());
     out
 }
 
