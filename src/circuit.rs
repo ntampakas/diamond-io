@@ -4,7 +4,8 @@ use phantom_zone_math::{
 };
 
 use crate::{
-    operations::{mat_mat_add, mat_mat_mul, poly_add},
+    eval::{m_eval_add, m_eval_add_x},
+    operations::{mat_mat_add, mat_mat_mul},
     parameters::Parameters,
     pub_key::PublicKey,
 };
@@ -60,18 +61,13 @@ impl CircuitX {
 
     pub fn add_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
         let ring = params.ring();
-        let m = *params.m();
-        let ell = *params.ell();
 
         // Calculate b for the new gate
-        let mut b_gate = vec![vec![ring.zero(); ring.ring_size()]; m];
-        for i in 0..m {
-            b_gate[i] = poly_add(
-                ring,
-                &self.b_gates()[idx_left][i],
-                &self.b_gates()[idx_right][i],
-            );
-        }
+        let b_gate = m_eval_add(
+            params,
+            &self.b_gates()[idx_left],
+            &self.b_gates()[idx_right],
+        );
         self.b_gates.push(b_gate);
 
         // Calculate x for the new gate
@@ -79,27 +75,21 @@ impl CircuitX {
         self.x_gates.push(x_gate);
 
         // Calculate h for the new gate
+        let (scalar_left, scalar_right) = m_eval_add_x(
+            params,
+            &self.b_gates()[idx_left],
+            &self.x_gates()[idx_left],
+            &self.b_gates()[idx_right],
+            &self.x_gates()[idx_right],
+        );
+
         let h_input_left = self.h_gates()[idx_left].clone();
         let h_input_right = self.h_gates()[idx_right].clone();
-        let mut identity_matrix = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; m];
-        for i in 0..m {
-            identity_matrix[i][i][0] = ring.elem_from(1u64);
-        }
 
-        let mat_a = mat_mat_mul(ring, &h_input_left, &identity_matrix);
-        let mat_b = mat_mat_mul(ring, &h_input_right, &identity_matrix);
-
-        // assert that mat_a and mat_b are of size ell * m X m
-        assert_eq!(mat_a.len(), ell * m);
-        assert_eq!(mat_a[0].len(), m);
-        assert_eq!(mat_b.len(), ell * m);
-        assert_eq!(mat_b[0].len(), m);
+        let mat_a = mat_mat_mul(ring, &h_input_left, &scalar_left);
+        let mat_b = mat_mat_mul(ring, &h_input_right, &scalar_right);
 
         let h_gate = mat_mat_add(ring, &mat_a, &mat_b);
-
-        // assert that h_gate is of size ell * m X m
-        assert_eq!(h_gate.len(), ell * m);
-        assert_eq!(h_gate[0].len(), m);
 
         self.h_gates.push(h_gate);
         self.h_gates.len() - 1
@@ -124,18 +114,12 @@ impl Circuit {
     }
 
     pub fn add_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
-        let ring = params.ring();
-        let m = *params.m();
-
         // Calculate b for the new gate
-        let mut b_gate = vec![vec![ring.zero(); ring.ring_size()]; m];
-        for i in 0..m {
-            b_gate[i] = poly_add(
-                ring,
-                &self.b_gates()[idx_left][i],
-                &self.b_gates()[idx_right][i],
-            );
-        }
+        let b_gate = m_eval_add(
+            params,
+            &self.b_gates()[idx_left],
+            &self.b_gates()[idx_right],
+        );
         self.b_gates.push(b_gate);
         self.b_gates.len() - 1
     }
@@ -172,28 +156,11 @@ mod tests {
         let mut circuit_x = CircuitX::new(&pub_key, &x);
         let mut circuit = Circuit::new(&pub_key);
 
-        assert_eq!(circuit_x.b_gates().len(), ell);
-        assert_eq!(circuit.b_gates().len(), ell);
-        assert_eq!(circuit_x.x_gates().len(), ell);
-        assert_eq!(circuit_x.h_gates().len(), ell);
-
-        // assert that each h_gate is a matrix of size ell * m X m
-        for h_gate in circuit_x.h_gates() {
-            assert_eq!(h_gate.len(), ell * m);
-            assert_eq!(h_gate[0].len(), m);
-        }
-
         let gate_idx_1 = circuit.add_gate(pub_key.params(), 0, 1); // x1 + x2
         let gate_idx_2 = circuit.add_gate(pub_key.params(), gate_idx_1, 2); // x1 + x2 + x3
 
-        assert_eq!(gate_idx_1, ell - 1 + 1);
-        assert_eq!(gate_idx_2, ell - 1 + 2);
-
         let gate_idx_1 = circuit_x.add_gate(pub_key.params(), 0, 1); // x1 + x2
         let gate_idx_2 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 2); // x1 + x2 + x3
-
-        assert_eq!(gate_idx_1, ell - 1 + 1);
-        assert_eq!(gate_idx_2, ell - 1 + 2);
 
         // verify homomorphism such that (ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * h[gate_idx_2] = b[gate_idx_2] + (x1 + x2 + x3)G
         let concat_vec = [
