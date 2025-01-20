@@ -221,17 +221,17 @@ mod tests {
             assert_eq!(h_gate[0].len(), m);
         }
 
-        let gate_idx_1 = circuit.add_gate(pub_key.params(), 0, 1); // x1 + x2
-        let gate_idx_2 = circuit.add_gate(pub_key.params(), gate_idx_1, 2); // x1 + x2 + x3
-        let gate_idx_3 = circuit.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x4
+        let gate_idx_1 = circuit.add_gate(pub_key.params(), 1, 2); // x1 + x2
+        let gate_idx_2 = circuit.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x3
+        let gate_idx_3 = circuit.add_gate(pub_key.params(), gate_idx_1, 4); // x1 + x2 + x4
 
         assert_eq!(gate_idx_1, ell + 1);
         assert_eq!(gate_idx_2, ell + 2);
         assert_eq!(gate_idx_3, ell + 3);
 
-        let gate_idx_1 = circuit_x.add_gate(pub_key.params(), 0, 1); // x1 + x2
-        let gate_idx_2 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 2); // x1 + x2 + x3
-        let gate_idx_3 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x4
+        let gate_idx_1 = circuit_x.add_gate(pub_key.params(), 1, 2); // x1 + x2
+        let gate_idx_2 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x3
+        let gate_idx_3 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 4); // x1 + x2 + x4
 
         assert_eq!(gate_idx_1, ell + 1);
         assert_eq!(gate_idx_2, ell + 2);
