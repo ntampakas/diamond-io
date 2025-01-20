@@ -4,7 +4,7 @@ use phantom_zone_math::{
 };
 
 use crate::{
-    eval::{m_eval_add, m_eval_add_x},
+    eval::{m_eval_add, m_eval_add_x, m_eval_mul, m_eval_mul_x},
     operations::{mat_mat_add, mat_mat_mul},
     parameters::Parameters,
     pub_key::PublicKey,
@@ -91,6 +91,42 @@ impl CircuitX {
         self.h_gates.push(h_gate);
         self.h_gates.len() - 1
     }
+
+    pub fn mul_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
+        let ring = params.ring();
+
+        // Calculate b for the new gate
+        let b_gate = m_eval_add(
+            params,
+            &self.b_gates()[idx_left],
+            &self.b_gates()[idx_right],
+        );
+        self.b_gates.push(b_gate);
+
+        // Calculate x for the new gate
+        let x_gate = self.x_gates()[idx_left] * self.x_gates()[idx_right];
+        self.x_gates.push(x_gate);
+
+        // Calculate h for the new gate
+        let (scalar_left, scalar_right) = m_eval_mul_x(
+            params,
+            &self.b_gates()[idx_left],
+            &self.x_gates()[idx_left],
+            &self.b_gates()[idx_right],
+            &self.x_gates()[idx_right],
+        );
+
+        let h_input_left = self.h_gates()[idx_left].clone();
+        let h_input_right = self.h_gates()[idx_right].clone();
+
+        let mat_a = mat_mat_mul(ring, &h_input_left, &scalar_left);
+        let mat_b = mat_mat_mul(ring, &h_input_right, &scalar_right);
+
+        let h_gate = mat_mat_add(ring, &mat_a, &mat_b);
+
+        self.h_gates.push(h_gate);
+        self.h_gates.len() - 1
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -118,6 +154,16 @@ impl Circuit {
         self.b_gates.push(b_gate);
         self.b_gates.len() - 1
     }
+
+    pub fn mul_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
+        let b_gate = m_eval_mul(
+            params,
+            &self.b_gates()[idx_left],
+            &self.b_gates()[idx_right],
+        );
+        self.b_gates.push(b_gate);
+        self.b_gates.len() - 1
+    }
 }
 
 #[cfg(test)]
@@ -132,7 +178,7 @@ mod tests {
     use rand::{thread_rng, Rng};
 
     #[test]
-    fn test_circuit_add_single_output() {
+    fn test_circuit_single_output() {
         let params = Parameters::new(3, 12, 7);
         let pub_key = PublicKey::new(params);
         let mut rng = thread_rng();
@@ -151,18 +197,18 @@ mod tests {
         let mut circuit_x = CircuitX::new(&pub_key, &x);
         let mut circuit = Circuit::new(&pub_key);
 
-        let gate_idx_1 = circuit.add_gate(pub_key.params(), 1, 2); // x1 + x2
-        let _ = circuit.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x3
+        let gate_idx_4 = circuit.add_gate(pub_key.params(), 1, 2); // x1 + x2
+        let _ = circuit.mul_gate(pub_key.params(), gate_idx_4, 3); // (x1 + x2) * x3
 
-        let gate_idx_1 = circuit_x.add_gate(pub_key.params(), 1, 2); // x1 + x2
-        let gate_idx_2 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x3
+        let gate_idx_4 = circuit_x.add_gate(pub_key.params(), 1, 2); // x1 + x2
+        let gate_idx_5 = circuit_x.mul_gate(pub_key.params(), gate_idx_4, 3); // (x1 + x2) * x3
 
-        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * h[gate_idx_2] = b[gate_idx_2] + (x1 + x2 + x3)G
-        let lhs = vec_mat_mul(ring, &ct_inner_concat, &circuit_x.h_gates()[gate_idx_2]);
+        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * h[gate_idx_5] = b[gate_idx_5] + ((x1 + x2) * x3)G
+        let lhs = vec_mat_mul(ring, &ct_inner_concat, &circuit_x.h_gates()[gate_idx_5]);
 
-        let mut rhs = circuit.b_gates()[gate_idx_2].clone();
+        let mut rhs = circuit.b_gates()[gate_idx_5].clone();
         let mut fx = vec![ring.zero(); ring.ring_size()];
-        fx[0] = ring.elem_from(x[1] + x[2] + x[3]);
+        fx[0] = ring.elem_from((x[1] + x[2]) * x[3]);
 
         for i in 0..m {
             let mut scratch = ring.allocate_scratch(1, 2, 0);
@@ -209,22 +255,22 @@ mod tests {
         }
 
         let gate_idx_1 = circuit.add_gate(pub_key.params(), 1, 2); // x1 + x2
-        let gate_idx_2 = circuit.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x3
-        let gate_idx_3 = circuit.add_gate(pub_key.params(), gate_idx_1, 4); // x1 + x2 + x4
+        let gate_idx_2 = circuit.mul_gate(pub_key.params(), gate_idx_1, 3); // (x1 + x2) * x3
+        let gate_idx_3 = circuit.mul_gate(pub_key.params(), gate_idx_1, 4); // (x1 + x2) * x4
 
         assert_eq!(gate_idx_1, ell + 1);
         assert_eq!(gate_idx_2, ell + 2);
         assert_eq!(gate_idx_3, ell + 3);
 
         let gate_idx_1 = circuit_x.add_gate(pub_key.params(), 1, 2); // x1 + x2
-        let gate_idx_2 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 3); // x1 + x2 + x3
-        let gate_idx_3 = circuit_x.add_gate(pub_key.params(), gate_idx_1, 4); // x1 + x2 + x4
+        let gate_idx_2 = circuit_x.mul_gate(pub_key.params(), gate_idx_1, 3); // (x1 + x2) * x3
+        let gate_idx_3 = circuit_x.mul_gate(pub_key.params(), gate_idx_1, 4); // (x1 + x2) * x4
 
         assert_eq!(gate_idx_1, ell + 1);
         assert_eq!(gate_idx_2, ell + 2);
         assert_eq!(gate_idx_3, ell + 3);
 
-        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * (h[gate_idx_2] | h[gate_idx_3]) = [b[gate_idx_2] | b[gate_idx_3]] + [(x1 + x2 + x3)G | (x1 + x2 + x4)G]
+        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * (h[gate_idx_2] | h[gate_idx_3]) = [b[gate_idx_2] | b[gate_idx_3]] + [((x1 + x2) * x3)G | ((x1 + x2) * x4)G]
 
         // horizontally concatenate the two matrices h[gate_idx_2] and h[gate_idx_3]
         let mut concatenated_h_gates =
@@ -269,8 +315,8 @@ mod tests {
         // Add (x1 + x2 + x3)G to the left half and (x1 + x2 + x4)G to the right half
         let mut fx1 = vec![ring.zero(); ring.ring_size()];
         let mut fx2 = vec![ring.zero(); ring.ring_size()];
-        fx1[0] = ring.elem_from(x[1] + x[2] + x[3]); // x1 + x2 + x3
-        fx2[0] = ring.elem_from(x[1] + x[2] + x[4]); // x1 + x2 + x4
+        fx1[0] = ring.elem_from((x[1] + x[2]) * x[3]); // (x1 + x2) * x3
+        fx2[0] = ring.elem_from((x[1] + x[2]) * x[4]); // (x1 + x2) * x4
 
         for i in 0..m {
             let mut scratch = ring.allocate_scratch(1, 2, 0);
