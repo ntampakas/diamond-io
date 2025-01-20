@@ -252,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    fn test_circuit_add_multi_output() {
+    fn test_circuit_multi_output() {
         let params = Parameters::new(3, 12, 7);
         let pub_key = PublicKey::new(params);
         let mut rng = thread_rng();
@@ -271,47 +271,73 @@ mod tests {
         let mut circuit_x = CircuitX::new(&pub_key, &x);
         let mut circuit = Circuit::new(&pub_key);
 
-        let gate_idx_4 = circuit.add_gate(pub_key.params(), 1, 2); // x1 + x2
-        let _ = circuit.mul_gate(pub_key.params(), gate_idx_4, 3); // (x1 + x2) * x3
-        let _ = circuit.mul_gate(pub_key.params(), gate_idx_4, 4); // (x1 + x2) * x4
+        let random_bit_gate_4 = rng.gen_range(0..2);
+        let random_bit_gate_5 = rng.gen_range(0..2);
 
-        let gate_idx_4 = circuit_x.add_gate(pub_key.params(), 1, 2); // x1 + x2
-        let gate_idx_5 = circuit_x.mul_gate(pub_key.params(), gate_idx_4, 3); // (x1 + x2) * x3
-        let gate_idx_6 = circuit_x.mul_gate(pub_key.params(), gate_idx_4, 4); // (x1 + x2) * x4
+        let gate_idx_4: usize;
+        let gate_idx_5: usize;
 
-        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * (h[gate_idx_5] | h[gate_idx_6]) = [b[gate_idx_5] | b[gate_idx_6]] + [((x1 + x2) * x3)G | ((x1 + x2) * x4)G]
+        if random_bit_gate_4 == 1 {
+            // x4 = x1 * x2
+            gate_idx_4 = circuit.mul_gate(pub_key.params(), 1, 2);
+            circuit_x.mul_gate(pub_key.params(), 1, 2);
+        } else {
+            // x4 = x1 + x2
+            gate_idx_4 = circuit.add_gate(pub_key.params(), 1, 2);
+            circuit_x.add_gate(pub_key.params(), 1, 2);
+        }
 
-        // horizontally concatenate the two matrices h[gate_idx_5] and h[gate_idx_6]
+        if random_bit_gate_5 == 1 {
+            // x5 = x2 * x3
+            gate_idx_5 = circuit.mul_gate(pub_key.params(), 2, 3);
+            circuit_x.mul_gate(pub_key.params(), 2, 3);
+        } else {
+            // x5 = x2 + x3
+            gate_idx_5 = circuit.add_gate(pub_key.params(), 2, 3);
+            circuit_x.add_gate(pub_key.params(), 2, 3);
+        }
+
+        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * (h[gate_idx_4] | h[gate_idx_5]) = [b[gate_idx_4] | b[gate_idx_5]] + [f1(x)G | f2(xG]
+        // horizontally concatenate the two matrices h[gate_idx_4] and h[gate_idx_5]
         let concatenated_h_gates = mat_horiz_concat(
             ring,
+            &circuit_x.h_gates()[gate_idx_4],
             &circuit_x.h_gates()[gate_idx_5],
-            &circuit_x.h_gates()[gate_idx_6],
         );
 
         let lhs = vec_mat_mul(ring, &ct_inner_concat, &concatenated_h_gates);
 
-        // define rhs as the concatenation of b[gate_idx_5] and b[gate_idx_6]
+        // define rhs as the concatenation of b[gate_idx_4] and b[gate_idx_5]
         let mut rhs = vec_horiz_concat(
+            &circuit.b_gates()[gate_idx_4],
             &circuit.b_gates()[gate_idx_5],
-            &circuit.b_gates()[gate_idx_6],
         );
 
-        // Add (x1 + x2 + x3)G to the left half and (x1 + x2 + x4)G to the right half
         let mut fx1 = vec![ring.zero(); ring.ring_size()];
         let mut fx2 = vec![ring.zero(); ring.ring_size()];
-        fx1[0] = ring.elem_from((x[1] + x[2]) * x[3]); // (x1 + x2) * x3
-        fx2[0] = ring.elem_from((x[1] + x[2]) * x[4]); // (x1 + x2) * x4
+
+        if random_bit_gate_4 == 1 {
+            fx1[0] = ring.elem_from(x[1] * x[2]); // x1 * x2
+        } else {
+            fx1[0] = ring.elem_from(x[1] + x[2]); // x1 + x2
+        }
+
+        if random_bit_gate_5 == 1 {
+            fx2[0] = ring.elem_from(x[2] * x[3]); // x2 * x3
+        } else {
+            fx2[0] = ring.elem_from(x[2] + x[3]); // x2 + x3
+        }
 
         for i in 0..m {
             let mut scratch = ring.allocate_scratch(1, 2, 0);
             let mut scratch = scratch.borrow_mut();
 
-            // For the left half (gate_idx_5)
+            // For the left half g*fx1
             let gi_times_fx1 = ring.take_poly(&mut scratch);
             ring.poly_mul(gi_times_fx1, &g[i], &fx1, scratch.reborrow());
             rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx1.to_vec());
 
-            // For the right half (gate_idx_6)
+            // For the right half g*fx2
             let gi_times_fx2 = ring.take_poly(&mut scratch);
             ring.poly_mul(gi_times_fx2, &g[i], &fx2, scratch.reborrow());
             rhs[i + m] = poly_add(ring, &rhs[i + m], &gi_times_fx2.to_vec());
