@@ -44,8 +44,8 @@ impl Ciphertext {
         let mut err_a = vec![vec![ring.zero(); ring.ring_size()]; m];
         let gaussian: NoiseDistribution = Gaussian(3.19).into();
 
-        for i in 0..m {
-            ring.sample_into::<i64>(&mut err_a[i], gaussian, rng.clone());
+        for err in err_a.iter_mut() {
+            ring.sample_into::<i64>(err, gaussian, rng.clone());
         }
 
         // Initialize error matrix
@@ -53,13 +53,13 @@ impl Ciphertext {
 
         for i in 0..ell + 1 {
             for si in 0..m {
-                for sj in 0..m {
+                for err_aj in err_a.iter() {
                     let random_bit = if rng.gen_bool(0.5) { 1 } else { -1 };
                     if random_bit == 1 {
-                        error[i][si] = poly_add(ring, &error[i][si], &err_a[sj]);
+                        error[i][si] = poly_add(ring, &error[i][si], err_aj);
                     }
                     if random_bit == -1 {
-                        error[i][si] = poly_sub(ring, &error[i][si], &err_a[sj]);
+                        error[i][si] = poly_sub(ring, &error[i][si], err_aj);
                     }
                 }
             }
@@ -67,9 +67,9 @@ impl Ciphertext {
             let g = params.g();
 
             // Add gadget vector to ct_inner if x[i] = 1
-            for j in 0..m {
-                if x[i] == 1 {
-                    ct_inner[i][j] = poly_add(ring, &ct_inner[i][j], &g[j]);
+            if x[i] == 1 {
+                for (ct, g_j) in ct_inner[i].iter_mut().zip(g.iter()) {
+                    *ct = poly_add(ring, ct, g_j);
                 }
             }
         }
@@ -112,8 +112,8 @@ impl Ciphertext {
         let ct_inner = self.inner();
         let mut concat_vec = Vec::new();
 
-        for i in 0..ct_inner.len() {
-            concat_vec.extend(ct_inner[i].clone());
+        for ct_inner_i in ct_inner.iter() {
+            concat_vec.extend(ct_inner_i.clone());
         }
 
         concat_vec
