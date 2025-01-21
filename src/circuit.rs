@@ -1,44 +1,38 @@
-use phantom_zone_math::prelude::{ElemFrom, ModulusOps};
+use phantom_zone_math::prelude::ModulusOps;
 
 use crate::{
-    eval::{m_eval_add, m_eval_mul, m_eval_mul_x},
+    ciphertext::Ciphertext,
+    eval::{m_eval_add, m_eval_add_x, m_eval_mul, m_eval_mul_x},
     operations::{mat_mat_add, mat_mat_mul},
     parameters::Parameters,
     pub_key::PublicKey,
-    utils::empty_matrix_ring,
 };
 
 #[derive(Clone, Debug)]
 pub struct CircuitX {
     b_gates: Vec<Vec<Vec<u64>>>,
     x_gates: Vec<u64>,
-    h_gates: Vec<Vec<Vec<Vec<u64>>>>,
+    ct_gates: Vec<Vec<Vec<u64>>>,
 }
 
 impl CircuitX {
-    pub fn new(pub_key: &PublicKey, x: &Vec<u64>) -> Self {
+    pub fn new(pub_key: &PublicKey, x: &Vec<u64>, ciphertext: &Ciphertext) -> Self {
         let params = pub_key.params();
-        let ring = params.ring();
-        let m = *params.m();
         let ell = *params.ell();
 
         let b_gates = pub_key.b().clone();
         let x_gates = x.clone();
-        let mut h_gates = Vec::with_capacity(ell + 1);
+        let mut ct_gates = Vec::with_capacity(ell + 1);
 
         for i in 0..ell + 1 {
-            let mut h_gate = empty_matrix_ring(ring, (ell + 1) * m, m);
-            for j in 0..m {
-                h_gate[i * m + j][j][0] = ring.elem_from(1u64);
-            }
-
-            h_gates.push(h_gate);
+            let ct_gate = ciphertext.inner()[i].clone();
+            ct_gates.push(ct_gate);
         }
 
         Self {
             b_gates,
             x_gates,
-            h_gates,
+            ct_gates,
         }
     }
 
@@ -50,13 +44,11 @@ impl CircuitX {
         &self.x_gates
     }
 
-    pub fn h_gates(&self) -> &Vec<Vec<Vec<Vec<u64>>>> {
-        &self.h_gates
+    pub fn ct_gates(&self) -> &Vec<Vec<Vec<u64>>> {
+        &self.ct_gates
     }
 
     pub fn add_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
-        let ring = params.ring();
-
         // Calculate b for the new gate
         let b_gate = m_eval_add(
             params,
@@ -69,36 +61,17 @@ impl CircuitX {
         let x_gate = self.x_gates()[idx_left] + self.x_gates()[idx_right];
         self.x_gates.push(x_gate);
 
-        let h_input_left = &self.h_gates()[idx_left];
-        let h_input_right = &self.h_gates()[idx_right];
-
-        // // Calculate h for the new gate
-        // let (scalar_left, scalar_right) = m_eval_add_x(
-        //     params,
-        //     &self.b_gates()[idx_left],
-        //     &self.x_gates()[idx_left],
-        //     &self.b_gates()[idx_right],
-        //     &self.x_gates()[idx_right],
-        // );
-
-        // let mat_a = mat_mat_mul(ring, h_input_left, &scalar_left);
-        // let mat_b = mat_mat_mul(ring, h_input_right, &scalar_right);
-
-        // let h_gate = mat_mat_add(ring, &mat_a, &mat_b);
-
-        // `scalar_left` and `scalar_right` are equal to the identity matrix for add gate
-        // when multiplied by `h_input_left` and `h_input_right` return the same matrix
-        // therefore we can skip it
-
-        let h_gate = mat_mat_add(ring, h_input_left, h_input_right);
-
-        self.h_gates.push(h_gate);
-        self.h_gates.len() - 1
+        // Calculate ct for the new gate
+        let ct_gate = m_eval_add_x(
+            params,
+            &self.ct_gates()[idx_left],
+            &self.ct_gates()[idx_right],
+        );
+        self.ct_gates.push(ct_gate);
+        self.ct_gates.len() - 1
     }
 
     pub fn mul_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
-        let ring = params.ring();
-
         // Calculate b for the new gate
         let b_gate = m_eval_mul(
             params,
@@ -111,34 +84,18 @@ impl CircuitX {
         let x_gate = self.x_gates()[idx_left] * self.x_gates()[idx_right];
         self.x_gates.push(x_gate);
 
-        // Calculate h for the new gate
-        let (scalar_left, scalar_right) = m_eval_mul_x(
+        // Calculate ct for the new gate
+        let ct_gate = m_eval_mul_x(
             params,
+            &self.ct_gates()[idx_left],
             &self.b_gates()[idx_left],
             &self.x_gates()[idx_left],
+            &self.ct_gates()[idx_right],
             &self.b_gates()[idx_right],
             &self.x_gates()[idx_right],
         );
-
-        let h_input_left = &self.h_gates()[idx_left];
-        let h_input_right = &self.h_gates()[idx_right];
-
-        // scalar left is the identity matrix scaled by x_right basically means that every polynomial of h_input_left is multiplied by x_right
-        // Replace the mat_mat_mul line with direct scaling
-        let mut mat_a = h_input_left.clone();
-        for row in mat_a.iter_mut() {
-            for poly in row.iter_mut() {
-                for coeff in poly.iter_mut() {
-                    *coeff = ring.mul(coeff, &self.x_gates()[idx_right]);
-                }
-            }
-        }
-
-        let mat_b = mat_mat_mul(ring, h_input_right, &scalar_right);
-        let h_gate = mat_mat_add(ring, &mat_a, &mat_b);
-
-        self.h_gates.push(h_gate);
-        self.h_gates.len() - 1
+        self.ct_gates.push(ct_gate);
+        self.ct_gates.len() - 1
     }
 }
 
@@ -192,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_circuit_single_output() {
-        let params = Parameters::new(3, 12, 7);
+        let params = Parameters::new(12, 51, 7);
         let pub_key = PublicKey::new(params);
         let mut rng = thread_rng();
         let ring = pub_key.params().ring();
@@ -205,9 +162,8 @@ mod tests {
         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just for easier arithmetic during encoding
 
         let ciphertext = Ciphertext::new(&pub_key, &x);
-        let ct_inner_concat = ciphertext.inner_concat();
 
-        let mut circuit_x = CircuitX::new(&pub_key, &x);
+        let mut circuit_x = CircuitX::new(&pub_key, &x, &ciphertext);
         let mut circuit = Circuit::new(&pub_key);
 
         let random_bit_gate_4 = rng.gen_range(0..2);
@@ -236,7 +192,7 @@ mod tests {
         }
 
         // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * h[gate_idx_5] = b[gate_idx_5] + f(x)G
-        let lhs = vec_mat_mul(ring, &ct_inner_concat, &circuit_x.h_gates()[gate_idx_5]);
+        let lhs = circuit_x.ct_gates()[gate_idx_5].clone();
 
         let mut rhs = circuit.b_gates()[gate_idx_5].clone();
         let mut fx = vec![ring.zero(); ring.ring_size()];
@@ -266,7 +222,7 @@ mod tests {
 
     #[test]
     fn test_circuit_multi_output() {
-        let params = Parameters::new(3, 12, 7);
+        let params = Parameters::new(12, 51, 7);
         let pub_key = PublicKey::new(params);
         let mut rng = thread_rng();
         let ring = pub_key.params().ring();
@@ -281,7 +237,7 @@ mod tests {
         let ciphertext = Ciphertext::new(&pub_key, &x);
         let ct_inner_concat = ciphertext.inner_concat();
 
-        let mut circuit_x = CircuitX::new(&pub_key, &x);
+        let mut circuit_x = CircuitX::new(&pub_key, &x, &ciphertext);
         let mut circuit = Circuit::new(&pub_key);
 
         let random_bit_gate_4 = rng.gen_range(0..2);
@@ -311,14 +267,11 @@ mod tests {
         }
 
         // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * (h[gate_idx_4] | h[gate_idx_5]) = [b[gate_idx_4] | b[gate_idx_5]] + [f1(x)G | f2(xG]
-        // horizontally concatenate the two matrices h[gate_idx_4] and h[gate_idx_5]
-        let concatenated_h_gates = mat_horiz_concat(
-            ring,
-            &circuit_x.h_gates()[gate_idx_4],
-            &circuit_x.h_gates()[gate_idx_5],
+        // horizontally concatenate the two vectors ct_gates[gate_idx_4] and ct_gates[gate_idx_5]
+        let lhs = vec_horiz_concat(
+            &circuit_x.ct_gates()[gate_idx_4],
+            &circuit_x.ct_gates()[gate_idx_5],
         );
-
-        let lhs = vec_mat_mul(ring, &ct_inner_concat, &concatenated_h_gates);
 
         // define rhs as the concatenation of b[gate_idx_4] and b[gate_idx_5]
         let mut rhs = vec_horiz_concat(
@@ -349,6 +302,9 @@ mod tests {
             let gi_times_fx1 = ring.take_poly(&mut scratch);
             ring.poly_mul(gi_times_fx1, &g[i], &fx1, scratch.reborrow());
             rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx1.to_vec());
+
+            let mut scratch = ring.allocate_scratch(1, 2, 0);
+            let mut scratch = scratch.borrow_mut();
 
             // For the right half g*fx2
             let gi_times_fx2 = ring.take_poly(&mut scratch);

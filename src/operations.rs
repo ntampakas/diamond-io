@@ -141,6 +141,18 @@ pub fn mat_mat_add(
     out
 }
 
+pub fn vec_vec_add(
+    ring: &PrimeRing,
+    vec_a: &Vec<Vec<u64>>,
+    vec_b: &Vec<Vec<u64>>,
+) -> Vec<Vec<u64>> {
+    assert_eq!(vec_a.len(), vec_b.len());
+    let mut out = empty_vector_ring(ring, vec_a.len());
+    for i in 0..vec_a.len() {
+        out[i] = poly_add(ring, &vec_a[i], &vec_b[i]);
+    }
+    out
+}
 /// Vertically concatenate two matrices of ring elements of equal size
 pub fn mat_vert_concat(
     ring: &PrimeRing,
