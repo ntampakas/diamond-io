@@ -1,15 +1,12 @@
-use crate::parameters::Parameters;
-use phantom_zone_math::{
-    prelude::{ModulusOps, Sampler},
-    ring::RingOps,
-};
+use crate::{parameters::Parameters, utils::empty_matrix_ring};
+use phantom_zone_math::{prelude::Sampler, ring::RingOps};
 use rand::thread_rng;
 
 /// A public key in the BGG+ RLWE encoding scheme
 ///
 /// # Fields
 ///
-/// * `b`: The public key matrix of size `(ell + 1) x m` where each slot is a polynomial
+/// * `b`: The public key matrix of size `(ell + 1) x m` where each slot is a ring element
 /// * `params`: The system parameters
 #[derive(Debug, Clone)]
 pub struct PublicKey {
@@ -23,7 +20,7 @@ impl PublicKey {
         let ring = params.ring();
         let m = *params.m();
         let ell = *params.ell();
-        let mut b = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; ell + 1];
+        let mut b = empty_matrix_ring(ring, ell + 1, m);
         for i in 0..(ell + 1) {
             for j in 0..m {
                 b[i][j] = ring.sample_uniform_vec(ring.ring_size(), &mut rng);

@@ -3,6 +3,7 @@ use phantom_zone_math::{prelude::ModulusOps, ring::RingOps};
 use crate::{
     operations::{bit_decompose, gen_identity_matrix_to_scalar, poly_add},
     parameters::Parameters,
+    utils::empty_vector_ring,
 };
 
 pub fn m_eval_add(
@@ -12,7 +13,7 @@ pub fn m_eval_add(
 ) -> Vec<Vec<u64>> {
     let ring = params.ring();
     let m = *params.m();
-    let mut out = vec![vec![ring.zero(); ring.ring_size()]; m];
+    let mut out = empty_vector_ring(ring, m);
     for i in 0..m {
         out[i] = poly_add(ring, &b_left[i], &b_right[i]);
     }
@@ -26,7 +27,7 @@ pub fn m_eval_mul(
 ) -> Vec<Vec<u64>> {
     let ring = params.ring();
     let m = *params.m();
-    let mut out = vec![vec![ring.zero(); ring.ring_size()]; m];
+    let mut out = empty_vector_ring(ring, m);
 
     // Compute minus_b_left by multiplying each coefficient by -1
     let mut minus_b_left = vec![vec![ring.zero(); ring.ring_size()]; m];

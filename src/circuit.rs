@@ -1,13 +1,11 @@
-use phantom_zone_math::{
-    prelude::{ElemFrom, ModulusOps},
-    ring::RingOps,
-};
+use phantom_zone_math::prelude::{ElemFrom, ModulusOps};
 
 use crate::{
-    eval::{m_eval_add, m_eval_add_x, m_eval_mul, m_eval_mul_x},
+    eval::{m_eval_add, m_eval_mul, m_eval_mul_x},
     operations::{mat_mat_add, mat_mat_mul},
     parameters::Parameters,
     pub_key::PublicKey,
+    utils::empty_matrix_ring,
 };
 
 #[derive(Clone, Debug)]
@@ -29,7 +27,7 @@ impl CircuitX {
         let mut h_gates = Vec::with_capacity(ell + 1);
 
         for i in 0..ell + 1 {
-            let mut h_gate = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; (ell + 1) * m];
+            let mut h_gate = empty_matrix_ring(ring, (ell + 1) * m, m);
             for j in 0..m {
                 h_gate[i * m + j][j][0] = ring.elem_from(1u64);
             }
@@ -71,22 +69,28 @@ impl CircuitX {
         let x_gate = self.x_gates()[idx_left] + self.x_gates()[idx_right];
         self.x_gates.push(x_gate);
 
-        // Calculate h for the new gate
-        let (scalar_left, scalar_right) = m_eval_add_x(
-            params,
-            &self.b_gates()[idx_left],
-            &self.x_gates()[idx_left],
-            &self.b_gates()[idx_right],
-            &self.x_gates()[idx_right],
-        );
-
         let h_input_left = &self.h_gates()[idx_left];
         let h_input_right = &self.h_gates()[idx_right];
 
-        let mat_a = mat_mat_mul(ring, h_input_left, &scalar_left);
-        let mat_b = mat_mat_mul(ring, h_input_right, &scalar_right);
+        // // Calculate h for the new gate
+        // let (scalar_left, scalar_right) = m_eval_add_x(
+        //     params,
+        //     &self.b_gates()[idx_left],
+        //     &self.x_gates()[idx_left],
+        //     &self.b_gates()[idx_right],
+        //     &self.x_gates()[idx_right],
+        // );
 
-        let h_gate = mat_mat_add(ring, &mat_a, &mat_b);
+        // let mat_a = mat_mat_mul(ring, h_input_left, &scalar_left);
+        // let mat_b = mat_mat_mul(ring, h_input_right, &scalar_right);
+
+        // let h_gate = mat_mat_add(ring, &mat_a, &mat_b);
+
+        // `scalar_left` and `scalar_right` are equal to the identity matrix for add gate
+        // when multiplied by `h_input_left` and `h_input_right` return the same matrix
+        // therefore we can skip it
+
+        let h_gate = mat_mat_add(ring, h_input_left, h_input_right);
 
         self.h_gates.push(h_gate);
         self.h_gates.len() - 1
@@ -119,9 +123,18 @@ impl CircuitX {
         let h_input_left = &self.h_gates()[idx_left];
         let h_input_right = &self.h_gates()[idx_right];
 
-        let mat_a = mat_mat_mul(ring, h_input_left, &scalar_left);
-        let mat_b = mat_mat_mul(ring, h_input_right, &scalar_right);
+        // scalar left is the identity matrix scaled by x_right basically means that every polynomial of h_input_left is multiplied by x_right
+        // Replace the mat_mat_mul line with direct scaling
+        let mut mat_a = h_input_left.clone();
+        for row in mat_a.iter_mut() {
+            for poly in row.iter_mut() {
+                for coeff in poly.iter_mut() {
+                    *coeff = ring.mul(coeff, &self.x_gates()[idx_right]);
+                }
+            }
+        }
 
+        let mat_b = mat_mat_mul(ring, h_input_right, &scalar_right);
         let h_gate = mat_mat_add(ring, &mat_a, &mat_b);
 
         self.h_gates.push(h_gate);

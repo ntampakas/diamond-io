@@ -1,7 +1,12 @@
-/// Print a vector of integers
-pub fn print_vector(label: &str, vec: &Vec<u64>) {
+use phantom_zone_math::{
+    prelude::ModulusOps,
+    ring::{PrimeRing, RingOps},
+};
+
+/// Print a ring element
+pub fn print_ring_element(label: &str, ring_el: &Vec<u64>) {
     print!("{} [", label);
-    for (k, &val) in vec.iter().enumerate() {
+    for (k, &val) in ring_el.iter().enumerate() {
         if k > 0 {
             print!(", ");
         }
@@ -17,7 +22,7 @@ pub fn print_matrix_ring(label: &str, matrix: &Vec<Vec<Vec<u64>>>) {
     for (i, row) in matrix.iter().enumerate() {
         for (j, col) in row.iter().enumerate() {
             print!("r{}c{}: ", i, j);
-            print_vector("", col);
+            print_ring_element("", col);
         }
     }
 }
@@ -26,13 +31,19 @@ pub fn print_matrix_ring(label: &str, matrix: &Vec<Vec<Vec<u64>>>) {
 pub fn print_vector_ring(label: &str, vec: &Vec<Vec<u64>>) {
     println!("\n{}", label);
     for (i, inner_vec) in vec.iter().enumerate() {
-        print!("{}[{}]: [", label, i);
-        for (j, &val) in inner_vec.iter().enumerate() {
-            if j > 0 {
-                print!(", ");
-            }
-            print!("{}", val);
-        }
-        println!("]");
+        print!("{}[{}]: ", label, i);
+        print_ring_element("", inner_vec);
     }
+}
+
+pub fn empty_matrix_ring(ring: &PrimeRing, rows: usize, cols: usize) -> Vec<Vec<Vec<u64>>> {
+    vec![vec![vec![ring.zero(); ring.ring_size()]; cols]; rows]
+}
+
+pub fn empty_vector_ring(ring: &PrimeRing, cols: usize) -> Vec<Vec<u64>> {
+    vec![vec![ring.zero(); ring.ring_size()]; cols]
+}
+
+pub fn empty_ring_element(ring: &PrimeRing) -> Vec<u64> {
+    vec![ring.zero(); ring.ring_size()]
 }

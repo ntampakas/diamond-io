@@ -1,7 +1,9 @@
 use phantom_zone_math::{
-    prelude::{ElemFrom, Modulus, ModulusOps, Prime},
+    prelude::{ElemFrom, Modulus, Prime},
     ring::{PrimeRing, RingOps},
 };
+
+use crate::utils::empty_vector_ring;
 
 /// Parameters for the BGG+ RLWE attribute encoding
 ///
@@ -56,9 +58,9 @@ impl Parameters {
 
 /// Initialize the gadget vector `g` for the BGG+ RLWE attribute encoding
 ///
-/// `g = [2^0, 2^1, ..., 2^(k-1), 0, 0]` where each element is a constant polynomial
+/// `g = [2^0, 2^1, ..., 2^(k-1), 0, 0]` where each element is a constant polynomial in the ring
 pub fn init_gadget_vector(ring: &PrimeRing, m: usize) -> Vec<Vec<u64>> {
-    let mut g = vec![vec![ring.zero(); ring.ring_size()]; m];
+    let mut g = empty_vector_ring(ring, m);
 
     for i in 0..m - 2 {
         g[i][0] = ring.elem_from(2u64.pow(i as u32));

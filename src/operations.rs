@@ -1,4 +1,7 @@
-use crate::parameters::Parameters;
+use crate::{
+    parameters::Parameters,
+    utils::{empty_matrix_ring, empty_ring_element, empty_vector_ring},
+};
 use phantom_zone_math::{
     prelude::{ElemFrom, ModulusOps},
     ring::{PrimeRing, RingOps},
@@ -9,7 +12,7 @@ pub fn bit_decompose(params: &Parameters, bu: &Vec<Vec<u64>>) -> Vec<Vec<Vec<u64
     let m = *params.m();
     let ring_size = ring.ring_size();
     // Create a matrix of dimension m × m, where each element is a binary polynomial
-    let mut tau = vec![vec![vec![ring.zero(); ring_size]; m]; m];
+    let mut tau = empty_matrix_ring(ring, m, m);
 
     // For each row h in the output matrix
     for h in 0..m {
@@ -30,7 +33,7 @@ pub fn bit_decompose(params: &Parameters, bu: &Vec<Vec<u64>>) -> Vec<Vec<Vec<u64
 
 pub fn poly_add(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
     assert_eq!(a.len(), b.len());
-    let mut c = vec![ring.zero(); a.len()];
+    let mut c = empty_ring_element(ring);
     for i in 0..a.len() {
         let elem = ring.add(&a[i], &b[i]);
         c[i] = elem;
@@ -40,7 +43,7 @@ pub fn poly_add(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
 
 pub fn poly_sub(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
     assert_eq!(a.len(), b.len());
-    let mut c = vec![ring.zero(); a.len()];
+    let mut c = empty_ring_element(ring);
     for i in 0..a.len() {
         let elem = ring.sub(&a[i], &b[i]);
         c[i] = elem;
@@ -53,7 +56,7 @@ pub fn gen_identity_matrix_to_scalar(
     m: usize,
     scalar: u64,
 ) -> Vec<Vec<Vec<u64>>> {
-    let mut identity_matrix = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; m];
+    let mut identity_matrix = empty_matrix_ring(ring, m, m);
 
     for i in 0..m {
         identity_matrix[i][i][0] = ring.elem_from(scalar);
@@ -68,7 +71,7 @@ pub fn vec_vec_dot_product(
     vec_b: &Vec<Vec<u64>>,
 ) -> Vec<u64> {
     assert_eq!(vec_a.len(), vec_b.len(),);
-    let mut out = vec![ring.zero(); ring.ring_size()];
+    let mut out = empty_ring_element(ring);
     for i in 0..vec_a.len() {
         let mut scratch = ring.allocate_scratch(1, 2, 0);
         let mut scratch = scratch.borrow_mut();
@@ -88,7 +91,7 @@ pub fn vec_mat_mul(
     let mat_rows = mat.len();
     let mat_cols = mat[0].len();
     assert_eq!(len, mat_rows);
-    let mut out = vec![vec![ring.zero(); ring.ring_size()]; mat_cols];
+    let mut out = empty_vector_ring(ring, mat_cols);
 
     for i in 0..mat_cols {
         let col_i = mat.iter().map(|row| row[i].clone()).collect::<Vec<_>>();
@@ -107,7 +110,7 @@ pub fn mat_mat_mul(
     let mat_b_rows = mat_b.len();
     let mat_b_cols = mat_b[0].len();
     assert_eq!(mat_a_cols, mat_b_rows);
-    let mut out = vec![vec![vec![ring.zero(); ring.ring_size()]; mat_b_cols]; mat_a_rows];
+    let mut out = empty_matrix_ring(ring, mat_a_rows, mat_b_cols);
 
     for i in 0..mat_a_rows {
         out[i] = vec_mat_mul(ring, &mat_a[i], mat_b);
@@ -125,7 +128,10 @@ pub fn mat_mat_add(
     assert_eq!(mat_a.len(), mat_b.len());
     assert_eq!(mat_a[0].len(), mat_b[0].len());
 
-    let mut out = vec![vec![vec![ring.zero(); ring.ring_size()]; mat_a[0].len()]; mat_a.len()];
+    let mat_a_rows = mat_a.len();
+    let mat_a_cols = mat_a[0].len();
+
+    let mut out = empty_matrix_ring(ring, mat_a_rows, mat_a_cols);
 
     for i in 0..mat_a.len() {
         for j in 0..mat_a[0].len() {
@@ -147,10 +153,9 @@ pub fn mat_vert_concat(
 
     let rows = mat_top.len();
     let cols = mat_top[0].len();
-    let ring_size = mat_top[0][0].len();
 
     // Create output matrix with combined number of rows
-    let mut out = vec![vec![vec![ring.zero(); ring_size]; cols]; 2 * rows];
+    let mut out = empty_matrix_ring(ring, 2 * rows, cols);
 
     // Copy top matrix
     for i in 0..rows {
@@ -181,10 +186,9 @@ pub fn mat_horiz_concat(
 
     let rows = mat_left.len();
     let cols = mat_right[0].len();
-    let ring_size = mat_left[0][0].len();
 
     // Create output matrix with combined number of columns
-    let mut out = vec![vec![vec![ring.zero(); ring_size]; 2 * cols]; rows];
+    let mut out = empty_matrix_ring(ring, rows, 2 * cols);
 
     // Copy left matrix
     for i in 0..rows {

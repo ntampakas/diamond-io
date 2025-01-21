@@ -1,6 +1,7 @@
 use crate::{
     operations::{poly_add, poly_sub},
     pub_key::PublicKey,
+    utils::empty_matrix_ring,
 };
 use phantom_zone_crypto::util::distribution::NoiseDistribution;
 use phantom_zone_math::{
@@ -49,7 +50,7 @@ impl Ciphertext {
         }
 
         // Initialize error matrix
-        let mut error = vec![vec![vec![ring.zero(); ring.ring_size()]; m]; ell + 1];
+        let mut error = empty_matrix_ring(ring, ell + 1, m);
 
         for i in 0..ell + 1 {
             for si in 0..m {
