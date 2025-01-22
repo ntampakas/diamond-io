@@ -1,9 +1,6 @@
-use phantom_zone_math::prelude::ModulusOps;
-
 use crate::{
     ciphertext::Ciphertext,
     eval::{m_eval_add, m_eval_add_x, m_eval_mul, m_eval_mul_x},
-    operations::{mat_mat_add, mat_mat_mul},
     parameters::Parameters,
     pub_key::PublicKey,
 };
@@ -25,7 +22,7 @@ impl CircuitX {
         let mut ct_gates = Vec::with_capacity(ell + 1);
 
         for i in 0..ell + 1 {
-            let ct_gate = ciphertext.inner()[i].clone();
+            let ct_gate = ciphertext.inner()[i].clone(); // TODO: eventually we will need to take the full ciphertext here
             ct_gates.push(ct_gate);
         }
 
@@ -89,9 +86,7 @@ impl CircuitX {
             params,
             &self.ct_gates()[idx_left],
             &self.b_gates()[idx_left],
-            &self.x_gates()[idx_left],
             &self.ct_gates()[idx_right],
-            &self.b_gates()[idx_right],
             &self.x_gates()[idx_right],
         );
         self.ct_gates.push(ct_gate);
@@ -126,6 +121,7 @@ impl Circuit {
     }
 
     pub fn mul_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
+        // Calculate b for the new gate
         let b_gate = m_eval_mul(
             params,
             &self.b_gates()[idx_left],
@@ -140,7 +136,7 @@ impl Circuit {
 mod tests {
     use crate::ciphertext::Ciphertext;
     use crate::circuit::{Circuit, CircuitX};
-    use crate::operations::{mat_horiz_concat, poly_add, vec_horiz_concat, vec_mat_mul};
+    use crate::operations::{poly_add, vec_horiz_concat};
     use crate::parameters::Parameters;
     use crate::pub_key::PublicKey;
     use phantom_zone_math::prelude::{ElemFrom, ModulusOps};
@@ -191,7 +187,7 @@ mod tests {
             circuit_x.add_gate(pub_key.params(), gate_idx_4, 3);
         }
 
-        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * h[gate_idx_5] = b[gate_idx_5] + f(x)G
+        // verify homomorphism such that ct_out = b_out + f(x)G
         let lhs = circuit_x.ct_gates()[gate_idx_5].clone();
 
         let mut rhs = circuit.b_gates()[gate_idx_5].clone();
@@ -235,7 +231,6 @@ mod tests {
         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just for easier arithmetic during encoding
 
         let ciphertext = Ciphertext::new(&pub_key, &x);
-        let ct_inner_concat = ciphertext.inner_concat();
 
         let mut circuit_x = CircuitX::new(&pub_key, &x, &ciphertext);
         let mut circuit = Circuit::new(&pub_key);
@@ -266,14 +261,12 @@ mod tests {
             circuit_x.add_gate(pub_key.params(), 2, 3);
         }
 
-        // verify homomorphism such that (ct_inner[0] | ct_inner[1] | ct_inner[2] | ... | ct_inner[ell]) * (h[gate_idx_4] | h[gate_idx_5]) = [b[gate_idx_4] | b[gate_idx_5]] + [f1(x)G | f2(xG]
-        // horizontally concatenate the two vectors ct_gates[gate_idx_4] and ct_gates[gate_idx_5]
+        // verify homomorphism such that ct_out = b_out + f(x)G
         let lhs = vec_horiz_concat(
             &circuit_x.ct_gates()[gate_idx_4],
             &circuit_x.ct_gates()[gate_idx_5],
         );
 
-        // define rhs as the concatenation of b[gate_idx_4] and b[gate_idx_5]
         let mut rhs = vec_horiz_concat(
             &circuit.b_gates()[gate_idx_4],
             &circuit.b_gates()[gate_idx_5],

@@ -97,24 +97,7 @@ pub fn vec_mat_mul(
         let col_i = mat.iter().map(|row| row[i].clone()).collect::<Vec<_>>();
         out[i] = vec_vec_dot_product(ring, vec, &col_i);
     }
-    out
-}
 
-pub fn mat_mat_mul(
-    ring: &PrimeRing,
-    mat_a: &Vec<Vec<Vec<u64>>>,
-    mat_b: &Vec<Vec<Vec<u64>>>,
-) -> Vec<Vec<Vec<u64>>> {
-    let mat_a_rows = mat_a.len();
-    let mat_a_cols = mat_a[0].len();
-    let mat_b_rows = mat_b.len();
-    let mat_b_cols = mat_b[0].len();
-    assert_eq!(mat_a_cols, mat_b_rows);
-    let mut out = empty_matrix_ring(ring, mat_a_rows, mat_b_cols);
-
-    for i in 0..mat_a_rows {
-        out[i] = vec_mat_mul(ring, &mat_a[i], mat_b);
-    }
     out
 }
 
