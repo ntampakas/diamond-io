@@ -1,5 +1,5 @@
 use crate::{
-    operations::{poly_add, poly_sub},
+    operations::{poly_add, poly_mul, poly_sub},
     pub_key::PublicKey,
     utils::empty_matrix_ring,
 };
@@ -90,14 +90,7 @@ impl Ciphertext {
 
         for i in 0..self.inner().len() {
             for j in 0..self.inner()[0].len() {
-                let mut scratch = ring.allocate_scratch(1, 2, 0);
-                let mut scratch = scratch.borrow_mut();
-                let c = ring.take_poly(&mut scratch);
-
-                // Compute inner * secret
-                ring.poly_mul(c, &self.inner()[i][j], self.secret(), scratch.reborrow());
-
-                // Add error
+                let c = poly_mul(ring, &self.inner()[i][j], self.secret());
                 ct_full[i][j] = poly_add(ring, &c.to_vec(), &self.error()[i][j]);
             }
         }

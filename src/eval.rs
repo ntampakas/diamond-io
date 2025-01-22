@@ -2,7 +2,7 @@ use phantom_zone_math::{prelude::ModulusOps, ring::RingOps};
 
 use crate::{
     operations::{
-        bit_decompose, gen_identity_matrix_to_scalar, poly_add, vec_mat_mul, vec_vec_add,
+        bit_decompose, gen_identity_matrix_to_scalar, poly_add, poly_mul, vec_mat_mul, vec_vec_add,
     },
     parameters::Parameters,
     utils::empty_vector_ring,
@@ -46,12 +46,7 @@ pub fn m_eval_mul(
 
     for i in 0..m {
         for h in 0..m {
-            let mut scratch = ring.allocate_scratch(1, 2, 0);
-            let mut scratch = scratch.borrow_mut();
-            let product = ring.take_poly(&mut scratch);
-
-            ring.poly_mul(product, &b_right[h], &tau[h][i], scratch.reborrow());
-
+            let product = poly_mul(ring, &b_right[h], &tau[h][i]);
             out[i] = poly_add(ring, &out[i], &product.to_vec());
         }
     }
@@ -104,7 +99,7 @@ mod tests {
     use crate::{
         ciphertext::Ciphertext,
         eval::{m_eval_add, m_eval_add_x, m_eval_mul, m_eval_mul_x},
-        operations::poly_add,
+        operations::{poly_add, poly_mul},
         parameters::Parameters,
         pub_key::PublicKey,
     };
@@ -148,12 +143,8 @@ mod tests {
         fx[0] = ring.elem_from(x[1] + x[2]);
 
         for i in 0..m {
-            let mut scratch = ring.allocate_scratch(1, 2, 0);
-            let mut scratch = scratch.borrow_mut();
-            let gi_times_fx = ring.take_poly(&mut scratch);
-            ring.poly_mul(gi_times_fx, &g[i], &fx, scratch.reborrow());
-            let gi_times_fx_vec = gi_times_fx.to_vec();
-            rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx_vec);
+            let gi_times_fx = poly_mul(ring, &g[i], &fx);
+            rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx);
         }
         for i in 0..m {
             assert_eq!(lhs[i], rhs[i]);
@@ -196,12 +187,8 @@ mod tests {
         fx[0] = ring.elem_from(x[1] * x[2]);
 
         for i in 0..m {
-            let mut scratch = ring.allocate_scratch(1, 2, 0);
-            let mut scratch = scratch.borrow_mut();
-            let gi_times_fx = ring.take_poly(&mut scratch);
-            ring.poly_mul(gi_times_fx, &g[i], &fx, scratch.reborrow());
-            let gi_times_fx_vec = gi_times_fx.to_vec();
-            rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx_vec);
+            let gi_times_fx = poly_mul(ring, &g[i], &fx);
+            rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx);
         }
         for i in 0..m {
             assert_eq!(lhs[i], rhs[i]);

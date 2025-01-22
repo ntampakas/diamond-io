@@ -51,6 +51,17 @@ pub fn poly_sub(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
     c
 }
 
+pub fn poly_mul(ring: &PrimeRing, a: &Vec<u64>, b: &Vec<u64>) -> Vec<u64> {
+    let mut scratch = ring.allocate_scratch(1, 2, 0);
+    let mut scratch = scratch.borrow_mut(); // TODO: am I using scratch correctly?
+    let c = ring.take_poly(&mut scratch);
+
+    // Compute inner * secret
+    ring.poly_mul(c, a, b, scratch.reborrow());
+
+    c.to_vec()
+}
+
 pub fn gen_identity_matrix_to_scalar(
     ring: &PrimeRing,
     m: usize,
@@ -73,11 +84,8 @@ pub fn vec_vec_dot_product(
     assert_eq!(vec_a.len(), vec_b.len(),);
     let mut out = empty_ring_element(ring);
     for i in 0..vec_a.len() {
-        let mut scratch = ring.allocate_scratch(1, 2, 0);
-        let mut scratch = scratch.borrow_mut();
-        let product = ring.take_poly(&mut scratch);
-        ring.poly_mul(product, &vec_a[i], &vec_b[i], scratch.reborrow());
-        out = poly_add(ring, &out, &product.to_vec());
+        let product = poly_mul(ring, &vec_a[i], &vec_b[i]);
+        out = poly_add(ring, &out, &product);
     }
     out
 }
@@ -218,6 +226,8 @@ mod tests {
         parameters::Parameters,
         pub_key::PublicKey,
     };
+
+    use super::poly_mul;
     #[test]
     fn test_bit_decompose() {
         let params = Parameters::new(12, 51, 4);
@@ -236,11 +246,8 @@ mod tests {
             // For each row h of tau
             for h in 0..m {
                 // Multiply tau[h][i] by g[h] and add to the result
-                let mut scratch = ring.allocate_scratch(1, 2, 0);
-                let mut scratch = scratch.borrow_mut();
-                let product = ring.take_poly(&mut scratch);
-                ring.poly_mul(product, &tau[h][i], &g[h], scratch.reborrow());
-                reconstructed[i] = poly_add(ring, &reconstructed[i], &product.to_vec());
+                let product = poly_mul(ring, &tau[h][i], &g[h]);
+                reconstructed[i] = poly_add(ring, &reconstructed[i], &product);
             }
         }
 

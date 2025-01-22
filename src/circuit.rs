@@ -136,7 +136,7 @@ impl Circuit {
 mod tests {
     use crate::ciphertext::Ciphertext;
     use crate::circuit::{Circuit, CircuitX};
-    use crate::operations::{poly_add, vec_horiz_concat};
+    use crate::operations::{poly_add, poly_mul, vec_horiz_concat};
     use crate::parameters::Parameters;
     use crate::pub_key::PublicKey;
     use phantom_zone_math::prelude::{ElemFrom, ModulusOps};
@@ -204,12 +204,8 @@ mod tests {
         }
 
         for i in 0..m {
-            let mut scratch = ring.allocate_scratch(1, 2, 0);
-            let mut scratch = scratch.borrow_mut();
-            let gi_times_fx = ring.take_poly(&mut scratch);
-            ring.poly_mul(gi_times_fx, &g[i], &fx, scratch.reborrow());
-            let gi_times_fx_vec = gi_times_fx.to_vec();
-            rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx_vec);
+            let gi_times_fx = poly_mul(ring, &g[i], &fx);
+            rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx);
         }
         for i in 0..m {
             assert_eq!(lhs[i], rhs[i]);
@@ -288,21 +284,11 @@ mod tests {
         }
 
         for i in 0..m {
-            let mut scratch = ring.allocate_scratch(1, 2, 0);
-            let mut scratch = scratch.borrow_mut();
+            let gi_times_fx1 = poly_mul(ring, &g[i], &fx1);
+            rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx1);
 
-            // For the left half g*fx1
-            let gi_times_fx1 = ring.take_poly(&mut scratch);
-            ring.poly_mul(gi_times_fx1, &g[i], &fx1, scratch.reborrow());
-            rhs[i] = poly_add(ring, &rhs[i], &gi_times_fx1.to_vec());
-
-            let mut scratch = ring.allocate_scratch(1, 2, 0);
-            let mut scratch = scratch.borrow_mut();
-
-            // For the right half g*fx2
-            let gi_times_fx2 = ring.take_poly(&mut scratch);
-            ring.poly_mul(gi_times_fx2, &g[i], &fx2, scratch.reborrow());
-            rhs[i + m] = poly_add(ring, &rhs[i + m], &gi_times_fx2.to_vec());
+            let gi_times_fx2 = poly_mul(ring, &g[i], &fx2);
+            rhs[i + m] = poly_add(ring, &rhs[i + m], &gi_times_fx2);
         }
 
         for i in 0..2 * m {
