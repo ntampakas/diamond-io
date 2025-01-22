@@ -11,18 +11,12 @@ pub fn bit_decompose(params: &Parameters, bu: &Vec<Vec<u64>>) -> Vec<Vec<Vec<u64
     let ring = params.ring();
     let m = *params.m();
     let ring_size = ring.ring_size();
-    // Create a matrix of dimension m × m, where each element is a binary polynomial
     let mut tau = empty_matrix_ring(ring, m, m);
 
-    // For each row h in the output matrix
     for h in 0..m {
-        // For each column i in the output matrix
         for i in 0..m {
-            // For each coefficient j in the polynomial
             for j in 0..ring_size {
-                // Get the h-th bit of the j-th coefficient of the i-th polynomial
                 let coeff = bu[i][j];
-                // Check if the h-th bit is set
                 let bit = (coeff >> h) & 1;
                 tau[h][i][j] = bit;
             }
@@ -144,6 +138,7 @@ pub fn vec_vec_add(
     }
     out
 }
+
 /// Vertically concatenate two matrices of ring elements of equal size
 pub fn mat_vert_concat(
     ring: &PrimeRing,
@@ -157,17 +152,16 @@ pub fn mat_vert_concat(
     let rows = mat_top.len();
     let cols = mat_top[0].len();
 
-    // Create output matrix with combined number of rows
     let mut out = empty_matrix_ring(ring, 2 * rows, cols);
 
-    // Copy top matrix
+    // top matrix
     for i in 0..rows {
         for j in 0..cols {
             out[i][j] = mat_top[i][j].clone();
         }
     }
 
-    // Copy bottom matrix
+    // bottom matrix
     for i in 0..rows {
         for j in 0..cols {
             out[i + rows][j] = mat_bottom[i][j].clone();
@@ -190,17 +184,16 @@ pub fn mat_horiz_concat(
     let rows = mat_left.len();
     let cols = mat_right[0].len();
 
-    // Create output matrix with combined number of columns
     let mut out = empty_matrix_ring(ring, rows, 2 * cols);
 
-    // Copy left matrix
+    // left matrix
     for i in 0..rows {
         for j in 0..cols {
             out[i][j] = mat_left[i][j].clone();
         }
     }
 
-    // Copy right matrix
+    // right matrix
     for i in 0..rows {
         for j in 0..cols {
             out[i][j + cols] = mat_right[i][j].clone();
@@ -238,14 +231,11 @@ mod tests {
         let g = pub_key.params().g();
         let tau = bit_decompose(pub_key.params(), b1);
 
-        // Reconstruct the original input by multiplying tau with G
+        // reconstruct the original input by multiplying tau with G
         let mut reconstructed = vec![vec![ring.zero(); ring.ring_size()]; m];
 
-        // For each column i of the output
         for i in 0..m {
-            // For each row h of tau
             for h in 0..m {
-                // Multiply tau[h][i] by g[h] and add to the result
                 let product = poly_mul(ring, &tau[h][i], &g[h]);
                 reconstructed[i] = poly_add(ring, &reconstructed[i], &product);
             }

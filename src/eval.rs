@@ -125,10 +125,10 @@ mod tests {
 
         let ciphertext = Ciphertext::new(&pub_key, &x);
 
-        // Perform add gate of b[1] and b[2]
+        // perform add gate of b[1] and b[2]
         let b_out = m_eval_add(pub_key.params(), &pub_key.b()[1], &pub_key.b()[2]);
 
-        // Perform add gate of ct_inner[1] and ct_inner[2]
+        // perform add gate of ct_inner[1] and ct_inner[2]
         let ct_out = m_eval_add_x(
             pub_key.params(),
             &ciphertext.inner()[1],
@@ -167,10 +167,10 @@ mod tests {
 
         let ciphertext = Ciphertext::new(&pub_key, &x);
 
-        // Perform mul gate of b[1] and b[2]
+        // perform mul gate of b[1] and b[2]
         let b_out = m_eval_mul(pub_key.params(), &pub_key.b()[1], &pub_key.b()[2]);
 
-        // Perform mul gate of ct_inner[1] and ct_inner[2]
+        // perform mul gate of ct_inner[1] and ct_inner[2]
         let ct_out = m_eval_mul_x(
             pub_key.params(),
             &ciphertext.inner()[1],

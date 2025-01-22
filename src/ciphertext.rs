@@ -41,7 +41,6 @@ impl Ciphertext {
         let s = ring.sample_uniform_vec(ring.ring_size(), &mut rng);
         let mut ct_inner = public_key.b().clone();
 
-        // Generate error vectors
         let mut err_a = vec![vec![ring.zero(); ring.ring_size()]; m];
         let gaussian: NoiseDistribution = Gaussian(3.19).into();
 
@@ -49,7 +48,6 @@ impl Ciphertext {
             ring.sample_into::<i64>(err, gaussian, rng.clone());
         }
 
-        // Initialize error matrix
         let mut error = empty_matrix_ring(ring, ell + 1, m);
 
         for i in 0..ell + 1 {
@@ -67,7 +65,7 @@ impl Ciphertext {
 
             let g = params.g();
 
-            // Add gadget vector to ct_inner if x[i] = 1
+            // add gadget vector to ct_inner if x[i] = 1
             if x[i] == 1 {
                 for (ct, g_j) in ct_inner[i].iter_mut().zip(g.iter()) {
                     *ct = poly_add(ring, ct, g_j);
@@ -82,7 +80,7 @@ impl Ciphertext {
         }
     }
 
-    /// Compute the ct_full as inner * secret + error
+    /// Compute the ct_full as `inner * secret + error`
     pub fn compute_ct_full(&self, pub_key: &PublicKey) -> Vec<Vec<Vec<u64>>> {
         let params = pub_key.params();
         let ring = params.ring();

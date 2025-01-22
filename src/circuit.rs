@@ -46,7 +46,7 @@ impl CircuitX {
     }
 
     pub fn add_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
-        // Calculate b for the new gate
+        // calculate b for the new gate
         let b_gate = m_eval_add(
             params,
             &self.b_gates()[idx_left],
@@ -54,11 +54,11 @@ impl CircuitX {
         );
         self.b_gates.push(b_gate);
 
-        // Calculate x for the new gate
+        // calculate x for the new gate
         let x_gate = self.x_gates()[idx_left] + self.x_gates()[idx_right];
         self.x_gates.push(x_gate);
 
-        // Calculate ct for the new gate
+        // calculate ct for the new gate
         let ct_gate = m_eval_add_x(
             params,
             &self.ct_gates()[idx_left],
@@ -69,7 +69,7 @@ impl CircuitX {
     }
 
     pub fn mul_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
-        // Calculate b for the new gate
+        // calculate b for the new gate
         let b_gate = m_eval_mul(
             params,
             &self.b_gates()[idx_left],
@@ -77,11 +77,11 @@ impl CircuitX {
         );
         self.b_gates.push(b_gate);
 
-        // Calculate x for the new gate
+        // calculate x for the new gate
         let x_gate = self.x_gates()[idx_left] * self.x_gates()[idx_right];
         self.x_gates.push(x_gate);
 
-        // Calculate ct for the new gate
+        // calculate ct for the new gate
         let ct_gate = m_eval_mul_x(
             params,
             &self.ct_gates()[idx_left],
@@ -110,7 +110,7 @@ impl Circuit {
     }
 
     pub fn add_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
-        // Calculate b for the new gate
+        // calculate b for the new gate
         let b_gate = m_eval_add(
             params,
             &self.b_gates()[idx_left],
@@ -121,7 +121,7 @@ impl Circuit {
     }
 
     pub fn mul_gate(&mut self, params: &Parameters, idx_left: usize, idx_right: usize) -> usize {
-        // Calculate b for the new gate
+        // calculate b for the new gate
         let b_gate = m_eval_mul(
             params,
             &self.b_gates()[idx_left],
