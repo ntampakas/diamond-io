@@ -1,8 +1,8 @@
-use crate::{
+use crate::bgg::{
     operations::{poly_add, poly_mul, poly_sub},
     pub_key::PublicKey,
-    utils::empty_matrix_ring,
 };
+use crate::utils::empty_matrix_ring;
 use phantom_zone_crypto::util::distribution::NoiseDistribution;
 use phantom_zone_math::{
     prelude::{Gaussian, ModulusOps, Sampler},
