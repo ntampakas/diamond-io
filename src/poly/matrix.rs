@@ -1,5 +1,6 @@
 use super::{Poly, PolyElemOps, PolyOps};
 use std::fmt::Debug;
+
 pub type PolyMatrix<T, P, M> = <M as PolyMatrixOps<T, P>>::Matrix;
 
 pub trait PolyMatrixOps<T: PolyElemOps, P: PolyOps<T>> {
@@ -41,6 +42,11 @@ pub trait PolyMatrixOps<T: PolyElemOps, P: PolyOps<T>> {
     fn concat_columns(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
     fn concat_rows(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
     fn add(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
+    fn neg(&self, a: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
+    fn sub(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error> {
+        let minus_b = self.neg(b)?;
+        self.add(a, &minus_b)
+    }
     fn mul(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
     fn tensor(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
 }

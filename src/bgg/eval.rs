@@ -1,8 +1,6 @@
 use super::{BggEncoding, BggError, BggPublicKey};
 use crate::poly::gadget::PolyGadgetOps;
 use crate::poly::{matrix::*, sampler::*, *};
-use crate::utils::ceil_div;
-use rand::RngCore;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -47,6 +45,37 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
         })
     }
 
+    pub fn neg_public_keys(
+        &self,
+        a: &BggPublicKey<T, P, M>,
+        new_index: usize,
+    ) -> Result<BggPublicKey<T, P, M>, BggError> {
+        let new_matrix = self
+            .matrix_op
+            .neg(&a.matrix)
+            .map_err(|e| BggError::MatrixError(e.to_string()))?;
+        Ok(BggPublicKey {
+            matrix: new_matrix,
+            index: new_index,
+        })
+    }
+
+    pub fn sub_public_keys(
+        &self,
+        a: &BggPublicKey<T, P, M>,
+        b: &BggPublicKey<T, P, M>,
+        new_index: usize,
+    ) -> Result<BggPublicKey<T, P, M>, BggError> {
+        let new_matrix = self
+            .matrix_op
+            .sub(&a.matrix, &b.matrix)
+            .map_err(|e| BggError::MatrixError(e.to_string()))?;
+        Ok(BggPublicKey {
+            matrix: new_matrix,
+            index: new_index,
+        })
+    }
+
     pub fn mul_public_keys(
         &self,
         a: &BggPublicKey<T, P, M>,
@@ -82,6 +111,55 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
             (Some(a_plain), Some(b_plain)) => Some(
                 self.poly_op
                     .add(&a_plain, &b_plain)
+                    .map_err(|e| BggError::PolyError(e.to_string()))?,
+            ),
+            _ => None,
+        };
+        Ok(BggEncoding {
+            vector: new_vector,
+            plaintext: new_plaintext,
+            index: new_index,
+        })
+    }
+
+    pub fn neg_encoding(
+        &self,
+        a: &BggEncoding<T, P, M>,
+        new_index: usize,
+    ) -> Result<BggEncoding<T, P, M>, BggError> {
+        let new_vector = self
+            .matrix_op
+            .neg(&a.vector)
+            .map_err(|e| BggError::MatrixError(e.to_string()))?;
+        let new_plaintext = match a.plaintext.as_ref() {
+            Some(a_plain) => Some(
+                self.poly_op
+                    .neg(a_plain)
+                    .map_err(|e| BggError::PolyError(e.to_string()))?,
+            ),
+            _ => None,
+        };
+        Ok(BggEncoding {
+            vector: new_vector,
+            plaintext: new_plaintext,
+            index: new_index,
+        })
+    }
+
+    pub fn sub_encodings(
+        &self,
+        a: &BggEncoding<T, P, M>,
+        b: &BggEncoding<T, P, M>,
+        new_index: usize,
+    ) -> Result<BggEncoding<T, P, M>, BggError> {
+        let new_vector = self
+            .matrix_op
+            .sub(&a.vector, &b.vector)
+            .map_err(|e| BggError::MatrixError(e.to_string()))?;
+        let new_plaintext = match (a.plaintext.as_ref(), b.plaintext.as_ref()) {
+            (Some(a_plain), Some(b_plain)) => Some(
+                self.poly_op
+                    .sub(&a_plain, &b_plain)
                     .map_err(|e| BggError::PolyError(e.to_string()))?,
             ),
             _ => None,
