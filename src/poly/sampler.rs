@@ -2,10 +2,25 @@ use rand::RngCore;
 
 use super::{
     matrix::{PolyMatrix, PolyMatrixOps},
-    PElem, Poly, PolyElemOps, PolyGaussOps, PolyOps,
+    PElem, Poly, PolyDegree, PolyElemOps, PolyOps,
 };
 
-pub trait PolyUniformSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>> {
+pub trait DistType {}
+
+pub struct FinRingDist;
+impl DistType for FinRingDist {}
+
+pub struct GaussianDist {
+    pub gaussian_param: f64,
+}
+impl DistType for GaussianDist {}
+
+pub struct BitDist;
+impl DistType for BitDist {}
+
+pub trait PolyUniformSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
+    PolyDegree<T>
+{
     type Error: std::error::Error;
     fn sample<R: RngCore>(
         &self,
@@ -15,18 +30,23 @@ pub trait PolyUniformSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, 
     ) -> Result<PolyMatrix<T, P, M>, Self::Error>;
 }
 
-pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>> {
+pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
+    PolyDegree<T>
+{
     type Error: std::error::Error;
     fn sample<B: AsRef<[u8]>>(
         &self,
-        key: B,
         tag: B,
         rows: usize,
         columns: usize,
     ) -> Result<PolyMatrix<T, P, M>, Self::Error>;
+
+    fn expose_key(&self) -> &[u8];
 }
 
-pub trait PolyTrapdoorSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>> {
+pub trait PolyTrapdoorSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
+    PolyDegree<T>
+{
     type Error: std::error::Error;
     type Trapdoor;
     fn trapdoor<R: RngCore>(
@@ -34,18 +54,10 @@ pub trait PolyTrapdoorSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T,
         rng: &mut R,
     ) -> Result<(PolyMatrix<T, P, M>, Self::Trapdoor), Self::Error>;
 
-    fn preimage<
-        R: RngCore,
-        U: PolyElemOps,
-        PU: PolyOps<U>,
-        MU: PolyMatrixOps<U, PU>,
-        V: PolyGaussOps,
-        PV: PolyOps<V>,
-        MV: PolyMatrixOps<V, PV>,
-    >(
+    fn preimage<R: RngCore>(
         &self,
         rng: &mut R,
         trapdoor: &Self::Trapdoor,
-        target: &PolyMatrix<U, PU, MU>,
-    ) -> Result<PolyMatrix<V, PV, MV>, Self::Error>;
+        target: &PolyMatrix<T, P, M>,
+    ) -> Result<PolyMatrix<T, P, M>, Self::Error>;
 }

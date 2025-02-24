@@ -3,6 +3,10 @@ use phantom_zone_math::{
     ring::{PrimeRing, RingOps},
 };
 
+pub fn ceil_div(a: usize, b: usize) -> usize {
+    (a + b - 1) / b
+}
+
 /// Print a ring element
 pub fn print_ring_element(label: &str, ring_el: &Vec<u64>) {
     print!("{} [", label);
