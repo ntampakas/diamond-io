@@ -44,11 +44,11 @@ pub trait PolyOps {
     // fn one(&self) -> Result<Self::Poly, Self::Error>;
     // fn minus_one(&self) -> Result<Self::Poly, Self::Error>;
     fn add(&self, a: &Self::Poly, b: &Self::Poly) -> Result<Self::Poly, Self::Error>;
-    // fn neg(&self, a: &Self::Poly) -> Result<Self::Poly, Self::Error>;
-    // fn sub(&self, a: &Self::Poly, b: &Self::Poly) -> Result<Self::Poly, Self::Error> {
-    //     let minus_b = self.neg(b)?;
-    //     self.add(a, &minus_b)
-    // }
+    fn neg(&self, a: &Self::Poly) -> Result<Self::Poly, Self::Error>;
+    fn sub(&self, a: &Self::Poly, b: &Self::Poly) -> Result<Self::Poly, Self::Error> {
+        let minus_b = self.neg(b)?;
+        self.add(a, &minus_b)
+    }
     fn mul(&self, a: &Self::Poly, b: &Self::Poly) -> Result<Self::Poly, Self::Error>;
     // fn extract_highest_bits(&self, poly: &Self::Poly) -> Result<Vec<bool>, Self::Error>;
 }

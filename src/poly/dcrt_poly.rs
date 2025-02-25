@@ -33,4 +33,9 @@ impl PolyOps for DCRTPoly {
         let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, *constant);
         Ok(DCRTPoly::new(res))
     }
+
+    fn neg(&self, a: &Self::Poly) -> Result<Self::Poly, Self::Error> {
+        let res = a.ptr_poly.Negate();
+        Ok(DCRTPoly::new(res))
+    }
 }
