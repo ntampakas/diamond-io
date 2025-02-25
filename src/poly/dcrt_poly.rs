@@ -4,13 +4,13 @@ use openfhe::{
 };
 use std::{
     fmt::Debug,
-    ops::{Add, Mul, Neg, Sub},
+    ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub},
     sync::Arc,
 };
 
 use super::{params::Params, Polynomial};
 
-use num_traits::Zero;
+use num_traits::{One, Zero};
 
 #[derive(Clone, Debug)]
 pub struct DCRTPoly {
@@ -31,9 +31,9 @@ impl Polynomial for DCRTPoly {
         Ok(DCRTPoly::new(res))
     }
 
-    fn const_zero(params: &Params) -> Result<Self, Self::Error> {
+    fn const_zero(params: &Params) -> Self {
         let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, 0);
-        Ok(DCRTPoly::new(res))
+        DCRTPoly::new(res)
     }
 
     fn const_one(params: &Params) -> Result<Self, Self::Error> {
@@ -95,5 +95,31 @@ impl Zero for DCRTPoly {
 
     fn is_zero(&self) -> bool {
         self.ptr_poly.is_null()
+    }
+}
+
+impl One for DCRTPoly {
+    fn one() -> Self {
+        DCRTPoly::new(UniquePtr::null())
+    }
+}
+
+impl AddAssign for DCRTPoly {
+    fn add_assign(&mut self, rhs: Self) {
+        if self.ptr_poly.is_null() || rhs.ptr_poly.is_null() {
+            panic!("Attempted to dereference a null pointer");
+        }
+        let res = ffi::DCRTPolyAdd(&rhs.ptr_poly, &self.ptr_poly);
+        self.ptr_poly = res.into();
+    }
+}
+
+impl MulAssign for DCRTPoly {
+    fn mul_assign(&mut self, rhs: Self) {
+        if self.ptr_poly.is_null() || rhs.ptr_poly.is_null() {
+            panic!("Attempted to dereference a null pointer");
+        }
+        let res = ffi::DCRTPolyMul(&rhs.ptr_poly, &self.ptr_poly);
+        self.ptr_poly = res.into();
     }
 }

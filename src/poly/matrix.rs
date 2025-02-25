@@ -1,20 +1,39 @@
 use num_traits::Zero;
 
-use super::Polynomial;
+use super::{params::Params, Polynomial};
 use std::{
+    array,
     fmt::Debug,
     ops::{Add, Neg},
 };
 
+pub type Matrix<P, const ROW: usize, const COL: usize> = [[P; COL]; ROW];
+
+pub fn get_zero_matrix<P, const ROW: usize, const COL: usize>(
+    params: &Params,
+) -> Matrix<P, ROW, COL>
+where
+    P: Polynomial,
+{
+    array::from_fn(|_| array::from_fn(|_| P::const_zero(params)))
+}
+
+pub fn get_null_matrix<P, const ROW: usize, const COL: usize>() -> Matrix<P, ROW, COL>
+where
+    P: Polynomial,
+{
+    array::from_fn(|_| array::from_fn(|_| P::zero()))
+}
+
 // pub type PolynomialMatrix<P, M> = <M as PolyMatrixOps<P>>::Matrix;
 
-pub trait PolynomialMatrix<P: Polynomial>:
+pub trait PolynomialMatrix<P: Polynomial, const ROWS: usize, const COLUMNS: usize>:
     Sized + Clone + Debug + PartialEq + Eq + Add + Neg + Zero
 {
     type Error: std::error::Error + Send + Sync + 'static;
     // fn poly_vec_to_matrix(&self, polys: Vec<P>) -> Self::Matrix;
-    // fn row_size(&self, matrix: &Self::Matrix) -> usize;
-    // fn col_size(&self, matrix: &Self::Matrix) -> usize;
+    fn row_size(&self) -> usize;
+    fn col_size(&self) -> usize;
     // fn entry(&self, matrix: &Self::Matrix, i: usize, j: usize) -> Result<P, Self::Error>;
     // fn size(&self, matrix: &Self::Matrix) -> Result<(usize, usize), Self::Error>;
     // fn slice(
@@ -44,7 +63,7 @@ pub trait PolynomialMatrix<P: Polynomial>:
     //     self.slice(matrix, 0, rows, start, end)
     // }
     // fn zero() -> Self;
-    fn from_slice(slice: &[P]) -> Self;
+    fn from_slice(slice: &[[P; COLUMNS]; ROWS]) -> Self;
     // fn identity(&self, size: usize, scale: Option<&P>) -> Result<Self::Matrix, Self::Error>;
     // fn transpose(&self, matrix: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
     // // (m * n1), (m * n2) -> (m * (n1 + n2))
