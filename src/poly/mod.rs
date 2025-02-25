@@ -1,3 +1,4 @@
+pub mod dcrt_poly;
 pub mod gadget;
 pub mod matrix;
 pub mod sampler;
