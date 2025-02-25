@@ -41,6 +41,8 @@ pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>,
         columns: usize,
     ) -> Result<PolyMatrix<T, P, M>, Self::Error>;
 
+    fn set_key(&mut self, key: &[u8]);
+
     fn expose_key(&self) -> &[u8];
 }
 

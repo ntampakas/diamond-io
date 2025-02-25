@@ -6,17 +6,17 @@ use crate::poly::gadget::PolyGadgetOps;
 use crate::poly::{matrix::*, sampler::*, *};
 
 #[derive(Debug, Clone)]
-pub struct Obfuscation<T, P, M, S>
+pub struct Obfuscation<T, P, M>
 where
     T: PolyElemOps,
     P: PolyOps<T>,
     M: PolyMatrixOps<T, P>,
-    S: PolyUniformSampler<T, P, M, BitDist>
-        + PolyUniformSampler<T, P, M, GaussianDist>
-        + PolyUniformSampler<T, P, M, FinRingDist>
-        + PolyUniformSampler<T, P, M, BitDist>,
+    // S: PolyUniformSampler<T, P, M, BitDist>
+    //     + PolyUniformSampler<T, P, M, GaussianDist>
+    //     + PolyUniformSampler<T, P, M, FinRingDist>
+    //     + PolyUniformSampler<T, P, M, BitDist>,
 {
-    pub sampler: S,
+    pub hash_key: Vec<u8>,
     pub fhe_enc: PolyMatrix<T, P, M>,
     pub input_encode: BggEncoding<T, P, M>,
     pub fhe_key_encode: BggPublicKey<T, P, M>,
