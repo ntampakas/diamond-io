@@ -1,9 +1,10 @@
 pub mod eval;
 pub mod obf;
 
-use crate::bgg::{BggEncoding, BggError, BggPublicKey};
-use crate::poly::gadget::PolyGadgetOps;
-use crate::poly::{matrix::*, sampler::*, *};
+use crate::{
+    bgg::{BggEncoding, BggError, BggPublicKey},
+    poly::{matrix::*, *},
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]

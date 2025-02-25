@@ -6,7 +6,7 @@ pub type PolyMatrix<T, P, M> = <M as PolyMatrixOps<T, P>>::Matrix;
 pub trait PolyMatrixOps<T: PolyElemOps, P: PolyOps<T>> {
     type Error: std::error::Error + Send + Sync + 'static;
     type Matrix: Debug + Clone;
-    fn from_poly_vec(&self, polys: Vec<Poly<T, P>>) -> Self::Matrix;
+    fn poly_vec_to_matrix(&self, polys: Vec<Poly<T, P>>) -> Self::Matrix;
     fn row_size(&self, matrix: &Self::Matrix) -> usize;
     fn col_size(&self, matrix: &Self::Matrix) -> usize;
     fn entry(&self, matrix: &Self::Matrix, i: usize, j: usize) -> Result<Poly<T, P>, Self::Error>;

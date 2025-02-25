@@ -2,7 +2,7 @@ use rand::RngCore;
 
 use super::{
     matrix::{PolyMatrix, PolyMatrixOps},
-    PElem, Poly, PolyDegree, PolyElemOps, PolyOps,
+    PolyDegree, PolyElemOps, PolyOps,
 };
 
 pub trait DistType {}
@@ -46,6 +46,7 @@ pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>,
     fn expose_key(&self) -> &[u8];
 }
 
+#[allow(clippy::type_complexity)]
 pub trait PolyTrapdoorSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
     PolyDegree<T>
 {

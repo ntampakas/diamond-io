@@ -1,6 +1,6 @@
 use super::{
     matrix::{PolyMatrix, PolyMatrixOps},
-    Poly, PolyElemOps, PolyOps,
+    PolyElemOps, PolyOps,
 };
 
 pub trait PolyGadgetOps<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>> {

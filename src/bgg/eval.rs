@@ -1,8 +1,6 @@
 use super::{BggEncoding, BggError, BggPublicKey};
-use crate::poly::gadget::PolyGadgetOps;
-use crate::poly::{matrix::*, sampler::*, *};
-use std::marker::PhantomData;
-use std::sync::Arc;
+use crate::poly::{gadget::PolyGadgetOps, matrix::*, *};
+use std::{marker::PhantomData, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct BGGEvaluator<
@@ -21,12 +19,7 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
     BGGEvaluator<T, P, M, G>
 {
     pub fn new(poly_op: Arc<P>, matrix_op: Arc<M>, gadget_op: Arc<G>) -> Self {
-        Self {
-            poly_op,
-            matrix_op,
-            gadget_op,
-            _t: PhantomData,
-        }
+        Self { poly_op, matrix_op, gadget_op, _t: PhantomData }
     }
 
     pub fn add_public_keys(
@@ -39,10 +32,7 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
             .matrix_op
             .add(&a.matrix, &b.matrix)
             .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        Ok(BggPublicKey {
-            matrix: new_matrix,
-            index: new_index,
-        })
+        Ok(BggPublicKey { matrix: new_matrix, index: new_index })
     }
 
     pub fn neg_public_keys(
@@ -50,14 +40,9 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
         a: &BggPublicKey<T, P, M>,
         new_index: usize,
     ) -> Result<BggPublicKey<T, P, M>, BggError> {
-        let new_matrix = self
-            .matrix_op
-            .neg(&a.matrix)
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        Ok(BggPublicKey {
-            matrix: new_matrix,
-            index: new_index,
-        })
+        let new_matrix =
+            self.matrix_op.neg(&a.matrix).map_err(|e| BggError::MatrixError(e.to_string()))?;
+        Ok(BggPublicKey { matrix: new_matrix, index: new_index })
     }
 
     pub fn sub_public_keys(
@@ -70,10 +55,7 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
             .matrix_op
             .sub(&a.matrix, &b.matrix)
             .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        Ok(BggPublicKey {
-            matrix: new_matrix,
-            index: new_index,
-        })
+        Ok(BggPublicKey { matrix: new_matrix, index: new_index })
     }
 
     pub fn mul_public_keys(
@@ -90,10 +72,7 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
             .matrix_op
             .mul(&a.matrix, &decomposed_b)
             .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        Ok(BggPublicKey {
-            matrix: new_matrix,
-            index: new_index,
-        })
+        Ok(BggPublicKey { matrix: new_matrix, index: new_index })
     }
 
     pub fn add_encodings(
@@ -110,16 +89,12 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
         let new_plaintext = match (a.plaintext.as_ref(), b.plaintext.as_ref()) {
             (Some(a_plain), Some(b_plain)) => Some(
                 self.poly_op
-                    .add(&a_plain, &b_plain)
+                    .add(a_plain, b_plain)
                     .map_err(|e| BggError::PolyError(e.to_string()))?,
             ),
             _ => None,
         };
-        Ok(BggEncoding {
-            vector: new_vector,
-            plaintext: new_plaintext,
-            index: new_index,
-        })
+        Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
     }
 
     pub fn neg_encoding(
@@ -127,23 +102,15 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
         a: &BggEncoding<T, P, M>,
         new_index: usize,
     ) -> Result<BggEncoding<T, P, M>, BggError> {
-        let new_vector = self
-            .matrix_op
-            .neg(&a.vector)
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
+        let new_vector =
+            self.matrix_op.neg(&a.vector).map_err(|e| BggError::MatrixError(e.to_string()))?;
         let new_plaintext = match a.plaintext.as_ref() {
-            Some(a_plain) => Some(
-                self.poly_op
-                    .neg(a_plain)
-                    .map_err(|e| BggError::PolyError(e.to_string()))?,
-            ),
+            Some(a_plain) => {
+                Some(self.poly_op.neg(a_plain).map_err(|e| BggError::PolyError(e.to_string()))?)
+            }
             _ => None,
         };
-        Ok(BggEncoding {
-            vector: new_vector,
-            plaintext: new_plaintext,
-            index: new_index,
-        })
+        Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
     }
 
     pub fn sub_encodings(
@@ -159,16 +126,12 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
         let new_plaintext = match (a.plaintext.as_ref(), b.plaintext.as_ref()) {
             (Some(a_plain), Some(b_plain)) => Some(
                 self.poly_op
-                    .sub(&a_plain, &b_plain)
+                    .sub(a_plain, b_plain)
                     .map_err(|e| BggError::PolyError(e.to_string()))?,
             ),
             _ => None,
         };
-        Ok(BggEncoding {
-            vector: new_vector,
-            plaintext: new_plaintext,
-            index: new_index,
-        })
+        Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
     }
 
     pub fn mul_encodings(
@@ -190,7 +153,7 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
             .map_err(|e| BggError::MatrixError(e.to_string()))?;
         let second_term = self
             .matrix_op
-            .scalar_mul(&b.vector, &a.plaintext.as_ref().unwrap())
+            .scalar_mul(&b.vector, a.plaintext.as_ref().unwrap())
             .map_err(|e| BggError::MatrixError(e.to_string()))?;
         let new_vector = self
             .matrix_op
@@ -199,16 +162,12 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
         let new_plaintext = match (a.plaintext.as_ref(), b.plaintext.as_ref()) {
             (Some(a_plain), Some(b_plain)) => Some(
                 self.poly_op
-                    .mul(&a_plain, &b_plain)
+                    .mul(a_plain, b_plain)
                     .map_err(|e| BggError::PolyError(e.to_string()))?,
             ),
             _ => None,
         };
-        Ok(BggEncoding {
-            vector: new_vector,
-            plaintext: new_plaintext,
-            index: new_index,
-        })
+        Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
     }
 }
 
@@ -216,8 +175,8 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
 
 // use crate::{
 //     operations::{
-//         bit_decompose, gen_identity_matrix_to_scalar, poly_add, poly_mul, vec_mat_mul, vec_vec_add,
-//     },
+//         bit_decompose, gen_identity_matrix_to_scalar, poly_add, poly_mul, vec_mat_mul,
+// vec_vec_add,     },
 //     parameters::Parameters,
 //     utils::empty_vector_ring,
 // };
@@ -335,7 +294,8 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
 //         let mut x = (0..ell + 1)
 //             .map(|_| rng.gen_range(0..2))
 //             .collect::<Vec<_>>();
-//         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just for easier arithmetic during encoding
+//         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just
+// for easier arithmetic during encoding
 
 //         let ciphertext = Ciphertext::new(&pub_key, &x);
 
@@ -377,7 +337,8 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
 //         let mut x = (0..ell + 1)
 //             .map(|_| rng.gen_range(0..2))
 //             .collect::<Vec<_>>();
-//         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just for easier arithmetic during encoding
+//         x[0] = 1; // The actual attribute vector is x[1..], the value set to the index 0 is just
+// for easier arithmetic during encoding
 
 //         let ciphertext = Ciphertext::new(&pub_key, &x);
 

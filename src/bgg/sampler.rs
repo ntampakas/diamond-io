@@ -1,11 +1,8 @@
 use super::{BggEncoding, BggError, BggPublicKey};
-use crate::poly::gadget::PolyGadgetOps;
-use crate::poly::{matrix::*, sampler::*, *};
-use crate::utils::ceil_div;
+use crate::poly::{gadget::PolyGadgetOps, matrix::*, sampler::*, *};
 use itertools::Itertools;
 use rand::RngCore;
-use std::marker::PhantomData;
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 /// A sampler of a public key A in the BGG+ RLWE encoding scheme
 #[derive(Debug, Clone)]
@@ -35,18 +32,14 @@ impl<
     /// # Returns
     /// A new public key sampler
     pub fn new(sampler: Arc<S>, matrix_op: Arc<M>) -> Self {
-        Self {
-            sampler,
-            matrix_op,
-            _t: PhantomData,
-            _p: PhantomData,
-        }
+        Self { sampler, matrix_op, _t: PhantomData, _p: PhantomData }
     }
 
     /// Sample a public key matrix
     /// # Arguments
     /// * `tag`: The tag to sample the public key matrix
-    /// * `packed_input_size`: The packed input size, i.e., the number of necessary polynomials when n bits are encoded into a single polynomial
+    /// * `packed_input_size`: The packed input size, i.e., the number of necessary polynomials when
+    ///   n bits are encoded into a single polynomial
     /// # Returns
     /// A vector of public key matrices
     pub fn sample(
@@ -61,7 +54,6 @@ impl<
             .sample_hash(tag, 2, columns)
             .map_err(|e| BggError::SampleError(e.to_string()))?;
         let public_keys = (0..packed_input_size)
-            .into_iter()
             .map(|idx| {
                 let matrix = self
                     .matrix_op
@@ -116,23 +108,13 @@ impl<
         matrix_op: Arc<M>,
         gadget_op: Arc<G>,
     ) -> Self {
-        let minus_one_poly = poly_op
-            .minus_one()
-            .expect("failed to create a minus one polynomial");
+        let minus_one_poly = poly_op.minus_one().expect("failed to create a minus one polynomial");
         // 2*1 column vector
-        let secret_vec = matrix_op.from_poly_vec(vec![secret.clone(), minus_one_poly]);
+        let secret_vec = matrix_op.poly_vec_to_matrix(vec![secret.clone(), minus_one_poly]);
         // 1*2 row vector
-        let secret_vec = matrix_op
-            .transpose(&secret_vec)
-            .expect("failed to transpose the secret_vec");
-        Self {
-            secret_vec,
-            error_sampler,
-            poly_op,
-            matrix_op,
-            gadget_op,
-            _t: PhantomData,
-        }
+        let secret_vec =
+            matrix_op.transpose(&secret_vec).expect("failed to transpose the secret_vec");
+        Self { secret_vec, error_sampler, poly_op, matrix_op, gadget_op, _t: PhantomData }
     }
 
     pub fn sample<R: RngCore>(
@@ -163,7 +145,7 @@ impl<
             .matrix_op
             .mul(&self.secret_vec, &gadget)
             .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        let encoded_polys_vec = self.matrix_op.from_poly_vec(plaintexts.to_vec());
+        let encoded_polys_vec = self.matrix_op.poly_vec_to_matrix(plaintexts.to_vec());
         let second_term = self
             .matrix_op
             .tensor(&encoded_polys_vec, &sg)
@@ -173,9 +155,7 @@ impl<
                 .matrix_op
                 .add(&first_term, &second_term)
                 .map_err(|e| BggError::MatrixError(e.to_string()))?;
-            self.matrix_op
-                .add(&add1, &error)
-                .map_err(|e| BggError::MatrixError(e.to_string()))?
+            self.matrix_op.add(&add1, &error).map_err(|e| BggError::MatrixError(e.to_string()))?
         };
         let encodings = plaintexts
             .iter()
@@ -185,11 +165,7 @@ impl<
                     .matrix_op
                     .slice_columns(&all_vector, 2 * log_q * idx, 2 * log_q * (idx + 1))
                     .expect("failed to slice all_vector to sample the BGG+ encodings"),
-                plaintext: if reveal_plaintexts {
-                    Some(poly.clone())
-                } else {
-                    None
-                },
+                plaintext: if reveal_plaintexts { Some(poly.clone()) } else { None },
                 index: idx,
             })
             .collect_vec();

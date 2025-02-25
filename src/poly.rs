@@ -1,8 +1,7 @@
 pub mod gadget;
 pub mod matrix;
 pub mod sampler;
-use phantom_zone_math::modulus::{Elem, ElemFrom, ElemOps, ElemTo};
-use phantom_zone_math::util::serde;
+use phantom_zone_math::modulus::{Elem, ElemFrom, ElemOps};
 use std::fmt::Debug;
 
 pub type PElem<T> = Elem<T>;
@@ -36,8 +35,8 @@ pub trait PolyOps<T: PolyElemOps>: PolyDegree<T> {
     type Error: std::error::Error + Send + Sync + 'static;
     type Poly: Debug + Clone;
     fn coeffs(&self, poly: &Self::Poly) -> &[PElem<T>];
-    fn from_coeffs(&self, coeffs: &[PElem<T>]) -> Result<Self::Poly, Self::Error>;
-    fn from_const(&self, constant: &T) -> Result<Self::Poly, Self::Error>;
+    fn from_coeffs(coeffs: &[PElem<T>]) -> Result<Self::Poly, Self::Error>;
+    fn from_const(constant: &T) -> Result<Self::Poly, Self::Error>;
     fn zero(&self) -> Result<Self::Poly, Self::Error>;
     fn one(&self) -> Result<Self::Poly, Self::Error>;
     fn minus_one(&self) -> Result<Self::Poly, Self::Error>;

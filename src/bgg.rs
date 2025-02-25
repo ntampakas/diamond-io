@@ -5,9 +5,7 @@
 pub mod eval;
 pub mod sampler;
 
-use crate::poly::{matrix::*, sampler::*, *};
-use crate::utils::ceil_div;
-use std::marker::PhantomData;
+use crate::poly::{matrix::*, *};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
