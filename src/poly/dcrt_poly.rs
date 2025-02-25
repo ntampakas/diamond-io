@@ -3,7 +3,7 @@ use openfhe::{
     ffi::{self, DCRTPolyImpl},
 };
 
-use super::PolyOps;
+use super::{params::Params, PolyOps};
 
 pub struct DCRTPoly {
     ptr_poly: UniquePtr<DCRTPolyImpl>,
@@ -26,6 +26,11 @@ impl PolyOps for DCRTPoly {
 
     fn mul(&self, rhs: &Self::Poly, lhs: &Self::Poly) -> Result<Self::Poly, Self::Error> {
         let res = ffi::DCRTPolyMul(&rhs.ptr_poly, &lhs.ptr_poly);
+        Ok(DCRTPoly::new(res))
+    }
+
+    fn from_const(params: &Params, constant: &u64) -> Result<Self::Poly, Self::Error> {
+        let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, *constant);
         Ok(DCRTPoly::new(res))
     }
 }
