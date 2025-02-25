@@ -58,7 +58,7 @@ impl<
         let columns = 2 * log_q * packed_input_size;
         let all_matrix = self
             .sampler
-            .sample(tag, 2, columns)
+            .sample_hash(tag, 2, columns)
             .map_err(|e| BggError::SampleError(e.to_string()))?;
         let public_keys = (0..packed_input_size)
             .into_iter()
@@ -87,7 +87,7 @@ pub struct BGGEncodingSampler<
     S: PolyUniformSampler<T, P, M, GaussianDist>,
     G: PolyGadgetOps<T, P, M>,
 > {
-    secret_vec: PolyMatrix<T, P, M>,
+    pub(crate) secret_vec: PolyMatrix<T, P, M>,
     pub error_sampler: Arc<S>,
     pub poly_op: Arc<P>,
     pub matrix_op: Arc<M>,
@@ -147,7 +147,7 @@ impl<
         let columns = 2 * log_q * packed_input_size;
         let error = self
             .error_sampler
-            .sample(rng, 1, columns)
+            .sample_uniform(rng, 1, columns)
             .map_err(|e| BggError::SampleError(e.to_string()))?;
         // [TODO] Avoid memory cloning here.
         let all_public_key_matrix = self

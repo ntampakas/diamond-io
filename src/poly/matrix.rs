@@ -4,7 +4,7 @@ use std::fmt::Debug;
 pub type PolyMatrix<T, P, M> = <M as PolyMatrixOps<T, P>>::Matrix;
 
 pub trait PolyMatrixOps<T: PolyElemOps, P: PolyOps<T>> {
-    type Error: std::error::Error;
+    type Error: std::error::Error + Send + Sync + 'static;
     type Matrix: Debug + Clone;
     fn from_poly_vec(&self, polys: Vec<Poly<T, P>>) -> Self::Matrix;
     fn row_size(&self, matrix: &Self::Matrix) -> usize;
@@ -37,16 +37,30 @@ pub trait PolyMatrixOps<T: PolyElemOps, P: PolyOps<T>> {
         let (rows, _) = self.size(matrix)?;
         self.slice(matrix, 0, rows, start, end)
     }
-    fn identity(&self, scale: Option<&Poly<T, P>>) -> Result<Self::Matrix, Self::Error>;
+    fn zero(&self, rows: usize, columns: usize) -> Result<Self::Matrix, Self::Error>;
+    fn identity(
+        &self,
+        size: usize,
+        scale: Option<&Poly<T, P>>,
+    ) -> Result<Self::Matrix, Self::Error>;
     fn transpose(&self, matrix: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
+    // (m * n1), (m * n2) -> (m * (n1 + n2))
     fn concat_columns(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
+    // (m1 * n), (m2 * n) -> ((m1 + m2) * n)
     fn concat_rows(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
+    // (m1 * n1), (m2 * n2) -> ((m1 + m2) * (n1 + n2))
+    fn concat_diag(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
     fn add(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
     fn neg(&self, a: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
     fn sub(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error> {
         let minus_b = self.neg(b)?;
         self.add(a, &minus_b)
     }
+    fn scalar_mul(
+        &self,
+        a: &Self::Matrix,
+        scalar: &Poly<T, P>,
+    ) -> Result<Self::Matrix, Self::Error>;
     fn mul(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
     fn tensor(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
 }

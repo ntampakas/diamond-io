@@ -21,8 +21,8 @@ impl DistType for BitDist {}
 pub trait PolyUniformSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
     PolyDegree<T>
 {
-    type Error: std::error::Error;
-    fn sample<R: RngCore>(
+    type Error: std::error::Error + Send + Sync + 'static;
+    fn sample_uniform<R: RngCore>(
         &self,
         rng: &mut R,
         rows: usize,
@@ -33,8 +33,8 @@ pub trait PolyUniformSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, 
 pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
     PolyDegree<T>
 {
-    type Error: std::error::Error;
-    fn sample<B: AsRef<[u8]>>(
+    type Error: std::error::Error + Send + Sync + 'static;
+    fn sample_hash<B: AsRef<[u8]>>(
         &self,
         tag: B,
         rows: usize,
@@ -49,7 +49,7 @@ pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>,
 pub trait PolyTrapdoorSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
     PolyDegree<T>
 {
-    type Error: std::error::Error;
+    type Error: std::error::Error + Send + Sync + 'static;
     type Trapdoor;
     fn trapdoor<R: RngCore>(
         &self,

@@ -4,6 +4,21 @@ pub mod obf;
 use crate::bgg::{BggEncoding, BggError, BggPublicKey};
 use crate::poly::gadget::PolyGadgetOps;
 use crate::poly::{matrix::*, sampler::*, *};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum ObfuscationError {
+    #[error("Sample error: {0}")]
+    SampleError(String),
+    #[error("Poly error: {0}")]
+    PolyError(String),
+    #[error("Matrix error: {0}")]
+    MatrixError(String),
+    #[error("Gadget error: {0}")]
+    GadgetError(String),
+    #[error(transparent)]
+    BggError(#[from] BggError),
+}
 
 #[derive(Debug, Clone)]
 pub struct Obfuscation<T, P, M>

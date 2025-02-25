@@ -188,13 +188,9 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, 
             .matrix_op
             .mul(&a.vector, &decomposed_b)
             .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        let a_identity = self
-            .matrix_op
-            .identity(a.plaintext.as_ref())
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
         let second_term = self
             .matrix_op
-            .mul(&b.vector, &a_identity)
+            .scalar_mul(&b.vector, &a.plaintext.as_ref().unwrap())
             .map_err(|e| BggError::MatrixError(e.to_string()))?;
         let new_vector = self
             .matrix_op

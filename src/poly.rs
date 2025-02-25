@@ -13,6 +13,7 @@ pub trait PolyElemModulus {
 pub trait PolyElemOps:
     ElemOps + ElemFrom<u64> + ElemFrom<u32> + ElemFrom<u8> + ElemFrom<bool> + PolyElemModulus
 {
+    type Error: std::error::Error + Send + Sync + 'static;
 }
 
 // pub trait PolyBitOps: PolyElemOps + ElemTo<u64> + ElemTo<u32> + ElemTo<u8> + ElemTo<bool> {
@@ -32,7 +33,7 @@ pub trait PolyDegree<T: PolyElemOps>: PolyElemModulus {
 }
 
 pub trait PolyOps<T: PolyElemOps>: PolyDegree<T> {
-    type Error: std::error::Error;
+    type Error: std::error::Error + Send + Sync + 'static;
     type Poly: Debug + Clone;
     fn coeffs(&self, poly: &Self::Poly) -> &[PElem<T>];
     fn from_coeffs(&self, coeffs: &[PElem<T>]) -> Result<Self::Poly, Self::Error>;
