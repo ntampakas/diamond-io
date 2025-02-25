@@ -1,65 +1,31 @@
-use openfhe::{cxx::CxxVector, ffi};
+use openfhe::{
+    cxx::UniquePtr,
+    ffi::{self, DCRTPolyImpl},
+};
 
-use super::{PolyDegree, PolyElemOps, PolyOps};
+use super::PolyOps;
 
-pub struct DCRTPoly<T>
-where
-    T: PolyElemOps,
-{
-    _phantom: Box<T>,
+pub struct DCRTPoly {
+    ptr_poly: UniquePtr<DCRTPolyImpl>,
 }
 
-impl<T> PolyOps<T> for DCRTPoly<T>
-where
-    Self: PolyDegree<T>,
-    T: PolyElemOps,
-{
-    type Error;
+impl DCRTPoly {
+    pub fn new(ptr_poly: UniquePtr<DCRTPolyImpl>) -> Self {
+        Self { ptr_poly }
+    }
+}
 
-    type Poly;
+impl PolyOps for DCRTPoly {
+    type Error = std::io::Error;
+    type Poly = Self;
 
-    fn coeffs(&self, poly: &Self::Poly) -> &[super::PElem<T>] {
-        todo!()
+    fn add(&self, rhs: &Self::Poly, lhs: &Self::Poly) -> Result<Self::Poly, Self::Error> {
+        let res = ffi::DCRTPolyAdd(&rhs.ptr_poly, &lhs.ptr_poly);
+        Ok(DCRTPoly::new(res))
     }
 
-    fn from_coeffs(coeffs: &[super::PElem<T>]) -> Result<Self::Poly, Self::Error> {
-        todo!()
-    }
-
-    fn from_const(constant: &T) -> Result<Self::Poly, Self::Error> {
-        todo!()
-    }
-
-    fn zero(&self) -> Result<Self::Poly, Self::Error> {
-        todo!()
-    }
-
-    fn one(&self) -> Result<Self::Poly, Self::Error> {
-        todo!()
-    }
-
-    fn minus_one(&self) -> Result<Self::Poly, Self::Error> {
-        todo!()
-    }
-
-    fn add(&self, a: &Self::Poly, b: &Self::Poly) -> Result<Self::Poly, Self::Error> {
-        todo!()
-    }
-
-    fn neg(&self, a: &Self::Poly) -> Result<Self::Poly, Self::Error> {
-        todo!()
-    }
-
-    fn mul(&self, a: &Self::Poly, b: &Self::Poly) -> Result<Self::Poly, Self::Error> {
-        todo!()
-    }
-
-    fn extract_highest_bits(&self, poly: &Self::Poly) -> Result<Vec<bool>, Self::Error> {
-        todo!()
-    }
-
-    fn sub(&self, a: &Self::Poly, b: &Self::Poly) -> Result<Self::Poly, Self::Error> {
-        let minus_b = self.neg(b)?;
-        self.add(a, &minus_b)
+    fn mul(&self, rhs: &Self::Poly, lhs: &Self::Poly) -> Result<Self::Poly, Self::Error> {
+        let res = ffi::DCRTPolyMul(&rhs.ptr_poly, &lhs.ptr_poly);
+        Ok(DCRTPoly::new(res))
     }
 }

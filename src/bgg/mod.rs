@@ -2,8 +2,8 @@
 // pub mod circuit;
 // pub mod operations;
 // pub mod parameters;
-pub mod eval;
-pub mod sampler;
+// pub mod eval;
+// pub mod sampler;
 
 use crate::poly::{matrix::*, *};
 use thiserror::Error;

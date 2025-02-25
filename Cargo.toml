@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 openfhe = { git = "https://github.com/MachinaIO/openfhe-rs.git", branch = "feat/sampler" }
+anyhow = "1.0"
 phantom-zone-crypto = { git = "https://github.com/gausslabs/phantom-zone", branch = "rewrite", features = [
     "dev",
 ] }
