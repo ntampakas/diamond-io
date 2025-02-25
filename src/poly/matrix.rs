@@ -1,11 +1,17 @@
-use super::PolyOps;
+use num_traits::Zero;
 
-pub type PolyMatrix<P, M> = <M as PolyMatrixOps<P>>::Matrix;
+use super::Polynomial;
+use std::{
+    fmt::Debug,
+    ops::{Add, Neg},
+};
 
-pub trait PolyMatrixOps<P: PolyOps> {
+// pub type PolynomialMatrix<P, M> = <M as PolyMatrixOps<P>>::Matrix;
+
+pub trait PolynomialMatrix<P: Polynomial>:
+    Sized + Clone + Debug + PartialEq + Eq + Add + Neg + Zero
+{
     type Error: std::error::Error + Send + Sync + 'static;
-    // todo: we print out
-    type Matrix;
     // fn poly_vec_to_matrix(&self, polys: Vec<P>) -> Self::Matrix;
     // fn row_size(&self, matrix: &Self::Matrix) -> usize;
     // fn col_size(&self, matrix: &Self::Matrix) -> usize;
@@ -37,8 +43,8 @@ pub trait PolyMatrixOps<P: PolyOps> {
     //     let (rows, _) = self.size(matrix)?;
     //     self.slice(matrix, 0, rows, start, end)
     // }
-    fn zero() -> Self::Matrix;
-    fn from_slice(slice: &[P]) -> Self::Matrix;
+    // fn zero() -> Self;
+    fn from_slice(slice: &[P]) -> Self;
     // fn identity(&self, size: usize, scale: Option<&P>) -> Result<Self::Matrix, Self::Error>;
     // fn transpose(&self, matrix: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
     // // (m * n1), (m * n2) -> (m * (n1 + n2))
@@ -47,13 +53,13 @@ pub trait PolyMatrixOps<P: PolyOps> {
     // fn concat_rows(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
     // // (m1 * n1), (m2 * n2) -> ((m1 + m2) * (n1 + n2))
     // fn concat_diag(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
-    fn add(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
+    // fn add(&self, a: &Self, b: &Self) -> Result<Self, Self::Error>;
     //fn neg(&self, a: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
     // fn sub(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error> {
     //     let minus_b = self.neg(b)?;
     //     self.add(a, &minus_b)
     // }
     // fn scalar_mul(&self, a: &Self::Matrix, scalar: &P) -> Result<Self::Matrix, Self::Error>;
-    fn mul(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
+    //fn mul(&self, a: &Self, b: &Self) -> Result<Self, Self::Error>;
     //fn tensor(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
 }

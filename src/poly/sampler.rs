@@ -1,7 +1,7 @@
 use openfhe::ffi::{self};
 
 use super::{
-    dcrt_matrix::DCRTPolyMatrix, dcrt_poly::DCRTPoly, matrix::PolyMatrixOps, params::Params,
+    dcrt_matrix::DCRTPolyMatrix, dcrt_poly::DCRTPoly, matrix::PolynomialMatrix, params::Params,
 };
 
 pub enum DistType {

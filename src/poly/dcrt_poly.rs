@@ -5,54 +5,28 @@ use openfhe::{
 use std::{
     fmt::Debug,
     ops::{Add, Mul, Neg, Sub},
+    sync::Arc,
 };
 
-use super::{params::Params, PolyOps};
+use super::{params::Params, Polynomial};
 
 use num_traits::Zero;
 
+#[derive(Clone, Debug)]
 pub struct DCRTPoly {
-    ptr_poly: UniquePtr<DCRTPolyImpl>,
+    ptr_poly: Arc<UniquePtr<DCRTPolyImpl>>,
 }
 
-impl Clone for DCRTPoly {
-    fn clone(&self) -> Self {
-        todo!()
-    }
-}
-
-impl PartialEq for DCRTPoly {
-    fn eq(&self, _other: &Self) -> bool {
-        todo!()
-    }
-}
-
-impl Debug for DCRTPoly {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DCRTPoly {{ ptr_poly }}")
-    }
-}
-
-impl Zero for DCRTPoly {
-    fn zero() -> Self {
-        DCRTPoly::new(UniquePtr::null())
-    }
-
-    fn is_zero(&self) -> bool {
-        self.ptr_poly.is_null()
-    }
-}
 impl DCRTPoly {
     pub fn new(ptr_poly: UniquePtr<DCRTPolyImpl>) -> Self {
-        Self { ptr_poly }
+        Self { ptr_poly: ptr_poly.into() }
     }
 }
 
-impl PolyOps for DCRTPoly {
+impl Polynomial for DCRTPoly {
     type Error = std::io::Error;
-    type Poly = Self;
 
-    fn from_const(params: &Params, constant: &u64) -> Result<Self::Poly, Self::Error> {
+    fn from_const(params: &Params, constant: &u64) -> Result<Self, Self::Error> {
         let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, *constant);
         Ok(DCRTPoly::new(res))
     }
@@ -93,5 +67,23 @@ impl Neg for DCRTPoly {
     fn neg(self) -> Self::Output {
         let res = self.ptr_poly.Negate();
         DCRTPoly::new(res)
+    }
+}
+
+impl PartialEq for DCRTPoly {
+    fn eq(&self, _other: &Self) -> bool {
+        todo!()
+    }
+}
+
+impl Eq for DCRTPoly {}
+
+impl Zero for DCRTPoly {
+    fn zero() -> Self {
+        DCRTPoly::new(UniquePtr::null())
+    }
+
+    fn is_zero(&self) -> bool {
+        self.ptr_poly.is_null()
     }
 }
