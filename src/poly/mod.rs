@@ -1,5 +1,6 @@
 pub mod dcrt_matrix;
 pub mod dcrt_poly;
+pub mod field_element;
 // pub mod gadget;
 pub mod matrix;
 pub mod params;
@@ -11,11 +12,30 @@ use std::{
 
 use num_traits::{One, Zero};
 use params::Params;
-use phantom_zone_math::modulus::Elem;
-pub type PElem<T> = Elem<T>;
+// use phantom_zone_math::modulus::Elem;
+// pub type PElem<T> = Elem<T>;
 
 pub trait PolyElemModulus {
     fn modulus_bits(&self) -> usize;
+}
+
+pub trait PElem:
+    'static
+    + Copy
+    + Debug
+    + Default
+    + Eq
+    + Ord
+    // + Hash
+    + Send
+    + Sync
+    // + Serialize
+    // + Deserialize<'static>
+    // + Zero
+    // + One
+    + Add
+    + Mul
+{
 }
 
 // pub trait PolyElemOps:
@@ -45,13 +65,13 @@ pub trait Polynomial:
     Sized + Clone + Debug + PartialEq + Eq + Add + AddAssign + Mul + MulAssign + Neg + Zero + One
 {
     type Error: std::error::Error + Send + Sync + 'static;
-
+    type Elem: PElem;
     // fn degree(&self) -> usize;
     // fn coeffs(&self, poly: &Self::Poly) -> &[PElem<T>];
     // fn from_coeffs(coeffs: &[PElem<T>]) -> Result<Self::Poly, Self::Error>;
-    fn from_const(params: &Params, constant: &u64) -> Result<Self, Self::Error>; // TODO: replace with u64 with T
+    fn from_const(params: &Params, constant: &Self::Elem) -> Result<Self, Self::Error>; // TODO: replace with u64 with T
     fn const_zero(params: &Params) -> Self;
-    fn const_one(params: &Params) -> Result<Self, Self::Error>;
+    fn const_one(params: &Params) -> Self;
     // fn const_minus_one(params: &Params) -> Result<Self, Self::Error>;
     // fn extract_highest_bits(&self, poly: &Self::Poly) -> Result<Vec<bool>, Self::Error>;
 }

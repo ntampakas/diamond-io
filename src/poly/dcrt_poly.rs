@@ -8,8 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use super::{params::Params, Polynomial};
-
+use super::{field_element::FieldElement, params::Params, Polynomial};
 use num_traits::{One, Zero};
 
 #[derive(Clone, Debug)]
@@ -25,9 +24,10 @@ impl DCRTPoly {
 
 impl Polynomial for DCRTPoly {
     type Error = std::io::Error;
+    type Elem = FieldElement;
 
-    fn from_const(params: &Params, constant: &u64) -> Result<Self, Self::Error> {
-        let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, *constant);
+    fn from_const(params: &Params, constant: &Self::Elem) -> Result<Self, Self::Error> {
+        let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, constant.value());
         Ok(DCRTPoly::new(res))
     }
 
@@ -36,9 +36,9 @@ impl Polynomial for DCRTPoly {
         DCRTPoly::new(res)
     }
 
-    fn const_one(params: &Params) -> Result<Self, Self::Error> {
+    fn const_one(params: &Params) -> Self {
         let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, 1);
-        Ok(DCRTPoly::new(res))
+        DCRTPoly::new(res)
     }
 }
 
