@@ -1,6 +1,8 @@
 use openfhe::ffi::{self};
 
-use super::{dcrt_poly::DCRTPoly, params::Params};
+use super::{
+    dcrt_matrix::DCRTPolyMatrix, dcrt_poly::DCRTPoly, matrix::PolyMatrixOps, params::Params,
+};
 
 pub enum DistType {
     FinRingDist,
@@ -19,18 +21,33 @@ pub enum DistType {
 // pub struct BitDist;
 // impl DistType for BitDist {}
 
-pub struct PolyUniformSampler {
+pub struct MatrixUniformSampler<const ROWS: usize, const COLUMNS: usize> {
     dist_type: DistType,
 }
 
-impl PolyUniformSampler {
+impl<const ROWS: usize, const COLUMNS: usize> MatrixUniformSampler<ROWS, COLUMNS> {
     pub fn new(dist_type: DistType) -> Self {
         Self { dist_type }
     }
 }
 
-impl PolyUniformSampler {
-    pub fn sample_uniform(self, params: &Params) -> Result<DCRTPoly, anyhow::Error> {
+impl<const ROWS: usize, const COLUMNS: usize> MatrixUniformSampler<ROWS, COLUMNS> {
+    pub fn sample_uniform(
+        self,
+        params: &Params,
+    ) -> Result<DCRTPolyMatrix<DCRTPoly, ROWS, COLUMNS>, anyhow::Error> {
+        let mut collect = vec![];
+        for _ in 0..ROWS {
+            for _ in 0..COLUMNS {
+                let sampled_poly = self.sample(params)?;
+                collect.push(sampled_poly);
+            }
+        }
+        let r = DCRTPolyMatrix::<DCRTPoly, ROWS, COLUMNS>::from_slice(&collect);
+        Ok(r)
+    }
+
+    fn sample(&self, params: &Params) -> Result<DCRTPoly, anyhow::Error> {
         let sampled_poly = match self.dist_type {
             DistType::FinRingDist => ffi::DCRTPolyGenFromDug(&params.ptr_params),
             DistType::GaussianDist(sigma) => ffi::DCRTPolyGenFromDgg(&params.ptr_params, sigma),
@@ -82,15 +99,15 @@ mod tests {
     #[test]
     fn test_uniform_sampler() {
         let params = Params::new(16, 4, 51);
-        let sampler = PolyUniformSampler::new(DistType::FinRingDist);
+        let sampler = MatrixUniformSampler::<1, 3>::new(DistType::FinRingDist);
         let result = sampler.sample_uniform(&params);
         assert!(result.is_ok());
 
-        let sampler = PolyUniformSampler::new(DistType::GaussianDist(4.57825));
+        let sampler = MatrixUniformSampler::<1, 3>::new(DistType::GaussianDist(4.57825));
         let result = sampler.sample_uniform(&params);
         assert!(result.is_ok());
 
-        let sampler = PolyUniformSampler::new(DistType::BitDist);
+        let sampler = MatrixUniformSampler::<1, 3>::new(DistType::BitDist);
         let result = sampler.sample_uniform(&params);
         assert!(result.is_ok());
     }

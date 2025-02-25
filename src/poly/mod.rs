@@ -1,6 +1,7 @@
+pub mod dcrt_matrix;
 pub mod dcrt_poly;
 // pub mod gadget;
-// pub mod matrix;
+pub mod matrix;
 pub mod params;
 pub mod sampler;
 use params::Params;
@@ -40,15 +41,10 @@ pub trait PolyOps {
     // fn coeffs(&self, poly: &Self::Poly) -> &[PElem<T>];
     // fn from_coeffs(coeffs: &[PElem<T>]) -> Result<Self::Poly, Self::Error>;
     fn from_const(params: &Params, constant: &u64) -> Result<Self::Poly, Self::Error>; // TODO: replace with u64 with T
-    // fn zero(&self) -> Result<Self::Poly, Self::Error>;
-    // fn one(&self) -> Result<Self::Poly, Self::Error>;
+                                                                                       // fn zero(&self) -> Result<Self::Poly, Self::Error>;
+                                                                                       // fn one(&self) -> Result<Self::Poly, Self::Error>;
+
     // fn minus_one(&self) -> Result<Self::Poly, Self::Error>;
-    fn add(&self, a: &Self::Poly, b: &Self::Poly) -> Result<Self::Poly, Self::Error>;
-    fn neg(&self, a: &Self::Poly) -> Result<Self::Poly, Self::Error>;
-    fn sub(&self, a: &Self::Poly, b: &Self::Poly) -> Result<Self::Poly, Self::Error> {
-        let minus_b = self.neg(b)?;
-        self.add(a, &minus_b)
-    }
-    fn mul(&self, a: &Self::Poly, b: &Self::Poly) -> Result<Self::Poly, Self::Error>;
+
     // fn extract_highest_bits(&self, poly: &Self::Poly) -> Result<Vec<bool>, Self::Error>;
 }
