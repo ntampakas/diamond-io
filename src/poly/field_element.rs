@@ -3,8 +3,6 @@ use std::{
     ops::{Add, Mul},
 };
 
-use num_traits::{One, Zero};
-
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord)]
 pub struct FieldElement {
     value: u64,
