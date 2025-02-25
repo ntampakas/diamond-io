@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 pub type PolyMatrix<T, P, M> = <M as PolyMatrixOps<T, P>>::Matrix;
 
-pub trait PolyMatrixOps<T: PolyElemOps, P: PolyOps<T>> {
+pub trait PolyMatrixOps<T: PolyElemOps, P: PolyOps<T>>: Clone + Debug + Send + Sync {
     type Error: std::error::Error + Send + Sync + 'static;
     type Matrix: Debug + Clone;
     fn from_poly_vec(&self, polys: Vec<Poly<T, P>>) -> Self::Matrix;

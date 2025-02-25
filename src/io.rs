@@ -1,5 +1,6 @@
 pub mod eval;
 pub mod obf;
+pub mod utils;
 
 use crate::bgg::{BggEncoding, BggError, BggPublicKey};
 use crate::poly::gadget::PolyGadgetOps;

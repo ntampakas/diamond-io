@@ -35,7 +35,7 @@ pub trait PolyElemOps: Clone + Debug + Send + Sync + PolyElemModulus {
 
 pub type Poly<T, P> = <P as PolyOps<T>>::Poly;
 
-pub trait PolyOps<T: PolyElemOps>: PolyDegree<T> {
+pub trait PolyOps<T: PolyElemOps>: Clone + Debug + Send + Sync + PolyDegree<T> {
     type Error: std::error::Error + Send + Sync + 'static;
     type Poly: Debug + Clone;
     fn coeffs(&self, poly: &Self::Poly) -> &[PElem<T>];
