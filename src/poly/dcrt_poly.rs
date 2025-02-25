@@ -30,6 +30,16 @@ impl Polynomial for DCRTPoly {
         let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, *constant);
         Ok(DCRTPoly::new(res))
     }
+
+    fn const_zero(params: &Params) -> Result<Self, Self::Error> {
+        let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, 0);
+        Ok(DCRTPoly::new(res))
+    }
+
+    fn const_one(params: &Params) -> Result<Self, Self::Error> {
+        let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, 1);
+        Ok(DCRTPoly::new(res))
+    }
 }
 
 // ====== Arithmetic ======
