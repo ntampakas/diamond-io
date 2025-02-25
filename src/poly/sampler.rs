@@ -18,11 +18,11 @@ impl DistType for GaussianDist {}
 pub struct BitDist;
 impl DistType for BitDist {}
 
-pub trait PolyUniformSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
+pub trait PolyUniformSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>>:
     PolyDegree<T>
 {
     type Error: std::error::Error + Send + Sync + 'static;
-    fn sample_uniform<R: RngCore>(
+    fn sample_uniform<R: RngCore, D: DistType>(
         &self,
         rng: &mut R,
         rows: usize,
@@ -30,11 +30,11 @@ pub trait PolyUniformSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, 
     ) -> Result<PolyMatrix<T, P, M>, Self::Error>;
 }
 
-pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
+pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>>:
     PolyDegree<T>
 {
     type Error: std::error::Error + Send + Sync + 'static;
-    fn sample_hash<B: AsRef<[u8]>>(
+    fn sample_hash<B: AsRef<[u8]>, D: DistType>(
         &self,
         tag: B,
         rows: usize,
@@ -46,7 +46,7 @@ pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>,
     fn expose_key(&self) -> &[u8];
 }
 
-pub trait PolyTrapdoorSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
+pub trait PolyTrapdoorSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>>:
     PolyDegree<T>
 {
     type Error: std::error::Error + Send + Sync + 'static;

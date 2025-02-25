@@ -13,7 +13,7 @@ pub struct BGGPublicKeySampler<
     T: PolyElemOps,
     P: PolyOps<T>,
     M: PolyMatrixOps<T, P>,
-    S: PolyHashSampler<T, P, M, FinRingDist>,
+    S: PolyHashSampler<T, P, M>,
 > {
     pub sampler: Arc<S>,
     pub matrix_op: Arc<M>,
@@ -21,12 +21,8 @@ pub struct BGGPublicKeySampler<
     _p: PhantomData<P>,
 }
 
-impl<
-        T: PolyElemOps,
-        P: PolyOps<T>,
-        M: PolyMatrixOps<T, P>,
-        S: PolyHashSampler<T, P, M, FinRingDist>,
-    > BGGPublicKeySampler<T, P, M, S>
+impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, S: PolyHashSampler<T, P, M>>
+    BGGPublicKeySampler<T, P, M, S>
 {
     /// Create a new public key sampler
     /// # Arguments
@@ -58,7 +54,7 @@ impl<
         let columns = 2 * log_q * packed_input_size;
         let all_matrix = self
             .sampler
-            .sample_hash(tag, 2, columns)
+            .sample_hash::<_, FinRingDist>(tag, 2, columns)
             .map_err(|e| BggError::SampleError(e.to_string()))?;
         let public_keys = (0..packed_input_size)
             .into_iter()
@@ -84,7 +80,7 @@ pub struct BGGEncodingSampler<
     T: PolyElemOps,
     P: PolyOps<T>,
     M: PolyMatrixOps<T, P>,
-    S: PolyUniformSampler<T, P, M, GaussianDist>,
+    S: PolyUniformSampler<T, P, M>,
     G: PolyGadgetOps<T, P, M>,
 > {
     pub(crate) secret_vec: PolyMatrix<T, P, M>,
@@ -99,7 +95,7 @@ impl<
         T: PolyElemOps,
         P: PolyOps<T>,
         M: PolyMatrixOps<T, P>,
-        S: PolyUniformSampler<T, P, M, GaussianDist>,
+        S: PolyUniformSampler<T, P, M>,
         G: PolyGadgetOps<T, P, M>,
     > BGGEncodingSampler<T, P, M, S, G>
 {
@@ -116,9 +112,7 @@ impl<
         matrix_op: Arc<M>,
         gadget_op: Arc<G>,
     ) -> Self {
-        let minus_one_poly = poly_op
-            .minus_one()
-            .expect("failed to create a minus one polynomial");
+        let minus_one_poly = poly_op.minus_one();
         // 2*1 column vector
         let secret_vec = matrix_op.from_poly_vec(vec![secret.clone(), minus_one_poly]);
         // 1*2 row vector
@@ -147,7 +141,7 @@ impl<
         let columns = 2 * log_q * packed_input_size;
         let error = self
             .error_sampler
-            .sample_uniform(rng, 1, columns)
+            .sample_uniform::<_, GaussianDist>(rng, 1, columns)
             .map_err(|e| BggError::SampleError(e.to_string()))?;
         // [TODO] Avoid memory cloning here.
         let all_public_key_matrix = self

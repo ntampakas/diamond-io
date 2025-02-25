@@ -7,6 +7,7 @@ pub trait PolyMatrixOps<T: PolyElemOps, P: PolyOps<T>> {
     type Error: std::error::Error + Send + Sync + 'static;
     type Matrix: Debug + Clone;
     fn from_poly_vec(&self, polys: Vec<Poly<T, P>>) -> Self::Matrix;
+    fn to_poly_vec(&self, matrix: &Self::Matrix) -> Vec<Poly<T, P>>;
     fn row_size(&self, matrix: &Self::Matrix) -> usize;
     fn col_size(&self, matrix: &Self::Matrix) -> usize;
     fn entry(&self, matrix: &Self::Matrix, i: usize, j: usize) -> Result<Poly<T, P>, Self::Error>;
@@ -37,12 +38,8 @@ pub trait PolyMatrixOps<T: PolyElemOps, P: PolyOps<T>> {
         let (rows, _) = self.size(matrix)?;
         self.slice(matrix, 0, rows, start, end)
     }
-    fn zero(&self, rows: usize, columns: usize) -> Result<Self::Matrix, Self::Error>;
-    fn identity(
-        &self,
-        size: usize,
-        scale: Option<&Poly<T, P>>,
-    ) -> Result<Self::Matrix, Self::Error>;
+    fn zero(&self, rows: usize, columns: usize) -> Self::Matrix;
+    fn identity(&self, size: usize, scale: Option<&Poly<T, P>>) -> Self::Matrix;
     fn transpose(&self, matrix: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
     // (m * n1), (m * n2) -> (m * (n1 + n2))
     fn concat_columns(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
