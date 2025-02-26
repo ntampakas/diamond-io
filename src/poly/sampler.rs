@@ -1,10 +1,9 @@
 use openfhe::ffi::{self};
 
 use super::{
-    dcrt_matrix::DCRTPolyMatrix,
-    dcrt_poly::DCRTPoly,
-    matrix::{get_null_matrix, PolynomialMatrix},
-    params::Params,
+    dcrt::{DCRTPoly, DCRTPolyMatrix},
+    matrix::get_null_matrix,
+    Params, PolynomialMatrix,
 };
 
 pub enum DistType {
@@ -12,17 +11,6 @@ pub enum DistType {
     GaussianDist(f64),
     BitDist,
 }
-
-// pub struct FinRingDist;
-// impl DistType for FinRingDist {}
-
-// pub struct GaussianDist {
-//     pub gaussian_param: f64,
-// }
-// impl DistType for GaussianDist {}
-
-// pub struct BitDist;
-// impl DistType for BitDist {}
 
 pub struct MatrixUniformSampler<const ROW: usize, const COLUMNS: usize> {
     dist_type: DistType,
@@ -98,8 +86,9 @@ impl<const ROW: usize, const COLUMNS: usize> MatrixUniformSampler<ROW, COLUMNS> 
 
 #[cfg(test)]
 mod tests {
+    use crate::poly::dcrt::matrix::mult;
+
     use super::*;
-    use crate::poly::dcrt_matrix::mult;
 
     #[test]
     fn test_ring_dist() {

@@ -1,6 +1,6 @@
 use num_traits::Zero;
 
-use super::{params::Params, Polynomial};
+use super::{Params, Polynomial};
 use std::{
     array,
     fmt::Debug,
