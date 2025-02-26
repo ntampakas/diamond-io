@@ -30,7 +30,7 @@ impl MatrixUniformSampler {
         nrow: usize,
         ncol: usize,
     ) -> Result<DCRTPolyMatrix<DCRTPoly>, anyhow::Error> {
-        let mut c: Vec<Vec<DCRTPoly>> = vec![vec![DCRTPoly::null(); ncol]; nrow];
+        let mut c: Vec<Vec<DCRTPoly>> = vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
         for row in 0..nrow {
             for col in 0..ncol {
                 let sampled_poly = self.sample_poly(&self.params)?;

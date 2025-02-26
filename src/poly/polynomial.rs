@@ -64,7 +64,6 @@ pub trait Polynomial:
     fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error>; // TODO: replace with u64 with T
     fn const_zero(params: &Self::Params) -> Self;
     fn const_one(params: &Self::Params) -> Self;
-    fn null() -> Self;
     // fn const_minus_one(params: &Params) -> Result<Self, Self::Error>;
     // fn extract_highest_bits(&self, poly: &Self::Poly) -> Result<Vec<bool>, Self::Error>;
 }

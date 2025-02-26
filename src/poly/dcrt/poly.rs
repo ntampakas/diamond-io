@@ -8,8 +8,6 @@ use std::{
     sync::Arc,
 };
 
-use num_traits::{One, Zero};
-
 use crate::poly::{PElem, PolyParams, Polynomial};
 
 // ====== FieldElement ======
@@ -87,10 +85,6 @@ impl Polynomial for DCRTPoly {
         let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, 1);
         DCRTPoly::new(res)
     }
-
-    fn null() -> Self {
-        DCRTPoly::new(UniquePtr::null())
-    }
 }
 
 // ====== Arithmetic ======
@@ -141,22 +135,6 @@ impl PartialEq for DCRTPoly {
 }
 
 impl Eq for DCRTPoly {}
-
-impl Zero for DCRTPoly {
-    fn zero() -> Self {
-        DCRTPoly::new(UniquePtr::null())
-    }
-
-    fn is_zero(&self) -> bool {
-        self.ptr_poly.is_null()
-    }
-}
-
-impl One for DCRTPoly {
-    fn one() -> Self {
-        DCRTPoly::new(UniquePtr::null()) // TODO: fix
-    }
-}
 
 impl AddAssign for DCRTPoly {
     fn add_assign(&mut self, rhs: Self) {

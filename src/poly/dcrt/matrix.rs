@@ -25,7 +25,7 @@ where
     type Matrix = Vec<Vec<P>>;
 
     fn from_poly_vec(params: &P::Params, vec: Vec<Vec<P>>) -> Self {
-        let mut c = vec![vec![P::null(); vec[0].len()]; vec.len()];
+        let mut c = vec![vec![P::const_zero(params); vec[0].len()]; vec.len()];
         for (i, row) in vec.iter().enumerate() {
             for (j, element) in row.iter().enumerate() {
                 c[i][j] = element.clone();
@@ -51,7 +51,7 @@ where
                 "Identity matrix must be square (ROWS must equal COLUMNS)",
             ));
         }
-        let mut result = [vec![P::null()]];
+        let mut result = [vec![P::const_zero(&self.params)]];
         for i in 0..nrow {
             result[i][i] = P::const_one(&self.params);
         }
@@ -60,7 +60,7 @@ where
     }
 
     fn zero(params: &P::Params, nrow: usize, ncol: usize) -> Self {
-        let mut c: Vec<Vec<P>> = vec![vec![P::null(); ncol]; nrow];
+        let mut c: Vec<Vec<P>> = vec![vec![P::const_zero(params); ncol]; nrow];
         for i in 0..nrow {
             for j in 0..ncol {
                 c[i][j] = P::const_zero(params).clone();
