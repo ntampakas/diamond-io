@@ -1,164 +1,173 @@
 use std::{
     fmt::Debug,
-    ops::{Add, Neg},
+    ops::{Add, Mul, Neg},
 };
 
-use num_traits::Zero;
-
-use crate::poly::{
-    matrix::{get_null_matrix, get_zero_matrix},
-    Matrix, Params, Polynomial, PolynomialMatrix,
-};
+use crate::poly::{PolyParams, Polynomial, PolynomialMatrix};
 
 // ====== DCRTPolyMatrix ======
 
-pub struct DCRTPolyMatrix<P, const ROW: usize, const COLUMNS: usize>
+pub struct DCRTPolyMatrix<P>
 where
     P: Polynomial,
 {
-    pub inner: Matrix<P, ROW, COLUMNS>,
-    pub params: Params,
+    pub inner: Vec<Vec<P>>,
+    pub params: P::Params,
+    nrow: usize,
+    ncol: usize,
 }
 
-impl<P, const ROWS: usize, const COLUMNS: usize> PolynomialMatrix<P, ROWS, COLUMNS>
-    for DCRTPolyMatrix<P, ROWS, COLUMNS>
+impl<P> PolynomialMatrix<P> for DCRTPolyMatrix<P>
 where
-    P: Polynomial + 'static,
+    P: Polynomial<Params = PolyParams> + Mul<Output = P> + Neg<Output = P> + 'static,
 {
     type Error = std::io::Error;
+    type Params = P::Params;
+    type Matrix = Vec<Vec<P>>;
 
-    fn from_slice(params: &Params, slice: &[[P; COLUMNS]; ROWS]) -> Self {
-        let mut c = get_null_matrix::<P, ROWS, COLUMNS>();
-        for (i, row) in slice.iter().enumerate() {
+    fn from_poly_vec(params: &Self::Params, vec: Vec<Vec<P>>) -> Self {
+        let mut c = vec![vec![P::null(); vec[0].len()]; vec.len()];
+        for (i, row) in vec.iter().enumerate() {
             for (j, element) in row.iter().enumerate() {
                 c[i][j] = element.clone();
             }
         }
-        DCRTPolyMatrix { inner: c, params: params.clone() }
+        DCRTPolyMatrix { inner: c, params: params.clone(), nrow: vec.len(), ncol: vec[0].len() }
     }
 
     fn row_size(&self) -> usize {
-        ROWS
+        self.nrow
     }
 
     fn col_size(&self) -> usize {
-        COLUMNS
+        self.ncol
     }
 
     fn identity(&self) -> Result<Self, Self::Error> {
-        if ROWS != COLUMNS {
+        let nrow = self.row_size();
+        let ncol = self.col_size();
+        if nrow != ncol {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "Identity matrix must be square (ROWS must equal COLUMNS)",
             ));
         }
-
-        let mut result = get_null_matrix::<P, ROWS, COLUMNS>();
-
-        for i in 0..ROWS {
+        let mut result = [vec![P::null()]];
+        for i in 0..nrow {
             result[i][i] = P::const_one(&self.params);
         }
 
-        Ok(Self { inner: result, params: self.params.clone() })
+        Ok(Self { inner: result.to_vec(), params: self.params.clone(), ncol, nrow })
+    }
+
+    fn zero(params: &Self::Params, nrow: usize, ncol: usize) -> Self {
+        let mut c: Vec<Vec<P>> = vec![vec![P::null(); ncol]; nrow];
+        for i in 0..nrow {
+            for j in 0..ncol {
+                c[i][j] = P::const_zero(params).clone();
+            }
+        }
+        DCRTPolyMatrix { inner: c, params: params.clone(), nrow, ncol }
     }
 }
 
-impl<P, const ROWS: usize, const COLUMNS: usize> Clone for DCRTPolyMatrix<P, ROWS, COLUMNS>
+// ====== Arithmetic ======
+
+impl<P> Add for DCRTPolyMatrix<P>
 where
-    P: Polynomial,
+    P: Polynomial<Params = PolyParams> + Mul<Output = P> + Neg<Output = P> + 'static,
+{
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        let nrow = self.row_size();
+        let ncol = self.col_size();
+        let mut result = self.inner;
+        for i in 0..nrow {
+            for j in 0..ncol {
+                result[i][j] += rhs.inner[i][j].clone();
+            }
+        }
+        Self { inner: result.to_vec(), params: self.params, ncol, nrow }
+    }
+}
+
+impl<P> Neg for DCRTPolyMatrix<P>
+where
+    P: Polynomial + Neg<Output = P> + 'static,
+{
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        let mut c: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); self.ncol]; self.nrow];
+        for i in 0..self.nrow {
+            for j in 0..self.ncol {
+                c[i][j] = -self.inner[i][j].clone();
+            }
+        }
+        DCRTPolyMatrix { inner: c, params: self.params, nrow: self.nrow, ncol: self.ncol }
+    }
+}
+
+impl<P> Mul for DCRTPolyMatrix<P>
+where
+    P: Polynomial + Mul<Output = P> + 'static,
+{
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let nrow = self.nrow;
+        let ncol = rhs.ncol;
+        if rhs.nrow != self.ncol {
+            panic!(
+                "Multiplication condition failed: rhs.nrow ({}) must equal self.ncol ({})",
+                rhs.nrow, self.ncol
+            );
+        }
+        let common = self.ncol;
+        let mut c: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); ncol]; nrow];
+        for i in 0..nrow {
+            for j in 0..ncol {
+                for k in 0..common {
+                    c[i][j] += self.inner[i][k].clone() * rhs.inner[k][j].clone();
+                }
+            }
+        }
+        DCRTPolyMatrix { inner: c, params: self.params, nrow, ncol }
+    }
+}
+
+// ====== Traits ======
+
+impl<P> Clone for DCRTPolyMatrix<P>
+where
+    P: Polynomial<Params = PolyParams>,
 {
     fn clone(&self) -> Self {
-        Self { inner: self.inner.clone(), params: self.params.clone() }
+        Self {
+            inner: self.inner.clone(),
+            params: self.params.clone(),
+            nrow: self.nrow,
+            ncol: self.ncol,
+        }
     }
 }
 
-impl<P, const ROWS: usize, const COLUMNS: usize> Debug for DCRTPolyMatrix<P, ROWS, COLUMNS>
+impl<P> Debug for DCRTPolyMatrix<P>
 where
-    P: Polynomial,
+    P: Polynomial<Params = PolyParams>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DCRTPolyMatrix").field("inner", &self.inner).finish()
     }
 }
 
-impl<P, const ROWS: usize, const COLUMNS: usize> PartialEq for DCRTPolyMatrix<P, ROWS, COLUMNS>
+impl<P> PartialEq for DCRTPolyMatrix<P>
 where
-    P: Polynomial,
+    P: Polynomial<Params = PolyParams>,
 {
     fn eq(&self, other: &Self) -> bool {
         self.inner == other.inner
     }
 }
 
-impl<P, const ROWS: usize, const COLUMNS: usize> Eq for DCRTPolyMatrix<P, ROWS, COLUMNS> where
-    P: Polynomial
-{
-}
-
-impl<P, const ROWS: usize, const COLUMNS: usize> Add for DCRTPolyMatrix<P, ROWS, COLUMNS>
-where
-    P: Polynomial + 'static,
-{
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self {
-        let mut result = self.inner;
-        for i in 0..ROWS {
-            for j in 0..COLUMNS {
-                result[i][j] += rhs.inner[i][j].clone();
-            }
-        }
-        Self { inner: result, params: self.params }
-    }
-}
-
-impl<P, const ROWS: usize, const COLUMNS: usize> Neg for DCRTPolyMatrix<P, ROWS, COLUMNS>
-where
-    P: Polynomial + 'static,
-{
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        todo!()
-        // let mut c = get_zero_matrix::<P, ROWS, COLUMNS>(&self.params.unwrap());
-        // for i in 0..ROWS {
-        //     for j in 0..COLUMNS {
-        //         let neg: P = -self.inner[i][j];
-        //         c[i][j] = neg;
-        //     }
-        // }
-        // Self { inner: c, params: self.params }
-    }
-}
-
-impl<P, const ROWS: usize, const COLUMNS: usize> Zero for DCRTPolyMatrix<P, ROWS, COLUMNS>
-where
-    P: Polynomial + 'static,
-{
-    fn zero() -> Self {
-        todo!()
-    }
-
-    fn is_zero(&self) -> bool {
-        todo!()
-    }
-}
-
-/// matrix multiplication
-pub fn mult<P, const COMMON: usize, const R1: usize, const R2: usize>(
-    a: &DCRTPolyMatrix<P, R1, COMMON>,
-    b: &DCRTPolyMatrix<P, COMMON, R2>,
-    params: Params,
-) -> DCRTPolyMatrix<P, R1, R2>
-where
-    P: Polynomial + 'static,
-{
-    let mut c = get_zero_matrix::<P, R1, R2>(&params);
-    for i in 0..R1 {
-        for j in 0..R2 {
-            for k in 0..COMMON {
-                c[i][j] += a.inner[i][k].clone() * b.inner[k][j].clone();
-            }
-        }
-    }
-    DCRTPolyMatrix { inner: c, params }
-}
+impl<P> Eq for DCRTPolyMatrix<P> where P: Polynomial<Params = PolyParams> {}

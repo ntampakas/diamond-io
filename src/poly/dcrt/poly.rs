@@ -10,7 +10,7 @@ use std::{
 
 use num_traits::{One, Zero};
 
-use crate::poly::{PElem, Params, Polynomial};
+use crate::poly::{PElem, PolyParams, Polynomial};
 
 // ====== FieldElement ======
 
@@ -35,6 +35,8 @@ impl FieldElement {
     }
 }
 
+// ====== Arithmetic ======
+
 impl Add for FieldElement {
     type Output = Self;
 
@@ -57,7 +59,7 @@ impl PElem for FieldElement {}
 
 #[derive(Clone, Debug)]
 pub struct DCRTPoly {
-    ptr_poly: Arc<UniquePtr<DCRTPolyImpl>>,
+    pub ptr_poly: Arc<UniquePtr<DCRTPolyImpl>>,
 }
 
 impl DCRTPoly {
@@ -69,20 +71,25 @@ impl DCRTPoly {
 impl Polynomial for DCRTPoly {
     type Error = std::io::Error;
     type Elem = FieldElement;
+    type Params = PolyParams;
 
-    fn from_const(params: &Params, constant: &Self::Elem) -> Result<Self, Self::Error> {
+    fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error> {
         let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, constant.value());
         Ok(DCRTPoly::new(res))
     }
 
-    fn const_zero(params: &Params) -> Self {
+    fn const_zero(params: &Self::Params) -> Self {
         let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, 0);
         DCRTPoly::new(res)
     }
 
-    fn const_one(params: &Params) -> Self {
+    fn const_one(params: &Self::Params) -> Self {
         let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, 1);
         DCRTPoly::new(res)
+    }
+
+    fn null() -> Self {
+        DCRTPoly::new(UniquePtr::null())
     }
 }
 
