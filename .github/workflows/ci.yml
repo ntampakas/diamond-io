@@ -22,6 +22,14 @@ jobs:
           sudo apt-get update
           # You may need additional packages depending on OpenFHE requirements
           sudo apt-get install -y build-essential cmake libgmp-dev
+      
+      - name: Cache OpenFHE build
+        uses: actions/cache@v3
+        with:
+          path: openfhe/build
+          key: ${{ runner.os }}-openfhe-${{ hashFiles('openfhe/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-openfhe-
 
       - name: Checkout OpenFHE
         uses: actions/checkout@v2
@@ -32,9 +40,10 @@ jobs:
       - name: Build OpenFHE
         run: |
           cd openfhe
-          mkdir build && cd build
+          mkdir -p build && cd build
           cmake ..
           make -j$(nproc)
+          sudo make install
 
       - name: Install clippy
         run: rustup component add clippy
