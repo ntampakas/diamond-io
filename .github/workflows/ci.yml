@@ -17,6 +17,25 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          # You may need additional packages depending on OpenFHE requirements
+          sudo apt-get install -y build-essential cmake libgmp-dev
+
+      - name: Checkout OpenFHE
+        uses: actions/checkout@v2
+        with:
+          repository: openfheorg/openfhe-development
+          path: openfhe
+
+      - name: Build OpenFHE
+        run: |
+          cd openfhe
+          mkdir build && cd build
+          cmake ..
+          make -j$(nproc)
+
       - name: Install clippy
         run: rustup component add clippy
 
