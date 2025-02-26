@@ -11,6 +11,7 @@ phantom-zone-math = { git = "https://github.com/gausslabs/phantom-zone", branch 
     "dev",
     "serde",
 ] }
+thiserror = "2"
 
 # TODO: for now not using
 

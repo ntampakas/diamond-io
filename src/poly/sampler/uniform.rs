@@ -6,8 +6,15 @@ use crate::poly::{
     dcrt::{DCRTPoly, DCRTPolyMatrix},
     PolyParams,
 };
+use thiserror::Error;
 
 use super::{MatrixUniformSamplerTrait, Polynomial, PolynomialMatrix};
+
+#[derive(Error, Debug)]
+pub enum MatrixUniformSamplerError {
+    #[error("Attempted to dereference a null pointer")]
+    NullPointer,
+}
 
 pub enum DistType {
     FinRingDist,
@@ -28,7 +35,7 @@ where
 impl MatrixUniformSamplerTrait<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
     for MatrixUniformSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
 {
-    type Error = std::io::Error;
+    type Error = MatrixUniformSamplerError;
 
     fn sample_uniform(
         &self,
@@ -38,6 +45,10 @@ impl MatrixUniformSamplerTrait<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
         let mut c: Vec<Vec<DCRTPoly>> = vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
         for row in 0..nrow {
             for col in 0..ncol {
+                let sampled_poly = self.sample_poly(&self.params);
+                if sampled_poly.ptr_poly.is_null() {
+                    return Err(MatrixUniformSamplerError::NullPointer);
+                }
                 c[row][col] = self.sample_poly(&self.params);
             }
         }

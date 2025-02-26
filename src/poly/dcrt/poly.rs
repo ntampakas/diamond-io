@@ -123,3 +123,74 @@ impl MulAssign for DCRTPoly {
         self.ptr_poly = res.into();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dcrtpoly_arithmetic() {
+        let dummy_modulus = 65537;
+        let params = PolyParams::new(16, 4, 51);
+
+        // todo: replace value and modulus from param
+        let coeffs1 = [
+            FieldElement::new(100, dummy_modulus),
+            FieldElement::new(200, dummy_modulus),
+            FieldElement::new(300, dummy_modulus),
+            FieldElement::new(400, dummy_modulus),
+        ];
+        let coeffs2 = [
+            FieldElement::new(500, dummy_modulus),
+            FieldElement::new(600, dummy_modulus),
+            FieldElement::new(700, dummy_modulus),
+            FieldElement::new(800, dummy_modulus),
+        ];
+
+        // 3. Create polynomials from those coefficients.
+        let poly1 = DCRTPoly::from_coeffs(&params, &coeffs1)
+            .expect("Failed to create DCRTPoly from coeffs1");
+        let poly2 = DCRTPoly::from_coeffs(&params, &coeffs2)
+            .expect("Failed to create DCRTPoly from coeffs2");
+
+        // 4. Test addition.
+        let sum = poly1.clone() + poly2.clone();
+
+        // 5. Test multiplication.
+        let product = poly1.clone() * poly2.clone();
+
+        // 6. Test negation / subtraction.
+        let neg_poly2 = poly2.clone().neg();
+        let difference = poly1.clone() - poly2.clone();
+
+        let mut poly_add_assign = poly1.clone();
+        poly_add_assign += poly2.clone();
+
+        let mut poly_mul_assign = poly1.clone();
+        poly_mul_assign *= poly2.clone();
+
+        // 8. Make some assertions
+        assert!(sum != poly1, "Sum should differ from original poly1");
+        assert!(neg_poly2 != poly2, "Negated polynomial should differ from original");
+        assert_eq!(difference + poly2, poly1, "p1 - p2 + p2 should be p1");
+
+        assert_eq!(poly_add_assign, sum, "+= result should match separate +");
+        assert_eq!(poly_mul_assign, product, "*= result should match separate *");
+
+        // 9. Test from_const / const_zero / const_one
+        // todo: `get_coeffs``
+        // let const_poly = DCRTPoly::from_const(&params, &FieldElement::new(123, dummy_modulus))
+        //     .expect("Failed to create DCRTPoly from const");
+        // assert_eq!(
+        //     const_poly,
+        //     DCRTPoly::from_coeffs(&params, &[FieldElement::new(123, dummy_modulus); 1]).unwrap(),
+        //     "from_const should produce a polynomial with all coeffs = 123"
+        // );
+
+        let zero_poly = DCRTPoly::const_zero(&params);
+        assert_eq!(zero_poly, zero_poly.clone() + zero_poly.clone(), "0 + 0 = 0");
+
+        let one_poly = DCRTPoly::const_one(&params);
+        assert_eq!(zero_poly, one_poly.clone() - one_poly.clone(), "1 - 1 = 0");
+    }
+}
