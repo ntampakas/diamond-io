@@ -32,6 +32,21 @@ where
     _phantom_m: PhantomData<M>,
 }
 
+impl MatrixUniformSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>> {
+    pub fn new(dist_type: DistType, params: PolyParams) -> Self {
+        Self { dist_type, params, _phantom_m: PhantomData }
+    }
+
+    fn sample_poly(&self, params: &PolyParams) -> DCRTPoly {
+        let sampled_poly = match self.dist_type {
+            DistType::FinRingDist => ffi::DCRTPolyGenFromDug(&params.ptr_params),
+            DistType::GaussianDist(sigma) => ffi::DCRTPolyGenFromDgg(&params.ptr_params, sigma),
+            DistType::BitDist => ffi::DCRTPolyGenFromBug(&params.ptr_params),
+        };
+        DCRTPoly::new(sampled_poly)
+    }
+}
+
 impl MatrixUniformSamplerTrait<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
     for MatrixUniformSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
 {
@@ -53,21 +68,6 @@ impl MatrixUniformSamplerTrait<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
             }
         }
         Ok(DCRTPolyMatrix::<DCRTPoly>::from_poly_vec(&self.params, c))
-    }
-}
-
-impl MatrixUniformSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>> {
-    pub fn new(dist_type: DistType, params: PolyParams) -> Self {
-        Self { dist_type, params, _phantom_m: PhantomData }
-    }
-
-    fn sample_poly(&self, params: &PolyParams) -> DCRTPoly {
-        let sampled_poly = match self.dist_type {
-            DistType::FinRingDist => ffi::DCRTPolyGenFromDug(&params.ptr_params),
-            DistType::GaussianDist(sigma) => ffi::DCRTPolyGenFromDgg(&params.ptr_params, sigma),
-            DistType::BitDist => ffi::DCRTPolyGenFromBug(&params.ptr_params),
-        };
-        DCRTPoly::new(sampled_poly)
     }
 }
 

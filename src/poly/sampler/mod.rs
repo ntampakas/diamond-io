@@ -4,10 +4,11 @@ pub mod hash;
 pub mod trapdoor;
 pub mod uniform;
 
-pub trait PolyHashSamplerTrait<P, M>
+pub trait PolyHashSamplerTrait<P, M, D>
 where
     P: Polynomial,
     M: PolynomialMatrix<P>,
+    D: digest::Digest,
 {
     type Error: std::error::Error + Send + Sync + 'static;
     type Key;
