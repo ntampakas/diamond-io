@@ -28,7 +28,6 @@ impl<const ROW: usize, const COLUMNS: usize> MatrixUniformSampler<ROW, COLUMNS> 
         params: &Params,
     ) -> Result<DCRTPolyMatrix<DCRTPoly, ROW, COLUMNS>, anyhow::Error> {
         let mut collect = get_null_matrix::<DCRTPoly, ROW, COLUMNS>();
-        #[allow(clippy::needless_range_loop)]
         for row in 0..ROW {
             for col in 0..COLUMNS {
                 let sampled_poly = self.sample_poly(params)?;

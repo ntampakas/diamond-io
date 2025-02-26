@@ -1,22 +1,24 @@
 [package]
-name = "bgg_encoding"
+name = "diamond_io"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.83"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 openfhe = { git = "https://github.com/MachinaIO/openfhe-rs.git", branch = "feat/sampler" }
 anyhow = "1.0"
-phantom-zone-crypto = { git = "https://github.com/gausslabs/phantom-zone", branch = "rewrite", features = [
-    "dev",
-] }
+num-traits = { version = "0.2", default-features = false }
 phantom-zone-math = { git = "https://github.com/gausslabs/phantom-zone", branch = "rewrite", features = [
     "dev",
     "serde",
 ] }
-num-traits = { version = "0.2", default-features = false }
-rand = { version = "0.8.5", default-features = false, features = ["std_rng"] }
-thiserror = "2.0.11"
-serde = { version = "1.0.218", features = ["derive"] }
-nalgebra = { version = "0.33.0", features = ["rand", "sparse"] }
-serde_json = "1.0.64"
-itertools = "0.11.0"
+
+# TODO: for now not using
+
+# rand = { version = "0.8.5", default-features = false, features = ["std_rng"] }
+# thiserror = "2.0.11"
+# serde = { version = "1.0.218", features = ["derive"] }
+# nalgebra = { version = "0.33.0", features = ["rand", "sparse"] }
+# serde_json = "1.0.64"
+# itertools = "0.11.0"

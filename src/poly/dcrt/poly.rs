@@ -12,6 +12,8 @@ use num_traits::{One, Zero};
 
 use crate::poly::{PElem, Params, Polynomial};
 
+// ====== FieldElement ======
+
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord)]
 pub struct FieldElement {
     value: u64,   // TODO: support BigInt
@@ -50,6 +52,8 @@ impl Mul for FieldElement {
 }
 
 impl PElem for FieldElement {}
+
+// ====== DCRTPoly ======
 
 #[derive(Clone, Debug)]
 pub struct DCRTPoly {

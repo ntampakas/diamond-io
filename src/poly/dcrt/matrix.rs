@@ -10,27 +10,6 @@ use crate::poly::{
     Matrix, Params, Polynomial, PolynomialMatrix,
 };
 
-/// matrix multiplication
-#[allow(clippy::needless_range_loop)]
-pub fn mult<P, const COMMON: usize, const R1: usize, const R2: usize>(
-    a: &DCRTPolyMatrix<P, R1, COMMON>,
-    b: &DCRTPolyMatrix<P, COMMON, R2>,
-    params: Params,
-) -> DCRTPolyMatrix<P, R1, R2>
-where
-    P: Polynomial + 'static,
-{
-    let mut c = get_zero_matrix::<P, R1, R2>(&params);
-    for i in 0..R1 {
-        for j in 0..R2 {
-            for k in 0..COMMON {
-                c[i][j] += a.inner[i][k].clone() * b.inner[k][j].clone();
-            }
-        }
-    }
-    DCRTPolyMatrix { inner: c, params: Some(params) }
-}
-
 pub struct DCRTPolyMatrix<P, const ROW: usize, const COLUMNS: usize>
 where
     P: Polynomial,
@@ -65,7 +44,20 @@ where
     }
 
     fn identity(&self) -> Result<Self, Self::Error> {
-        todo!()
+        if ROWS != COLUMNS {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Identity matrix must be square (ROWS must equal COLUMNS)",
+            ));
+        }
+
+        let mut result = get_null_matrix::<P, ROWS, COLUMNS>();
+
+        for i in 0..ROWS {
+            result[i][i] = P::const_one(self.params.as_ref().unwrap());
+        }
+
+        Ok(Self { inner: result, params: self.params.clone() })
     }
 }
 
@@ -101,7 +93,6 @@ impl<P, const ROWS: usize, const COLUMNS: usize> Eq for DCRTPolyMatrix<P, ROWS, 
 {
 }
 
-#[allow(clippy::needless_range_loop)]
 impl<P, const ROWS: usize, const COLUMNS: usize> Add for DCRTPolyMatrix<P, ROWS, COLUMNS>
 where
     P: Polynomial + 'static,
@@ -150,11 +141,22 @@ where
     }
 }
 
-// impl<P, const ROWS: usize, const COLUMNS: usize> One for DCRTPolyMatrix<P, ROWS, COLUMNS>
-// where
-//     P: Polynomial + 'static,
-// {
-//     fn one() -> Self {
-//         todo!()
-//     }
-// }
+/// matrix multiplication
+pub fn mult<P, const COMMON: usize, const R1: usize, const R2: usize>(
+    a: &DCRTPolyMatrix<P, R1, COMMON>,
+    b: &DCRTPolyMatrix<P, COMMON, R2>,
+    params: Params,
+) -> DCRTPolyMatrix<P, R1, R2>
+where
+    P: Polynomial + 'static,
+{
+    let mut c = get_zero_matrix::<P, R1, R2>(&params);
+    for i in 0..R1 {
+        for j in 0..R2 {
+            for k in 0..COMMON {
+                c[i][j] += a.inner[i][k].clone() * b.inner[k][j].clone();
+            }
+        }
+    }
+    DCRTPolyMatrix { inner: c, params: Some(params) }
+}
