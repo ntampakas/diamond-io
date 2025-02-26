@@ -63,7 +63,7 @@ pub trait PolynomialMatrix<P: Polynomial, const ROWS: usize, const COLUMNS: usiz
     //     self.slice(matrix, 0, rows, start, end)
     // }
     // fn zero() -> Self;
-    fn from_slice(slice: &[[P; COLUMNS]; ROWS]) -> Self;
+    fn from_slice(params: &Params, slice: &[[P; COLUMNS]; ROWS]) -> Self;
     // fn identity(&self, size: usize, scale: Option<&P>) -> Result<Self::Matrix, Self::Error>;
     fn identity(&self) -> Result<Self, Self::Error>;
     // fn transpose(&self, matrix: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;

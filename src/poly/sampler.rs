@@ -34,7 +34,7 @@ impl<const ROW: usize, const COLUMNS: usize> MatrixUniformSampler<ROW, COLUMNS> 
                 collect[row][col] = sampled_poly;
             }
         }
-        let r = DCRTPolyMatrix::<DCRTPoly, ROW, COLUMNS>::from_slice(&collect);
+        let r = DCRTPolyMatrix::<DCRTPoly, ROW, COLUMNS>::from_slice(params, &collect);
         Ok(r)
     }
 

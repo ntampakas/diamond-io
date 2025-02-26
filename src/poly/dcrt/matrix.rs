@@ -10,12 +10,14 @@ use crate::poly::{
     Matrix, Params, Polynomial, PolynomialMatrix,
 };
 
+// ====== DCRTPolyMatrix ======
+
 pub struct DCRTPolyMatrix<P, const ROW: usize, const COLUMNS: usize>
 where
     P: Polynomial,
 {
     pub inner: Matrix<P, ROW, COLUMNS>,
-    pub params: Option<Params>,
+    pub params: Params,
 }
 
 impl<P, const ROWS: usize, const COLUMNS: usize> PolynomialMatrix<P, ROWS, COLUMNS>
@@ -25,14 +27,14 @@ where
 {
     type Error = std::io::Error;
 
-    fn from_slice(slice: &[[P; COLUMNS]; ROWS]) -> Self {
+    fn from_slice(params: &Params, slice: &[[P; COLUMNS]; ROWS]) -> Self {
         let mut c = get_null_matrix::<P, ROWS, COLUMNS>();
         for (i, row) in slice.iter().enumerate() {
             for (j, element) in row.iter().enumerate() {
                 c[i][j] = element.clone();
             }
         }
-        DCRTPolyMatrix { inner: c, params: None }
+        DCRTPolyMatrix { inner: c, params: params.clone() }
     }
 
     fn row_size(&self) -> usize {
@@ -54,7 +56,7 @@ where
         let mut result = get_null_matrix::<P, ROWS, COLUMNS>();
 
         for i in 0..ROWS {
-            result[i][i] = P::const_one(self.params.as_ref().unwrap());
+            result[i][i] = P::const_one(&self.params);
         }
 
         Ok(Self { inner: result, params: self.params.clone() })
@@ -158,5 +160,5 @@ where
             }
         }
     }
-    DCRTPolyMatrix { inner: c, params: Some(params) }
+    DCRTPolyMatrix { inner: c, params }
 }
