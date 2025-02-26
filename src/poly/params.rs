@@ -1,4 +1,4 @@
-use std::{fmt::Debug, sync::Arc};
+use std::sync::Arc;
 
 use openfhe::{
     cxx::UniquePtr,
@@ -10,18 +10,6 @@ pub struct PolyParams {
     pub ptr_params: Arc<UniquePtr<ILDCRTParamsImpl>>, //TODO: add getter for params
 }
 
-impl Debug for PolyParams {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-    // fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    //     f.debug_struct("PolyParams")
-    //         .field("n", &self.n)
-    //         .field("size", &self.size)
-    //         .field("k_res", &self.k_res)
-    //         .finish()
-    // }
-}
 impl PolyParams {
     pub fn new(n: u32, size: u32, k_res: u32) -> Self {
         let ptr_params = ffi::GenILDCRTParamsByOrderSizeBits(2 * n, size, k_res);
