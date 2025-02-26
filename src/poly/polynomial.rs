@@ -12,7 +12,6 @@ use std::{
 
 pub trait PElem:
     'static
-    + Copy
     + Debug
     + Default
     + Eq

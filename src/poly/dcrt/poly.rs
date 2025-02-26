@@ -40,7 +40,8 @@ impl Polynomial for DCRTPoly {
     }
 
     fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error> {
-        let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, constant.value());
+        let res =
+            ffi::DCRTPolyGenFromConst(&params.ptr_params, constant.value().to_u64_digits()[0]);
         Ok(DCRTPoly::new(res))
     }
 
@@ -135,16 +136,16 @@ mod tests {
 
         // todo: replace value and modulus from param
         let coeffs1 = [
-            FieldElement::new(100, dummy_modulus),
-            FieldElement::new(200, dummy_modulus),
-            FieldElement::new(300, dummy_modulus),
-            FieldElement::new(400, dummy_modulus),
+            FieldElement::new(100u32, dummy_modulus),
+            FieldElement::new(200u32, dummy_modulus),
+            FieldElement::new(300u32, dummy_modulus),
+            FieldElement::new(400u32, dummy_modulus),
         ];
         let coeffs2 = [
-            FieldElement::new(500, dummy_modulus),
-            FieldElement::new(600, dummy_modulus),
-            FieldElement::new(700, dummy_modulus),
-            FieldElement::new(800, dummy_modulus),
+            FieldElement::new(500u32, dummy_modulus),
+            FieldElement::new(600u32, dummy_modulus),
+            FieldElement::new(700u32, dummy_modulus),
+            FieldElement::new(800u32, dummy_modulus),
         ];
 
         // 3. Create polynomials from those coefficients.

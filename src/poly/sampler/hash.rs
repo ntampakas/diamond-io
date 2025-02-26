@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use digest::OutputSizeUser;
+use num_bigint::BigUint;
 
 use crate::poly::{
     dcrt::{DCRTPoly, DCRTPolyMatrix, FieldElement},
@@ -67,6 +68,7 @@ where
                 // bits_len = output_size * index * log
                 let log2 = q.ilog2() as usize;
                 let mut bits = Vec::with_capacity(hash_output_size * index * log2);
+                let mut field_bits = Vec::with_capacity(hash_output_size * index * log2);
                 for i in 0..(index * log2) {
                     //  H ( key || tag || index )
                     let mut hasher = D::new();
@@ -76,10 +78,21 @@ where
                     combined.push(i as u8);
                     hasher.update(&combined);
                     for &byte in hasher.finalize().iter() {
-                        bits.push(FieldElement::new(byte.into(), q as u64));
+                        for bit_index in 0..8 {
+                            let bit = (byte >> bit_index) & 1;
+                            bits.push(bit);
+                        }
                     }
                 }
-                bits
+                let mut offset = 0;
+                for _ in 0..(bits.len() / log2) {
+                    let value_bits = &bits[offset..offset + log2];
+                    let value = BigUint::from_radix_be(value_bits, 2).unwrap();
+                    offset += log2;
+                    let poly = FieldElement::new(value, BigUint::from(q));
+                    field_bits.push(poly);
+                }
+                field_bits
             }
             PolyHashDistType::BitDist => {
                 let mut bits = Vec::with_capacity(hash_output_size * index);

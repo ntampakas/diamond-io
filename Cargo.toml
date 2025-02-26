@@ -13,6 +13,7 @@ phantom-zone-math = { git = "https://github.com/gausslabs/phantom-zone", branch 
 ] }
 thiserror = "2"
 digest = "0.10"
+num-bigint = { version = "0.4", default-features = false }
 
 # TODO: for now not using
 
