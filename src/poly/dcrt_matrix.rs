@@ -64,6 +64,23 @@ where
     fn col_size(&self) -> usize {
         COLUMNS
     }
+
+    fn identity(&self) -> Result<Self, Self::Error> {
+        if ROWS != COLUMNS {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Identity matrix must be square (ROWS must equal COLUMNS)",
+            ));
+        }
+
+        let mut result = get_null_matrix::<P, ROWS, COLUMNS>();
+
+        for i in 0..ROWS {
+            result[i][i] = P::const_one(self.params.as_ref().unwrap());
+        }
+
+        Ok(Self { inner: result, params: self.params.clone() })
+    }
 }
 
 impl<P, const ROWS: usize, const COLUMNS: usize> Clone for DCRTPolyMatrix<P, ROWS, COLUMNS>

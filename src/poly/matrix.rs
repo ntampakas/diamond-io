@@ -65,6 +65,7 @@ pub trait PolynomialMatrix<P: Polynomial, const ROWS: usize, const COLUMNS: usiz
     // fn zero() -> Self;
     fn from_slice(slice: &[[P; COLUMNS]; ROWS]) -> Self;
     // fn identity(&self, size: usize, scale: Option<&P>) -> Result<Self::Matrix, Self::Error>;
+    fn identity(&self) -> Result<Self, Self::Error>;
     // fn transpose(&self, matrix: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
     // // (m * n1), (m * n2) -> (m * (n1 + n2))
     // fn concat_columns(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
