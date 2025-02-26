@@ -4,8 +4,6 @@ use std::{
     ops::{Add, Mul, Neg},
 };
 
-// == PolyMatrix
-
 pub trait PolynomialMatrix<P: Polynomial>:
     Sized + Clone + Debug + PartialEq + Eq + Add + Mul + Neg
 {

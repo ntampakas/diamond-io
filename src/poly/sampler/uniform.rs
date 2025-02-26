@@ -1,11 +1,13 @@
-use openfhe::ffi::{self};
+use std::marker::PhantomData;
+
+use openfhe::ffi;
 
 use crate::poly::{
     dcrt::{DCRTPoly, DCRTPolyMatrix},
     PolyParams,
 };
 
-use super::{Polynomial, PolynomialMatrix};
+use super::{MatrixUniformSamplerTrait, Polynomial, PolynomialMatrix};
 
 pub enum DistType {
     FinRingDist,
@@ -13,41 +15,48 @@ pub enum DistType {
     BitDist,
 }
 
-pub struct MatrixUniformSampler {
+pub struct MatrixUniformSampler<P, M>
+where
+    P: Polynomial,
+    M: PolynomialMatrix<P>,
+{
     dist_type: DistType,
-    params: PolyParams,
+    params: P::Params,
+    _phantom_m: PhantomData<M>,
 }
 
-impl MatrixUniformSampler {
-    pub fn new(dist_type: DistType, params: PolyParams) -> Self {
-        Self { dist_type, params }
-    }
-}
+impl MatrixUniformSamplerTrait<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
+    for MatrixUniformSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
+{
+    type Error = std::io::Error;
 
-impl MatrixUniformSampler {
-    pub fn sample_uniform_matrix(
+    fn sample_uniform(
         &self,
         nrow: usize,
         ncol: usize,
-    ) -> Result<DCRTPolyMatrix<DCRTPoly>, anyhow::Error> {
+    ) -> Result<DCRTPolyMatrix<DCRTPoly>, Self::Error> {
         let mut c: Vec<Vec<DCRTPoly>> = vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
         for row in 0..nrow {
             for col in 0..ncol {
-                let sampled_poly = self.sample_poly(&self.params)?;
-                c[row][col] = sampled_poly;
+                c[row][col] = self.sample_poly(&self.params);
             }
         }
-        let r = DCRTPolyMatrix::<DCRTPoly>::from_poly_vec(&self.params, c);
-        Ok(r)
+        Ok(DCRTPolyMatrix::<DCRTPoly>::from_poly_vec(&self.params, c))
+    }
+}
+
+impl MatrixUniformSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>> {
+    pub fn new(dist_type: DistType, params: PolyParams) -> Self {
+        Self { dist_type, params, _phantom_m: PhantomData }
     }
 
-    fn sample_poly(&self, params: &PolyParams) -> Result<DCRTPoly, anyhow::Error> {
+    fn sample_poly(&self, params: &PolyParams) -> DCRTPoly {
         let sampled_poly = match self.dist_type {
             DistType::FinRingDist => ffi::DCRTPolyGenFromDug(&params.ptr_params),
             DistType::GaussianDist(sigma) => ffi::DCRTPolyGenFromDgg(&params.ptr_params, sigma),
             DistType::BitDist => ffi::DCRTPolyGenFromBug(&params.ptr_params),
         };
-        Ok(DCRTPoly::new(sampled_poly))
+        DCRTPoly::new(sampled_poly)
     }
 }
 
@@ -63,19 +72,19 @@ mod tests {
 
         // Test FinRingDist
         let sampler = MatrixUniformSampler::new(DistType::FinRingDist, params);
-        let result1 = sampler.sample_uniform_matrix(20, 5);
+        let result1 = sampler.sample_uniform(20, 5);
         assert!(result1.is_ok());
         let matrix1 = result1.unwrap();
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
 
-        let result2 = sampler.sample_uniform_matrix(20, 5);
+        let result2 = sampler.sample_uniform(20, 5);
         assert!(result2.is_ok());
         let matrix2 = result2.unwrap();
 
         let params = PolyParams::new(16, 4, 51);
         let sampler = MatrixUniformSampler::new(DistType::FinRingDist, params);
-        let result3 = sampler.sample_uniform_matrix(5, 12);
+        let result3 = sampler.sample_uniform(5, 12);
         assert!(result3.is_ok());
         let matrix3 = result3.unwrap();
         assert_eq!(matrix3.row_size(), 5);
@@ -96,18 +105,18 @@ mod tests {
 
         // Test GaussianDist
         let sampler = MatrixUniformSampler::new(DistType::GaussianDist(4.57825), params);
-        let result = sampler.sample_uniform_matrix(20, 5);
+        let result = sampler.sample_uniform(20, 5);
         assert!(result.is_ok());
         let matrix1 = result.unwrap();
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
 
-        let result2 = sampler.sample_uniform_matrix(20, 5);
+        let result2 = sampler.sample_uniform(20, 5);
         assert!(result2.is_ok());
         let matrix2 = result2.unwrap();
         let params = PolyParams::new(16, 4, 51);
         let sampler = MatrixUniformSampler::new(DistType::FinRingDist, params);
-        let result3 = sampler.sample_uniform_matrix(5, 12);
+        let result3 = sampler.sample_uniform(5, 12);
         assert!(result3.is_ok());
         let matrix3 = result3.unwrap();
         assert_eq!(matrix3.row_size(), 5);
@@ -128,19 +137,19 @@ mod tests {
 
         // Test BitDist
         let sampler = MatrixUniformSampler::new(DistType::BitDist, params);
-        let result = sampler.sample_uniform_matrix(20, 5);
+        let result = sampler.sample_uniform(20, 5);
         assert!(result.is_ok());
         let matrix1 = result.unwrap();
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
 
-        let result2 = sampler.sample_uniform_matrix(20, 5);
+        let result2 = sampler.sample_uniform(20, 5);
         assert!(result2.is_ok());
         let matrix2 = result2.unwrap();
 
         let params = PolyParams::new(16, 4, 51);
         let sampler = MatrixUniformSampler::new(DistType::FinRingDist, params);
-        let result3 = sampler.sample_uniform_matrix(5, 12);
+        let result3 = sampler.sample_uniform(5, 12);
         assert!(result3.is_ok());
         let matrix3 = result3.unwrap();
         assert_eq!(matrix3.row_size(), 5);

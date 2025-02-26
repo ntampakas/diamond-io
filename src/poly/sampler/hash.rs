@@ -1,15 +1,41 @@
-// pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
-//     PolyDegree<T>
-// {
-//     type Error: std::error::Error + Send + Sync + 'static;
-//     fn sample_hash<B: AsRef<[u8]>>(
-//         &self,
-//         tag: B,
-//         rows: usize,
-//         columns: usize,
-//     ) -> Result<PolyMatrix<T, P, M>, Self::Error>;
+use std::marker::PhantomData;
 
-//     fn set_key(&mut self, key: &[u8]);
+use crate::poly::{
+    dcrt::{DCRTPoly, DCRTPolyMatrix},
+    Polynomial, PolynomialMatrix,
+};
 
-//     fn expose_key(&self) -> &[u8];
-// }
+use super::PolyHashSamplerTrait;
+
+pub struct PolyHashSampler<P, M>
+where
+    P: Polynomial,
+    M: PolynomialMatrix<P>,
+{
+    _phantom_p: PhantomData<P>,
+    _phantom_m: PhantomData<M>,
+}
+
+impl PolyHashSamplerTrait<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
+    for PolyHashSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
+{
+    type Error = std::io::Error;
+    type Key = [u8; 32];
+
+    fn sample_hash<B: AsRef<[u8]>>(
+        &self,
+        _tag: B,
+        _nrow: usize,
+        _ncol: usize,
+    ) -> Result<DCRTPolyMatrix<DCRTPoly>, Self::Error> {
+        todo!()
+    }
+
+    fn set_key(&mut self, _key: Self::Key) {
+        todo!()
+    }
+
+    fn expose_key(&self) -> Self::Key {
+        todo!()
+    }
+}

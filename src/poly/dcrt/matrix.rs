@@ -5,8 +5,6 @@ use std::{
 
 use crate::poly::{PolyParams, Polynomial, PolynomialMatrix};
 
-// ====== DCRTPolyMatrix ======
-
 pub struct DCRTPolyMatrix<P>
 where
     P: Polynomial,
