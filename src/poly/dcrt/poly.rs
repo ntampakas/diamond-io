@@ -35,7 +35,7 @@ impl FieldElement {
     }
 }
 
-// ====== Arithmetic ======
+// ====== FieldElement ======
 
 impl Add for FieldElement {
     type Output = Self;

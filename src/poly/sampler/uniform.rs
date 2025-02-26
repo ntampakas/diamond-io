@@ -1,9 +1,11 @@
 use openfhe::ffi::{self};
 
-use super::{
+use crate::poly::{
     dcrt::{DCRTPoly, DCRTPolyMatrix},
-    PolyParams, Polynomial, PolynomialMatrix,
+    PolyParams,
 };
+
+use super::{Polynomial, PolynomialMatrix};
 
 pub enum DistType {
     FinRingDist,
@@ -48,41 +50,6 @@ impl MatrixUniformSampler {
         Ok(DCRTPoly::new(sampled_poly))
     }
 }
-
-// pub trait PolyHashSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D: DistType>:
-//     PolyDegree<T>
-// {
-//     type Error: std::error::Error + Send + Sync + 'static;
-//     fn sample_hash<B: AsRef<[u8]>>(
-//         &self,
-//         tag: B,
-//         rows: usize,
-//         columns: usize,
-//     ) -> Result<PolyMatrix<T, P, M>, Self::Error>;
-
-//     fn set_key(&mut self, key: &[u8]);
-
-//     fn expose_key(&self) -> &[u8];
-// }
-
-// #[allow(clippy::type_complexity)]
-// pub trait PolyTrapdoorSampler<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, D:
-// DistType>:     PolyDegree<T>
-// {
-//     type Error: std::error::Error + Send + Sync + 'static;
-//     type Trapdoor;
-//     fn trapdoor<R: RngCore>(
-//         &self,
-//         rng: &mut R,
-//     ) -> Result<(PolyMatrix<T, P, M>, Self::Trapdoor), Self::Error>;
-
-//     fn preimage<R: RngCore>(
-//         &self,
-//         rng: &mut R,
-//         trapdoor: &Self::Trapdoor,
-//         target: &PolyMatrix<T, P, M>,
-//     ) -> Result<PolyMatrix<T, P, M>, Self::Error>;
-// }
 
 #[cfg(test)]
 mod tests {

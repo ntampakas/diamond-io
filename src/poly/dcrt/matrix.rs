@@ -22,10 +22,9 @@ where
     P: Polynomial<Params = PolyParams> + Mul<Output = P> + Neg<Output = P> + 'static,
 {
     type Error = std::io::Error;
-    type Params = P::Params;
     type Matrix = Vec<Vec<P>>;
 
-    fn from_poly_vec(params: &Self::Params, vec: Vec<Vec<P>>) -> Self {
+    fn from_poly_vec(params: &P::Params, vec: Vec<Vec<P>>) -> Self {
         let mut c = vec![vec![P::null(); vec[0].len()]; vec.len()];
         for (i, row) in vec.iter().enumerate() {
             for (j, element) in row.iter().enumerate() {
@@ -60,7 +59,7 @@ where
         Ok(Self { inner: result.to_vec(), params: self.params.clone(), ncol, nrow })
     }
 
-    fn zero(params: &Self::Params, nrow: usize, ncol: usize) -> Self {
+    fn zero(params: &P::Params, nrow: usize, ncol: usize) -> Self {
         let mut c: Vec<Vec<P>> = vec![vec![P::null(); ncol]; nrow];
         for i in 0..nrow {
             for j in 0..ncol {
