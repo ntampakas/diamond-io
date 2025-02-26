@@ -12,12 +12,13 @@ use std::{
 
 use num_traits::{One, Zero};
 use params::Params;
+
 // use phantom_zone_math::modulus::Elem;
 // pub type PElem<T> = Elem<T>;
 
-pub trait PolyElemModulus {
-    fn modulus_bits(&self) -> usize;
-}
+// pub trait PolyElemModulus {
+//     fn modulus_bits(&self) -> usize;
+// }
 
 pub trait PElem:
     'static
@@ -31,8 +32,8 @@ pub trait PElem:
     + Sync
     // + Serialize
     // + Deserialize<'static>
-    // + Zero
-    // + One
+    // + Zero TODO: do we need this?
+    // + One TODO: do we need this?
     + Add
     + Mul
 {

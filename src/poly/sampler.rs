@@ -35,7 +35,7 @@ impl<const ROW: usize, const COLUMNS: usize> MatrixUniformSampler<ROW, COLUMNS> 
 }
 
 impl<const ROW: usize, const COLUMNS: usize> MatrixUniformSampler<ROW, COLUMNS> {
-    pub fn sample_uniform(
+    pub fn sample_uniform_matrix(
         &self,
         params: &Params,
     ) -> Result<DCRTPolyMatrix<DCRTPoly, ROW, COLUMNS>, anyhow::Error> {
@@ -43,7 +43,7 @@ impl<const ROW: usize, const COLUMNS: usize> MatrixUniformSampler<ROW, COLUMNS> 
         #[allow(clippy::needless_range_loop)]
         for row in 0..ROW {
             for col in 0..COLUMNS {
-                let sampled_poly = self.sample(params)?;
+                let sampled_poly = self.sample_poly(params)?;
                 collect[row][col] = sampled_poly;
             }
         }
@@ -51,7 +51,7 @@ impl<const ROW: usize, const COLUMNS: usize> MatrixUniformSampler<ROW, COLUMNS> 
         Ok(r)
     }
 
-    fn sample(&self, params: &Params) -> Result<DCRTPoly, anyhow::Error> {
+    fn sample_poly(&self, params: &Params) -> Result<DCRTPoly, anyhow::Error> {
         let sampled_poly = match self.dist_type {
             DistType::FinRingDist => ffi::DCRTPolyGenFromDug(&params.ptr_params),
             DistType::GaussianDist(sigma) => ffi::DCRTPolyGenFromDgg(&params.ptr_params, sigma),
@@ -107,24 +107,24 @@ mod tests {
 
         // Test FinRingDist
         let sampler = MatrixUniformSampler::<20, 5>::new(DistType::FinRingDist);
-        let result1 = sampler.sample_uniform(&params);
+        let result1 = sampler.sample_uniform_matrix(&params);
         assert!(result1.is_ok());
         let matrix1 = result1.unwrap();
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
 
-        let result2 = sampler.sample_uniform(&params);
+        let result2 = sampler.sample_uniform_matrix(&params);
         assert!(result2.is_ok());
         let matrix2 = result2.unwrap();
 
         let sampler = MatrixUniformSampler::<5, 12>::new(DistType::FinRingDist);
-        let result3 = sampler.sample_uniform(&params);
+        let result3 = sampler.sample_uniform_matrix(&params);
         assert!(result3.is_ok());
         let matrix3 = result3.unwrap();
         assert_eq!(matrix3.row_size(), 5);
         assert_eq!(matrix3.col_size(), 12);
 
-        // Test matrix addition
+        // Test matrix addition - TODO: move this to DCRTPolyMatrix tests
         let added_matrix = matrix1.clone() + matrix2;
         assert_eq!(added_matrix.row_size(), 20);
         assert_eq!(added_matrix.col_size(), 5);
@@ -142,24 +142,24 @@ mod tests {
 
         // Test GaussianDist
         let sampler = MatrixUniformSampler::<20, 5>::new(DistType::GaussianDist(4.57825));
-        let result = sampler.sample_uniform(&params);
+        let result = sampler.sample_uniform_matrix(&params);
         assert!(result.is_ok());
         let matrix1 = result.unwrap();
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
 
-        let result2 = sampler.sample_uniform(&params);
+        let result2 = sampler.sample_uniform_matrix(&params);
         assert!(result2.is_ok());
         let matrix2 = result2.unwrap();
 
         let sampler = MatrixUniformSampler::<5, 12>::new(DistType::FinRingDist);
-        let result3 = sampler.sample_uniform(&params);
+        let result3 = sampler.sample_uniform_matrix(&params);
         assert!(result3.is_ok());
         let matrix3 = result3.unwrap();
         assert_eq!(matrix3.row_size(), 5);
         assert_eq!(matrix3.col_size(), 12);
 
-        // Test matrix addition
+        // Test matrix addition TODO: move this to DCRTPolyMatrix tests
         let added_matrix = matrix1.clone() + matrix2;
         assert_eq!(added_matrix.row_size(), 20);
         assert_eq!(added_matrix.col_size(), 5);
@@ -177,24 +177,24 @@ mod tests {
 
         // Test BitDist
         let sampler = MatrixUniformSampler::<20, 5>::new(DistType::BitDist);
-        let result = sampler.sample_uniform(&params);
+        let result = sampler.sample_uniform_matrix(&params);
         assert!(result.is_ok());
         let matrix1 = result.unwrap();
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
 
-        let result2 = sampler.sample_uniform(&params);
+        let result2 = sampler.sample_uniform_matrix(&params);
         assert!(result2.is_ok());
         let matrix2 = result2.unwrap();
 
         let sampler = MatrixUniformSampler::<5, 12>::new(DistType::FinRingDist);
-        let result3 = sampler.sample_uniform(&params);
+        let result3 = sampler.sample_uniform_matrix(&params);
         assert!(result3.is_ok());
         let matrix3 = result3.unwrap();
         assert_eq!(matrix3.row_size(), 5);
         assert_eq!(matrix3.col_size(), 12);
 
-        // Test matrix addition
+        // Test matrix addition - TODO: move this to DCRTPolyMatrix tests
         let added_matrix = matrix1.clone() + matrix2;
         assert_eq!(added_matrix.row_size(), 20);
         assert_eq!(added_matrix.col_size(), 5);

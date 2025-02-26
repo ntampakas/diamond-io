@@ -81,8 +81,11 @@ impl Neg for DCRTPoly {
 }
 
 impl PartialEq for DCRTPoly {
-    fn eq(&self, _other: &Self) -> bool {
-        todo!()
+    fn eq(&self, other: &Self) -> bool {
+        if self.ptr_poly.is_null() || other.ptr_poly.is_null() {
+            return self.ptr_poly.is_null() && other.ptr_poly.is_null();
+        }
+        self.ptr_poly.IsEqual(&other.ptr_poly)
     }
 }
 
@@ -100,7 +103,7 @@ impl Zero for DCRTPoly {
 
 impl One for DCRTPoly {
     fn one() -> Self {
-        DCRTPoly::new(UniquePtr::null())
+        DCRTPoly::new(UniquePtr::null()) // TODO: fix
     }
 }
 

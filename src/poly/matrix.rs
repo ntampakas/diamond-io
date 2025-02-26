@@ -72,13 +72,12 @@ pub trait PolynomialMatrix<P: Polynomial, const ROWS: usize, const COLUMNS: usiz
     // fn concat_rows(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
     // // (m1 * n1), (m2 * n2) -> ((m1 + m2) * (n1 + n2))
     // fn concat_diag(&self, matrices: &[Self::Matrix]) -> Result<Self::Matrix, Self::Error>;
-    // fn add(&self, a: &Self, b: &Self) -> Result<Self, Self::Error>;
-    //fn neg(&self, a: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
+    // fn neg(&self, a: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
     // fn sub(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error> {
     //     let minus_b = self.neg(b)?;
     //     self.add(a, &minus_b)
     // }
     // fn scalar_mul(&self, a: &Self::Matrix, scalar: &P) -> Result<Self::Matrix, Self::Error>;
-    //fn mul(&self, a: &Self, b: &Self) -> Result<Self, Self::Error>;
-    //fn tensor(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
+    // fn mul(&self, a: &Self, b: &Self) -> Result<Self, Self::Error>;
+    // fn tensor(&self, a: &Self::Matrix, b: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;
 }

@@ -5,8 +5,8 @@ use std::{
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord)]
 pub struct FieldElement {
-    value: u64,
-    modulus: u64,
+    value: u64, // TODO: support BigInt
+    modulus: u64, // TODO: support BigInt
 }
 
 impl FieldElement {
