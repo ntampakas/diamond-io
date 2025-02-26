@@ -9,6 +9,11 @@ use crate::poly::{
 
 use super::PolyHashSamplerTrait;
 
+pub enum PolyHashDistType {
+    FinRingDist,
+    BitDist,
+}
+
 pub struct PolyHashSampler<P, M, D>
 where
     P: Polynomial,
@@ -16,6 +21,7 @@ where
     D: digest::Digest,
 {
     key: [u8; 32],
+    dist_type: PolyHashDistType,
     params: P::Params,
     _phantom_p: PhantomData<P>,
     _phantom_m: PhantomData<M>,
@@ -26,14 +32,19 @@ impl<D> PolyHashSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, D>
 where
     D: digest::Digest,
 {
-    pub fn new(key: [u8; 32], params: PolyParams) -> Self {
+    pub fn new(key: [u8; 32], dist_type: PolyHashDistType, params: PolyParams) -> Self {
         Self {
             key,
+            dist_type,
             params,
             _phantom_p: PhantomData,
             _phantom_m: PhantomData,
             _phantom_d: PhantomData,
         }
+    }
+
+    fn sample_poly(&self, params: &PolyParams) -> DCRTPoly {
+        todo!()
     }
 }
 
@@ -51,32 +62,28 @@ where
         nrow: usize,
         ncol: usize,
     ) -> Result<DCRTPolyMatrix<DCRTPoly>, Self::Error> {
-        // 1) Concatenate [ key || tag || index ]
         let hash_output_size = <D as digest::Digest>::output_size() * 8;
         // todo: get from params
         let n = 10;
         // degree of polynomial
         let q = 10;
         let index = (nrow * ncol * q).div_ceil(hash_output_size);
-
         let mut bits = Vec::with_capacity(hash_output_size * index);
-        for i in 0..(index) {
+        for i in 0..index {
+            //  H ( key || tag || index )
             let mut hasher = D::new();
             let mut combined = Vec::with_capacity(self.key.len() + tag.as_ref().len() + 1);
             combined.extend_from_slice(&self.key);
             combined.extend_from_slice(tag.as_ref());
             combined.push(i as u8);
             hasher.update(&combined);
-            let result = hasher.finalize();
-
-            for &byte in result.iter() {
+            for &byte in hasher.finalize().iter() {
                 for bit_index in 0..8 {
                     let bit = (byte >> bit_index) & 1;
                     bits.push(FieldElement::new(bit as u64, q as u64));
                 }
             }
         }
-
         let total_poly = nrow * ncol;
         let mut offset = 0;
         let mut all_polys = Vec::with_capacity(total_poly);
@@ -114,8 +121,11 @@ mod tests {
     fn test_poly_hash_sampler() {
         let key = [0u8; 32];
         let params = PolyParams::new(16, 4, 51);
-        let mut sampler =
-            PolyHashSampler::<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, Keccak256>::new(key, params);
+        let mut sampler = PolyHashSampler::<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, Keccak256>::new(
+            key,
+            PolyHashDistType::BitDist,
+            params,
+        );
         let nrow = 100;
         let ncol = 300;
         let tag = b"MyTag";

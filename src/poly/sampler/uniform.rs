@@ -16,7 +16,7 @@ pub enum MatrixUniformSamplerError {
     NullPointer,
 }
 
-pub enum DistType {
+pub enum UniformDistType {
     FinRingDist,
     GaussianDist(f64),
     BitDist,
@@ -27,21 +27,23 @@ where
     P: Polynomial,
     M: PolynomialMatrix<P>,
 {
-    dist_type: DistType,
+    dist_type: UniformDistType,
     params: P::Params,
     _phantom_m: PhantomData<M>,
 }
 
 impl MatrixUniformSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>> {
-    pub fn new(dist_type: DistType, params: PolyParams) -> Self {
+    pub fn new(dist_type: UniformDistType, params: PolyParams) -> Self {
         Self { dist_type, params, _phantom_m: PhantomData }
     }
 
     fn sample_poly(&self, params: &PolyParams) -> DCRTPoly {
         let sampled_poly = match self.dist_type {
-            DistType::FinRingDist => ffi::DCRTPolyGenFromDug(&params.ptr_params),
-            DistType::GaussianDist(sigma) => ffi::DCRTPolyGenFromDgg(&params.ptr_params, sigma),
-            DistType::BitDist => ffi::DCRTPolyGenFromBug(&params.ptr_params),
+            UniformDistType::FinRingDist => ffi::DCRTPolyGenFromDug(&params.ptr_params),
+            UniformDistType::GaussianDist(sigma) => {
+                ffi::DCRTPolyGenFromDgg(&params.ptr_params, sigma)
+            }
+            UniformDistType::BitDist => ffi::DCRTPolyGenFromBug(&params.ptr_params),
         };
         DCRTPoly::new(sampled_poly)
     }
@@ -82,7 +84,7 @@ mod tests {
         let params = PolyParams::new(16, 4, 51);
 
         // Test FinRingDist
-        let sampler = MatrixUniformSampler::new(DistType::FinRingDist, params);
+        let sampler = MatrixUniformSampler::new(UniformDistType::FinRingDist, params);
         let result1 = sampler.sample_uniform(20, 5);
         assert!(result1.is_ok());
         let matrix1 = result1.unwrap();
@@ -94,7 +96,7 @@ mod tests {
         let matrix2 = result2.unwrap();
 
         let params = PolyParams::new(16, 4, 51);
-        let sampler = MatrixUniformSampler::new(DistType::FinRingDist, params);
+        let sampler = MatrixUniformSampler::new(UniformDistType::FinRingDist, params);
         let result3 = sampler.sample_uniform(5, 12);
         assert!(result3.is_ok());
         let matrix3 = result3.unwrap();
@@ -115,7 +117,7 @@ mod tests {
         let params = PolyParams::new(16, 4, 51);
 
         // Test GaussianDist
-        let sampler = MatrixUniformSampler::new(DistType::GaussianDist(4.57825), params);
+        let sampler = MatrixUniformSampler::new(UniformDistType::GaussianDist(4.57825), params);
         let result = sampler.sample_uniform(20, 5);
         assert!(result.is_ok());
         let matrix1 = result.unwrap();
@@ -126,7 +128,7 @@ mod tests {
         assert!(result2.is_ok());
         let matrix2 = result2.unwrap();
         let params = PolyParams::new(16, 4, 51);
-        let sampler = MatrixUniformSampler::new(DistType::FinRingDist, params);
+        let sampler = MatrixUniformSampler::new(UniformDistType::FinRingDist, params);
         let result3 = sampler.sample_uniform(5, 12);
         assert!(result3.is_ok());
         let matrix3 = result3.unwrap();
@@ -147,7 +149,7 @@ mod tests {
         let params = PolyParams::new(16, 4, 51);
 
         // Test BitDist
-        let sampler = MatrixUniformSampler::new(DistType::BitDist, params);
+        let sampler = MatrixUniformSampler::new(UniformDistType::BitDist, params);
         let result = sampler.sample_uniform(20, 5);
         assert!(result.is_ok());
         let matrix1 = result.unwrap();
@@ -159,7 +161,7 @@ mod tests {
         let matrix2 = result2.unwrap();
 
         let params = PolyParams::new(16, 4, 51);
-        let sampler = MatrixUniformSampler::new(DistType::FinRingDist, params);
+        let sampler = MatrixUniformSampler::new(UniformDistType::FinRingDist, params);
         let result3 = sampler.sample_uniform(5, 12);
         assert!(result3.is_ok());
         let matrix3 = result3.unwrap();
