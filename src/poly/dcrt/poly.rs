@@ -1,5 +1,5 @@
 use openfhe::{
-    cxx::UniquePtr,
+    cxx::{CxxVector, UniquePtr},
     ffi::{self, DCRTPolyImpl},
 };
 use std::{
@@ -27,6 +27,17 @@ impl Polynomial for DCRTPoly {
     type Error = std::io::Error;
     type Elem = FieldElement;
     type Params = PolyParams;
+
+    fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Result<Self, Self::Error> {
+        // TODO: check if coeffs modulus is the same as params modulus
+        // TODO: check if coeffs length is the same as the ring size
+        let mut coeffs_cxx = CxxVector::<i64>::new();
+        for coeff in coeffs {
+            coeffs_cxx.pin_mut().push(coeff.value().try_into().unwrap());
+        }
+        let res = ffi::DCRTPolyGenFromVec(&params.ptr_params, &coeffs_cxx);
+        Ok(DCRTPoly::new(res))
+    }
 
     fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error> {
         let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, constant.value());

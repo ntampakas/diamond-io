@@ -60,8 +60,8 @@ pub trait Polynomial:
     type Params: Clone;
     // fn degree(&self) -> usize;
     // fn coeffs(&self, poly: &Self::Poly) -> &[PElem<T>];
-    // fn from_coeffs(coeffs: &[PElem<T>]) -> Result<Self::Poly, Self::Error>;
-    fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error>; // TODO: replace with u64 with T
+    fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Result<Self, Self::Error>;
+    fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error>;
     fn const_zero(params: &Self::Params) -> Self;
     fn const_one(params: &Self::Params) -> Self;
     // fn const_minus_one(params: &Params) -> Result<Self, Self::Error>;
