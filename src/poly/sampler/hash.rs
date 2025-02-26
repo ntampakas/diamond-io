@@ -63,10 +63,8 @@ where
         ncol: usize,
     ) -> Result<DCRTPolyMatrix<DCRTPoly>, Self::Error> {
         let hash_output_size = <D as digest::Digest>::output_size() * 8;
-        // todo: get from params
-        let n = 10;
-        // degree of polynomial
-        let q = 10;
+        let n = self.params.get_ring_dimension() as usize; // TODO: fix type
+        let q = self.params.get_modulus() as usize; // TODO: fix type
         let index = (nrow * ncol * q).div_ceil(hash_output_size);
         let mut bits = Vec::with_capacity(hash_output_size * index);
         for i in 0..index {
