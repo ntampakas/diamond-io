@@ -2,25 +2,26 @@ use std::sync::Arc;
 
 use crate::poly::params::{PolyElemParams, PolyParams};
 use num_bigint::BigUint;
+use num_traits::Num;
 use openfhe::{
     cxx::UniquePtr,
     ffi::{self, ILDCRTParamsImpl},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DCRTPolyParams {
     ptr_params: Arc<UniquePtr<ILDCRTParamsImpl>>,
 }
 
 impl PolyElemParams for DCRTPolyParams {
-    fn get_modulus(&self) -> BigUint {
+    fn modulus(&self) -> BigUint {
         let modulus = &self.ptr_params.as_ref().GetModulus();
         BigUint::from_str_radix(modulus, 10).unwrap()
     }
 }
 
 impl PolyParams for DCRTPolyParams {
-    fn get_ring_dimension(&self) -> u32 {
+    fn ring_dimension(&self) -> u32 {
         let ring_dimension = &self.ptr_params.as_ref().GetRingDimension();
         *ring_dimension
     }
@@ -46,6 +47,6 @@ mod tests {
         let n = 16;
         let size = 4;
         let k_res = 51;
-        let _ = PolyParams::new(n, size, k_res);
+        let _ = DCRTPolyParams::new(n, size, k_res);
     }
 }

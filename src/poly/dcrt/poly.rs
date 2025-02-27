@@ -141,32 +141,33 @@ impl MulAssign for DCRTPoly {
 
 #[cfg(test)]
 mod tests {
+    use crate::poly::params::PolyElemParams;
+
     use super::*;
 
     #[test]
     fn test_dcrtpoly_arithmetic() {
-        let params = PolyParams::new(16, 4, 51);
-        let q = params.get_modulus();
+        let params = DCRTPolyParams::new(16, 4, 51);
+        let q = params.modulus();
+        let fin_ring_params = FinRingParams::new(Arc::new(q.clone()));
 
         // todo: replace value and modulus from param
         let coeffs1 = [
-            FinRing::new(100u32, q.clone()),
-            FinRing::new(200u32, q.clone()),
-            FinRing::new(300u32, q.clone()),
-            FinRing::new(400u32, q.clone()),
+            FinRing::new(100u32, fin_ring_params.clone()),
+            FinRing::new(200u32, fin_ring_params.clone()),
+            FinRing::new(300u32, fin_ring_params.clone()),
+            FinRing::new(400u32, fin_ring_params.clone()),
         ];
         let coeffs2 = [
-            FinRing::new(500u32, q.clone()),
-            FinRing::new(600u32, q.clone()),
-            FinRing::new(700u32, q.clone()),
-            FinRing::new(800u32, q.clone()),
+            FinRing::new(500u32, fin_ring_params.clone()),
+            FinRing::new(600u32, fin_ring_params.clone()),
+            FinRing::new(700u32, fin_ring_params.clone()),
+            FinRing::new(800u32, fin_ring_params.clone()),
         ];
 
         // 3. Create polynomials from those coefficients.
-        let poly1 = DCRTPoly::from_coeffs(&params, &coeffs1)
-            .expect("Failed to create DCRTPoly from coeffs1");
-        let poly2 = DCRTPoly::from_coeffs(&params, &coeffs2)
-            .expect("Failed to create DCRTPoly from coeffs2");
+        let poly1 = DCRTPoly::from_coeffs(&params, &coeffs1);
+        let poly2 = DCRTPoly::from_coeffs(&params, &coeffs2);
 
         // 4. Test addition.
         let sum = poly1.clone() + poly2.clone();

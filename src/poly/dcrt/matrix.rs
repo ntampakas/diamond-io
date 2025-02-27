@@ -1,5 +1,5 @@
+use super::DCRTPolyParams;
 use crate::poly::{Poly, PolyMatrix, PolyParams};
-use openfhe::ffi::DCRTPolyParams;
 use std::{
     fmt::Debug,
     ops::{Add, Mul, Neg},
@@ -104,9 +104,9 @@ where
         let nrow = size;
         let ncol = size;
         let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(params); ncol]; nrow];
-        let scalr = scalar.unwrap_or(P::const_one(params));
+        let scalar = scalar.unwrap_or(P::const_one(params));
         for i in 0..size {
-            result[i][i] = scalar;
+            result[i][i] = scalar.clone();
         }
         DCRTPolyMatrix { inner: result, params: params.clone(), nrow, ncol }
     }

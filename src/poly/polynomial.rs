@@ -6,7 +6,7 @@ use std::{
     ops::{Add, AddAssign, Mul, MulAssign, Neg},
 };
 
-pub trait PolyElem: 'static + Debug + Default + Eq + Ord + Send + Sync + Serde + Add + Mul {
+pub trait PolyElem: Sized + Debug + Eq + Ord + Send + Sync + Add + Mul {
     type Params: PolyElemParams;
 
     fn zero(params: &Self::Params) -> Self;

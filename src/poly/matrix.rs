@@ -27,11 +27,11 @@ pub trait PolyMatrix:
         column_end: usize,
     ) -> Self;
     fn slice_rows(&self, start: usize, end: usize) -> Self {
-        let (_, columns) = self.size()?;
+        let (_, columns) = self.size();
         self.slice(start, end, 0, columns)
     }
     fn slice_columns(&self, start: usize, end: usize) -> Self {
-        let (rows, _) = self.size()?;
+        let (rows, _) = self.size();
         self.slice(0, rows, start, end)
     }
     fn zero(params: &<Self::P as Poly>::Params, rows: usize, columns: usize) -> Self;
