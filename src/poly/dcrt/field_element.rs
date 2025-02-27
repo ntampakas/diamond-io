@@ -2,7 +2,7 @@ use std::ops::{Add, Mul};
 
 use num_bigint::{BigInt, BigUint};
 
-use crate::poly::PElem;
+use crate::poly::PolyElem;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord)]
 pub struct FieldElement {
@@ -27,7 +27,7 @@ impl FieldElement {
     }
 }
 
-impl PElem for FieldElement {}
+impl PolyElem for FieldElement {}
 
 // ====== Arithmetic ======
 

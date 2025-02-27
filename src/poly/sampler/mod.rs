@@ -1,12 +1,12 @@
-use super::{Polynomial, PolynomialMatrix};
+use super::{Poly, PolynomialMatrix};
 
 pub mod hash;
 pub mod trapdoor;
 pub mod uniform;
 
-pub trait PolyHashSamplerTrait<P, M, D>
+pub trait PolyHashSampler<P, M, D>
 where
-    P: Polynomial,
+    P: Poly,
     M: PolynomialMatrix<P>,
     D: digest::Digest,
 {
@@ -25,9 +25,9 @@ where
     fn expose_key(&self) -> Self::Key;
 }
 
-pub trait MatrixUniformSamplerTrait<P, M>
+pub trait UniformSampler<P, M>
 where
-    P: Polynomial,
+    P: Poly,
     M: PolynomialMatrix<P>,
 {
     type Error: std::error::Error + Send + Sync + 'static;

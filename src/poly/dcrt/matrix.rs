@@ -3,11 +3,11 @@ use std::{
     ops::{Add, Mul, Neg},
 };
 
-use crate::poly::{PolyParams, Polynomial, PolynomialMatrix};
+use crate::poly::{Poly, PolyParams, PolynomialMatrix};
 
 pub struct DCRTPolyMatrix<P>
 where
-    P: Polynomial,
+    P: Poly,
 {
     inner: Vec<Vec<P>>,
     params: P::Params,
@@ -18,7 +18,7 @@ where
 // Add getter methods for inner and params
 impl<P> DCRTPolyMatrix<P>
 where
-    P: Polynomial,
+    P: Poly,
 {
     pub fn inner(&self) -> &Vec<Vec<P>> {
         &self.inner
@@ -30,7 +30,7 @@ where
 
 impl<P> PolynomialMatrix<P> for DCRTPolyMatrix<P>
 where
-    P: Polynomial<Params = PolyParams> + Mul<Output = P> + Neg<Output = P> + 'static,
+    P: Poly<Params = PolyParams> + Mul<Output = P> + Neg<Output = P> + 'static,
 {
     type Error = std::io::Error;
     type Matrix = Vec<Vec<P>>;
@@ -85,7 +85,7 @@ where
 
 impl<P> Add for DCRTPolyMatrix<P>
 where
-    P: Polynomial<Params = PolyParams> + Mul<Output = P> + Neg<Output = P> + 'static,
+    P: Poly<Params = PolyParams> + Mul<Output = P> + Neg<Output = P> + 'static,
 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
@@ -103,7 +103,7 @@ where
 
 impl<P> Neg for DCRTPolyMatrix<P>
 where
-    P: Polynomial + Neg<Output = P> + 'static,
+    P: Poly + Neg<Output = P> + 'static,
 {
     type Output = Self;
 
@@ -120,7 +120,7 @@ where
 
 impl<P> Mul for DCRTPolyMatrix<P>
 where
-    P: Polynomial + Mul<Output = P> + 'static,
+    P: Poly + Mul<Output = P> + 'static,
 {
     type Output = Self;
 
@@ -150,7 +150,7 @@ where
 
 impl<P> Clone for DCRTPolyMatrix<P>
 where
-    P: Polynomial<Params = PolyParams>,
+    P: Poly<Params = PolyParams>,
 {
     fn clone(&self) -> Self {
         Self {
@@ -164,7 +164,7 @@ where
 
 impl<P> Debug for DCRTPolyMatrix<P>
 where
-    P: Polynomial<Params = PolyParams>,
+    P: Poly<Params = PolyParams>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DCRTPolyMatrix").field("inner", &self.inner).finish()
@@ -173,11 +173,11 @@ where
 
 impl<P> PartialEq for DCRTPolyMatrix<P>
 where
-    P: Polynomial<Params = PolyParams>,
+    P: Poly<Params = PolyParams>,
 {
     fn eq(&self, other: &Self) -> bool {
         self.inner == other.inner
     }
 }
 
-impl<P> Eq for DCRTPolyMatrix<P> where P: Polynomial<Params = PolyParams> {}
+impl<P> Eq for DCRTPolyMatrix<P> where P: Poly<Params = PolyParams> {}

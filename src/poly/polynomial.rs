@@ -10,7 +10,7 @@ use std::{
 //     fn modulus_bits(&self) -> usize;
 // }
 
-pub trait PElem:
+pub trait PolyElem:
     'static
     + Debug
     + Default
@@ -51,11 +51,11 @@ pub trait PElem:
 // }
 
 /// Describes the common interface polynomials
-pub trait Polynomial:
+pub trait Poly:
     Sized + Clone + Debug + PartialEq + Eq + Add + AddAssign + Mul + MulAssign + Neg
 {
     type Error: std::error::Error + Send + Sync + 'static;
-    type Elem: PElem;
+    type Elem: PolyElem;
     type Params: Clone; // TODO: Do we need a generic trait for params?
                         // fn degree(&self) -> usize;
                         // fn coeffs(&self, poly: &Self::Poly) -> &[PElem<T>];

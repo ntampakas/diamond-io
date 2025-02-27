@@ -1,22 +1,24 @@
 use std::marker::PhantomData;
 
-use super::PolyHashSamplerTrait;
-use crate::poly::{
-    dcrt::{DCRTPoly, DCRTPolyMatrix, FieldElement},
-    PolyParams, Polynomial, PolynomialMatrix,
+use super::PolyHashSampler;
+use crate::{
+    poly::{
+        dcrt::{DCRTPoly, DCRTPolyMatrix, FieldElement},
+        Poly, PolyParams, PolynomialMatrix,
+    },
+    utils::ceil_log2,
 };
-use crate::utils::ceil_log2;
 use digest::OutputSizeUser;
 use num_bigint::BigUint;
 
 pub enum PolyHashDistType {
-    FinRingDist,
+    FiniteRingDist,
     BitDist,
 }
 
-pub struct PolyHashSampler<P, M, D>
+pub struct PolyHashSamplerImpl<P, M, D>
 where
-    P: Polynomial,
+    P: Poly,
     M: PolynomialMatrix<P>,
     D: digest::Digest,
 {
@@ -28,7 +30,7 @@ where
     _phantom_d: PhantomData<D>,
 }
 
-impl<D> PolyHashSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, D>
+impl<D> PolyHashSamplerImpl<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, D>
 where
     D: digest::Digest,
 {
@@ -44,8 +46,8 @@ where
     }
 }
 
-impl<D> PolyHashSamplerTrait<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, D>
-    for PolyHashSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, D>
+impl<D> PolyHashSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, D>
+    for PolyHashSamplerImpl<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, D>
 where
     D: OutputSizeUser + digest::Digest,
 {
@@ -62,10 +64,12 @@ where
         let n = self.params.get_ring_dimension() as usize;
         let q = self.params.get_modulus();
         let field_elements = match self.dist_type {
-            PolyHashDistType::FinRingDist => {
-                // * index = number of hashes to be performed = ceil( (nrow * ncol * n * ceil(log2(q))) / (hash_output_size) )
+            PolyHashDistType::FiniteRingDist => {
+                // * index = number of hashes to be performed = ceil( (nrow * ncol * n *
+                //   ceil(log2(q))) / (hash_output_size) )
                 // * bits = number of resulting bits from hashing ops = hash_output_size * index
-                // * field_elements = number of field elements sampled = (bits / ceil(log2(q))) which is always greater than or equal to nrow * ncol * n
+                // * field_elements = number of field elements sampled = (bits / ceil(log2(q)))
+                //   which is always greater than or equal to nrow * ncol * n
                 let ceil_log2q = ceil_log2(&q); // TODO: check if this is correct
                 let index = (nrow * ncol * n * ceil_log2q).div_ceil(hash_output_size);
                 let mut bits = Vec::with_capacity(hash_output_size * index);
@@ -98,9 +102,11 @@ where
                 field_elements
             }
             PolyHashDistType::BitDist => {
-                // * index = number of hashes to be performed = ceil( (nrow * ncol * n) / (hash_output_size) )
+                // * index = number of hashes to be performed = ceil( (nrow * ncol * n) /
+                //   (hash_output_size) )
                 // * bits = number of resulting bits from hashing ops = hash_output_size * index
-                // * field_elements = number of field elements sampled = bits which is always greater than or equal to nrow * ncol * n
+                // * field_elements = number of field elements sampled = bits which is always
+                //   greater than or equal to nrow * ncol * n
                 let index = (nrow * ncol * n).div_ceil(hash_output_size);
                 let mut field_elements = Vec::with_capacity(hash_output_size * index);
                 for i in 0..index {
@@ -141,7 +147,8 @@ where
             all_polys.push(poly);
         }
 
-        // From polynomials to matrix such that the first row of the matrixcontains the first ncol polynomials
+        // From polynomials to matrix such that the first row of the matrixcontains the first ncol
+        // polynomials
         let mut matrix_inner = Vec::with_capacity(nrow);
         let mut poly_iter = all_polys.into_iter();
         for _ in 0..nrow {
@@ -170,7 +177,7 @@ mod tests {
     fn test_poly_hash_sampler() {
         let key = [0u8; 32];
         let params = PolyParams::new(16, 4, 51);
-        let mut sampler = PolyHashSampler::<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, Keccak256>::new(
+        let mut sampler = PolyHashSamplerImpl::<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, Keccak256>::new(
             key,
             PolyHashDistType::BitDist,
             params,
@@ -208,8 +215,8 @@ mod tests {
     //     sampler.set_key(new_key);
     //     sampler.expose_key();
 
-    //     assert!(matrix_result.is_ok(), "sample_hash returned an error: {:?}", matrix_result.err());
-    //     let matrix = matrix_result.unwrap();
+    //     assert!(matrix_result.is_ok(), "sample_hash returned an error: {:?}",
+    // matrix_result.err());     let matrix = matrix_result.unwrap();
     //     assert_eq!(matrix.row_size(), nrow, "Matrix row count mismatch");
     //     assert_eq!(matrix.col_size(), ncol, "Matrix column count mismatch");
     // }

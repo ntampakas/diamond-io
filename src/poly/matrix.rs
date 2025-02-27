@@ -1,10 +1,10 @@
-use super::Polynomial;
+use super::Poly;
 use std::{
     fmt::Debug,
     ops::{Add, Mul, Neg},
 };
 
-pub trait PolynomialMatrix<P: Polynomial>:
+pub trait PolynomialMatrix<P: Poly>:
     Sized + Clone + Debug + PartialEq + Eq + Add + Mul + Neg
 {
     type Error: std::error::Error + Send + Sync + 'static;
