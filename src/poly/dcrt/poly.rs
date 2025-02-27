@@ -39,29 +39,29 @@ impl Polynomial for DCRTPoly {
         for coeff in coeffs {
             coeffs_cxx.pin_mut().push(coeff.value().try_into().unwrap());
         }
-        let res = ffi::DCRTPolyGenFromVec(&params.get_params(), &coeffs_cxx);
+        let res = ffi::DCRTPolyGenFromVec(params.get_params(), &coeffs_cxx);
         Ok(DCRTPoly::new(res))
     }
 
     fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error> {
         let res =
-            ffi::DCRTPolyGenFromConst(&params.get_params(), constant.value().to_u64_digits()[0]);
+            ffi::DCRTPolyGenFromConst(params.get_params(), constant.value().to_u64_digits()[0]);
         Ok(DCRTPoly::new(res))
     }
 
     fn const_zero(params: &Self::Params) -> Self {
-        let res = ffi::DCRTPolyGenFromConst(&params.get_params(), 0);
+        let res = ffi::DCRTPolyGenFromConst(params.get_params(), 0);
         DCRTPoly::new(res)
     }
 
     fn const_one(params: &Self::Params) -> Self {
-        let res = ffi::DCRTPolyGenFromConst(&params.get_params(), 1);
+        let res = ffi::DCRTPolyGenFromConst(params.get_params(), 1);
         DCRTPoly::new(res)
     }
 
     fn const_minus_one(params: &Self::Params) -> Result<Self, Self::Error> {
         let fe = FieldElement::new(-1, params.get_modulus());
-        let res = ffi::DCRTPolyGenFromConst(&params.get_params(), fe.value().to_u64_digits()[0]);
+        let res = ffi::DCRTPolyGenFromConst(params.get_params(), fe.value().to_u64_digits()[0]);
         Ok(DCRTPoly::new(res))
     }
 }

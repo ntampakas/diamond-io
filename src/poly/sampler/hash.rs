@@ -62,15 +62,18 @@ where
         let hash_output_size = <D as digest::Digest>::output_size() * 8;
         let n = self.params.get_ring_dimension() as usize; // TODO: fix type
         let q = self.params.get_modulus() as usize; // TODO: fix type
-        let index = (nrow * ncol * n).div_ceil(hash_output_size);
         let field_elements = match self.dist_type {
             PolyHashDistType::FinRingDist => {
-                // bits_len = output_size * index * log
-                let log2 = q.ilog2() as usize;
-                let mut bits = Vec::with_capacity(hash_output_size * index * log2);
-                let mut field_bits = Vec::with_capacity(hash_output_size * index * log2);
-                for i in 0..(index * log2) {
-                    //  H ( key || tag || index )
+                // number of hashes to be performed (index) = ceil( (nrow * ncol * n * log2(q)) / (hash_output_size) )
+                // number of resulting bits (bits) = hash_output_size * index
+                let log2q = q.ilog2() as usize;
+                let index = (nrow * ncol * n * log2q).div_ceil(hash_output_size);
+                let mut bits = Vec::with_capacity(hash_output_size * index);
+                let mut field_elements = Vec::with_capacity(
+                    hash_output_size * (nrow * ncol * n).div_ceil(hash_output_size),
+                );
+                for i in 0..(index) {
+                    //  H ( key || tag || i )
                     let mut hasher = D::new();
                     let mut combined = Vec::with_capacity(self.key.len() + tag.as_ref().len() + 1);
                     combined.extend_from_slice(&self.key);
@@ -84,20 +87,24 @@ where
                         }
                     }
                 }
+                // From bits to field elements
                 let mut offset = 0;
-                for _ in 0..(bits.len() / log2) {
-                    let value_bits = &bits[offset..offset + log2];
+                for _ in 0..(bits.len() / log2q) {
+                    let value_bits = &bits[offset..offset + log2q];
                     let value = BigUint::from_radix_be(value_bits, 2).unwrap();
-                    offset += log2;
-                    let poly = FieldElement::new(value, BigUint::from(q));
-                    field_bits.push(poly);
+                    offset += log2q;
+                    let fe = FieldElement::new(value, BigUint::from(q));
+                    field_elements.push(fe);
                 }
-                field_bits
+                field_elements
             }
             PolyHashDistType::BitDist => {
-                let mut bits = Vec::with_capacity(hash_output_size * index);
+                // number of hashes to be performed (index) = ceil( (nrow * ncol * n) / (hash_output_size) )
+                // number of resulting bits (bits) = hash_output_size * index
+                let index = (nrow * ncol * n).div_ceil(hash_output_size);
+                let mut field_elements = Vec::with_capacity(hash_output_size * index);
                 for i in 0..index {
-                    //  H ( key || tag || index )
+                    //  H ( key || tag || i )
                     let mut hasher = D::new();
                     let mut combined = Vec::with_capacity(self.key.len() + tag.as_ref().len() + 1);
                     combined.extend_from_slice(&self.key);
@@ -107,14 +114,15 @@ where
                     for &byte in hasher.finalize().iter() {
                         for bit_index in 0..8 {
                             let bit = (byte >> bit_index) & 1;
-                            bits.push(FieldElement::new(bit as u64, q as u64));
+                            field_elements.push(FieldElement::new(bit as u64, q as u64));
                         }
                     }
                 }
-                bits
+                field_elements
             }
         };
 
+        // From field elements to nrow * ncol polynomials
         let total_poly = nrow * ncol;
         let mut offset = 0;
         let mut all_polys = Vec::with_capacity(total_poly);
@@ -124,6 +132,8 @@ where
             let poly = DCRTPoly::from_coeffs(&self.params, coeffs)?;
             all_polys.push(poly);
         }
+
+        // From polynomials to matrix such that the first row of the matrixcontains the first ncol polynomials
         let mut matrix_inner = Vec::with_capacity(nrow);
         let mut poly_iter = all_polys.into_iter();
         for _ in 0..nrow {
