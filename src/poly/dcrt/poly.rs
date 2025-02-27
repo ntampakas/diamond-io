@@ -146,16 +146,16 @@ mod tests {
 
         // todo: replace value and modulus from param
         let coeffs1 = [
-            FieldElement::new(100u32, q),
-            FieldElement::new(200u32, q),
-            FieldElement::new(300u32, q),
-            FieldElement::new(400u32, q),
+            FieldElement::new(100u32, q.clone()),
+            FieldElement::new(200u32, q.clone()),
+            FieldElement::new(300u32, q.clone()),
+            FieldElement::new(400u32, q.clone()),
         ];
         let coeffs2 = [
-            FieldElement::new(500u32, q),
-            FieldElement::new(600u32, q),
-            FieldElement::new(700u32, q),
-            FieldElement::new(800u32, q),
+            FieldElement::new(500u32, q.clone()),
+            FieldElement::new(600u32, q.clone()),
+            FieldElement::new(700u32, q.clone()),
+            FieldElement::new(800u32, q.clone()),
         ];
 
         // 3. Create polynomials from those coefficients.

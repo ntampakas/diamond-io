@@ -15,7 +15,7 @@ pub struct DCRTPolyParams {
 impl PolyParams for DCRTPolyParams {
     fn get_modulus(&self) -> BigUint {
         let modulus = &self.ptr_params.as_ref().GetModulus();
-        BigUint::from(modulus)
+        BigUint::from_str_radix(modulus, 10).unwrap()
     }
 
     fn get_ring_dimension(&self) -> u32 {

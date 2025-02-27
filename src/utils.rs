@@ -1,3 +1,5 @@
+use num_bigint::BigUint;
+use num_traits::{One, Zero};
 use phantom_zone_math::{
     prelude::ModulusOps,
     ring::{PrimeRing, RingOps},
@@ -5,6 +7,17 @@ use phantom_zone_math::{
 
 pub fn ceil_div(a: usize, b: usize) -> usize {
     a.div_ceil(b)
+}
+
+pub fn ceil_log2(q: &BigUint) -> usize {
+    assert!(!q.is_zero(), "log2 is undefined for zero");
+
+    let bits = q.bits() as usize;
+    if q & (q - BigUint::one()) == BigUint::zero() {
+        bits - 1
+    } else {
+        bits
+    }
 }
 
 /// Print a ring element
