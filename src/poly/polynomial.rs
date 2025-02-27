@@ -1,68 +1,37 @@
+use phantom_zone_math::util::serde::Serde;
+
+use crate::poly::params::{PolyElemParams, PolyParams};
 use std::{
     fmt::Debug,
     ops::{Add, AddAssign, Mul, MulAssign, Neg},
 };
 
-// use phantom_zone_math::modulus::Elem;
-// pub type PElem<T> = Elem<T>;
+pub trait PolyElem: 'static + Debug + Default + Eq + Ord + Send + Sync + Serde + Add + Mul {
+    type Params: PolyElemParams;
 
-// pub trait PolyElemModulus {
-//     fn modulus_bits(&self) -> usize;
-// }
-
-pub trait PElem:
-    'static
-    + Debug
-    + Default
-    + Eq
-    + Ord
-    // + Hash
-    + Send
-    + Sync
-    // + Serialize
-    // + Deserialize<'static>
-    // + Zero TODO: do we need this?
-    // + One TODO: do we need this?
-    + Add
-    + Mul
-{
+    fn zero(params: &Self::Params) -> Self;
+    fn one(params: &Self::Params) -> Self;
+    fn minus_one(params: &Self::Params) -> Self;
+    fn extract_highest_bits(&self) -> bool;
 }
 
-// pub trait PolyElemOps:
-//     ElemOps + ElemFrom<u64> + ElemFrom<u32> + ElemFrom<u8> + ElemFrom<bool> + PolyElemModulus
-// {
-//     type Error: std::error::Error + Send + Sync + 'static;
-// }
-
-// pub trait PolyBitOps: PolyElemOps + ElemTo<u64> + ElemTo<u32> + ElemTo<u8> + ElemTo<bool> {
-//     fn modulus_bits(&self) -> usize {
-//         1
-//     }
-// }
-
-// pub trait PolyGaussOps: PolyElemOps {
-//     fn gaussian_param(&self) -> f64;
-// }
-
-// pub type Poly<T, P> = <P as PolyOps<T>>::Poly;
-
-// pub trait PolyDegree {
-//     fn degree(&self) -> usize;
-// }
-
 /// Describes the common interface polynomials
-pub trait Polynomial:
+pub trait Poly:
     Sized + Clone + Debug + PartialEq + Eq + Add + AddAssign + Mul + MulAssign + Neg
 {
     type Error: std::error::Error + Send + Sync + 'static;
-    type Elem: PElem;
-    type Params: Clone; // TODO: Do we need a generic trait for params?
-                        // fn degree(&self) -> usize;
-                        // fn coeffs(&self, poly: &Self::Poly) -> &[PElem<T>];
+    type Elem: PolyElem;
+    type Params: PolyParams;
     fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Result<Self, Self::Error>;
-    fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error>;
+    fn from_const(params: &Self::Params, constant: &Self::Elem) -> Self;
     fn const_zero(params: &Self::Params) -> Self;
     fn const_one(params: &Self::Params) -> Self;
-    fn const_minus_one(params: &Self::Params) -> Result<Self, Self::Error>;
-    // fn extract_highest_bits(&self, poly: &Self::Poly) -> Result<Vec<bool>, Self::Error>;
+    fn const_minus_one(params: &Self::Params) -> Self;
+    fn extract_highest_bits(&self, poly: &Self::Poly) -> Vec<bool> {
+        let mut bits = Vec::new();
+        for elem in poly.coeffs() {
+            bits.push(elem.extract_highest_bits());
+        }
+        bits
+    }
 }

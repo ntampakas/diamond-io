@@ -1,11 +1,10 @@
-use super::{
-    matrix::{PolyMatrix, PolyMatrixOps},
-    PolyElemOps, PolyOps,
-};
+use super::{matrix::PolyMatrix, params::PolyParams, PolyElemOps, PolyOps};
 
-pub trait PolyGadgetOps<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>> {
-    type Error: std::error::Error;
-    fn gadget_vector(&self) -> PolyMatrix<T, P, M>;
-    fn gadget_matrix(&self, n: usize) -> PolyMatrix<T, P, M>;
-    fn decompose(&self, matrix: &PolyMatrix<T, P, M>) -> Result<PolyMatrix<T, P, M>, Self::Error>;
+pub trait PolyGadget {
+    type Error: std::error::Error + Send + Sync + 'static;
+    type M: PolyMatrix;
+    type Params;
+    fn gadget_vector(params: Self::Params) -> Self::M;
+    fn gadget_matrix(params: Self::Params, size: usize) -> Self::M;
+    fn decompose(&self) -> Result<Self::M, Self::Error>;
 }

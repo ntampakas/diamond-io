@@ -8,9 +8,9 @@ use std::{
     sync::Arc,
 };
 
-use crate::poly::{PolyParams, Polynomial};
+use crate::poly::{Poly, PolyParams};
 
-use super::FieldElement;
+use super::fin_ring::{FinRing, FinRingParams};
 
 #[derive(Clone, Debug)]
 pub struct DCRTPoly {
@@ -27,7 +27,7 @@ impl DCRTPoly {
     }
 }
 
-impl Polynomial for DCRTPoly {
+impl Poly for DCRTPoly {
     type Error = std::io::Error; // TODO: add error type
     type Elem = FieldElement;
     type Params = PolyParams;
