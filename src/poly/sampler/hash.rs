@@ -1,14 +1,12 @@
 use std::marker::PhantomData;
 
-use digest::OutputSizeUser;
-use num_bigint::BigUint;
-
+use super::PolyHashSamplerTrait;
 use crate::poly::{
     dcrt::{DCRTPoly, DCRTPolyMatrix, FieldElement},
     PolyParams, Polynomial, PolynomialMatrix,
 };
-
-use super::PolyHashSamplerTrait;
+use digest::OutputSizeUser;
+use num_bigint::BigUint;
 
 pub enum PolyHashDistType {
     FinRingDist,
@@ -60,14 +58,14 @@ where
         ncol: usize,
     ) -> Result<DCRTPolyMatrix<DCRTPoly>, Self::Error> {
         let hash_output_size = <D as digest::Digest>::output_size() * 8;
-        let n = self.params.get_ring_dimension() as usize; // TODO: fix type
-        let q = self.params.get_modulus() as usize; // TODO: fix type
+        let n = self.params.get_ring_dimension() as usize;
+        let q = self.params.get_modulus();
         let field_elements = match self.dist_type {
             PolyHashDistType::FinRingDist => {
                 // * index = number of hashes to be performed = ceil( (nrow * ncol * n * ilog2(q)) / (hash_output_size) )
                 // * bits = number of resulting bits from hashing ops = hash_output_size * index
                 // * field_elements = number of field elements sampled = (bits / ilog2(q)) which is always greater than or equal to nrow * ncol * n
-                let log2q = q.ilog2() as usize;
+                let log2q = (q.bits() - 1) as usize; // TODO: check if this is correct
                 let index = (nrow * ncol * n * log2q).div_ceil(hash_output_size);
                 let mut bits = Vec::with_capacity(hash_output_size * index);
                 let mut field_elements = Vec::with_capacity((index * hash_output_size) / log2q);
@@ -92,7 +90,7 @@ where
                     let value_bits = &bits[offset..offset + log2q];
                     let value = BigUint::from_radix_be(value_bits, 2).unwrap();
                     offset += log2q;
-                    let fe = FieldElement::new(value, BigUint::from(q));
+                    let fe = FieldElement::new(value, q.clone());
                     field_elements.push(fe);
                 }
                 field_elements
@@ -115,7 +113,7 @@ where
                     for &byte in hasher.finalize().iter() {
                         for bit_index in 0..8 {
                             let bit = (byte >> bit_index) & 1;
-                            field_elements.push(FieldElement::new(bit as u64, q as u64));
+                            field_elements.push(FieldElement::new(bit as u64, q.clone()));
                         }
                     }
                 }

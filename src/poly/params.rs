@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use num_bigint::BigUint;
+use num_traits::Num;
 use openfhe::{
     cxx::UniquePtr,
     ffi::{self, ILDCRTParamsImpl},
@@ -20,9 +22,9 @@ impl PolyParams {
         &self.ptr_params
     }
 
-    pub fn get_modulus(&self) -> u64 {
+    pub fn get_modulus(&self) -> BigUint {
         let modulus = &self.ptr_params.as_ref().GetModulus();
-        *modulus
+        BigUint::from_str_radix(modulus, 10).unwrap()
     }
 
     pub fn get_ring_dimension(&self) -> u32 {
