@@ -1,4 +1,4 @@
-use super::DCRTPolyParams;
+use super::{DCRTPoly, DCRTPolyParams};
 use crate::poly::{Poly, PolyMatrix, PolyParams};
 use std::{
     fmt::Debug,
@@ -12,38 +12,47 @@ use std::{
 //     ConcatError(usize, usize, usize, usize, usize),
 // }
 
-pub struct DCRTPolyMatrix<P>
-where
-    P: Poly,
-{
-    inner: Vec<Vec<P>>,
-    params: P::Params,
+#[derive(Clone)]
+pub struct DCRTPolyMatrix {
+    inner: Vec<Vec<DCRTPoly>>,
+    params: DCRTPolyParams,
     nrow: usize,
     ncol: usize,
 }
 
+impl Debug for DCRTPolyMatrix {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DCRTPolyMatrix")
+            .field("nrow", &self.nrow)
+            .field("ncol", &self.ncol)
+            .finish()
+    }
+}
+
+impl PartialEq for DCRTPolyMatrix {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner && self.nrow == other.nrow && self.ncol == other.ncol
+    }
+}
+
+impl Eq for DCRTPolyMatrix {}
+
 // Add getter methods for inner and params
-impl<P> DCRTPolyMatrix<P>
-where
-    P: Poly,
-{
-    pub fn inner(&self) -> &Vec<Vec<P>> {
+impl DCRTPolyMatrix {
+    pub fn inner(&self) -> &Vec<Vec<DCRTPoly>> {
         &self.inner
     }
-    pub fn params(&self) -> &P::Params {
+    pub fn params(&self) -> &DCRTPolyParams {
         &self.params
     }
 }
 
-impl<P> PolyMatrix for DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams> + Mul<Output = P> + Neg<Output = P> + 'static,
-{
+impl PolyMatrix for DCRTPolyMatrix {
     // type Error = DCRTPolyMatrixError;
-    type P = P;
+    type P = DCRTPoly;
 
-    fn from_poly_vec(params: &P::Params, vec: Vec<Vec<P>>) -> Self {
-        let mut c = vec![vec![P::const_zero(params); vec[0].len()]; vec.len()];
+    fn from_poly_vec(params: &DCRTPolyParams, vec: Vec<Vec<DCRTPoly>>) -> Self {
+        let mut c = vec![vec![DCRTPoly::const_zero(params); vec[0].len()]; vec.len()];
         for (i, row) in vec.iter().enumerate() {
             for (j, element) in row.iter().enumerate() {
                 c[i][j] = element.clone();
@@ -75,8 +84,10 @@ where
         column_start: usize,
         column_end: usize,
     ) -> Self {
-        let mut c =
-            vec![vec![P::const_zero(&self.params); column_end - column_start]; row_end - row_start];
+        let mut c = vec![
+            vec![DCRTPoly::const_zero(&self.params); column_end - column_start];
+            row_end - row_start
+        ];
         for i in row_start..row_end {
             for j in column_start..column_end {
                 c[i - row_start][j - column_start] = self.inner[i][j].clone();
@@ -90,11 +101,11 @@ where
         }
     }
 
-    fn zero(params: &P::Params, nrow: usize, ncol: usize) -> Self {
-        let mut c: Vec<Vec<P>> = vec![vec![P::const_zero(params); ncol]; nrow];
+    fn zero(params: &DCRTPolyParams, nrow: usize, ncol: usize) -> Self {
+        let mut c = vec![vec![DCRTPoly::const_zero(params); ncol]; nrow];
         for i in 0..nrow {
             for j in 0..ncol {
-                c[i][j] = P::const_zero(params).clone();
+                c[i][j] = DCRTPoly::const_zero(params).clone();
             }
         }
         DCRTPolyMatrix { inner: c, params: params.clone(), nrow, ncol }
@@ -103,8 +114,8 @@ where
     fn identity(params: &<Self::P as Poly>::Params, size: usize, scalar: Option<Self::P>) -> Self {
         let nrow = size;
         let ncol = size;
-        let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(params); ncol]; nrow];
-        let scalar = scalar.unwrap_or(P::const_one(params));
+        let mut result = vec![vec![DCRTPoly::const_zero(params); ncol]; nrow];
+        let scalar = scalar.unwrap_or_else(|| DCRTPoly::const_one(params));
         for i in 0..size {
             result[i][i] = scalar.clone();
         }
@@ -114,7 +125,8 @@ where
     fn transpose(&self) -> Self {
         let nrow = self.ncol;
         let ncol = self.nrow;
-        let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); ncol]; nrow];
+        let mut result: Vec<Vec<DCRTPoly>> =
+            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
         for i in 0..nrow {
             for j in 0..ncol {
                 result[i][j] = self.inner[j][i].clone();
@@ -131,7 +143,8 @@ where
             }
         }
         let ncol = self.ncol + others.iter().map(|x| x.ncol).sum::<usize>();
-        let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); ncol]; self.nrow];
+        let mut result: Vec<Vec<DCRTPoly>> =
+            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; self.nrow];
 
         // Copy elements from self
         for i in 0..self.nrow {
@@ -162,7 +175,8 @@ where
             }
         }
         let nrow = self.nrow + others.iter().map(|x| x.nrow).sum::<usize>();
-        let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); self.ncol]; nrow];
+        let mut result: Vec<Vec<DCRTPoly>> =
+            vec![vec![DCRTPoly::const_zero(&self.params); self.ncol]; nrow];
 
         // Copy elements from self
         for i in 0..self.nrow {
@@ -189,7 +203,8 @@ where
     fn concat_diag(&self, others: &[Self]) -> Self {
         let nrow = self.nrow + others.iter().map(|x| x.nrow).sum::<usize>();
         let ncol = self.ncol + others.iter().map(|x| x.ncol).sum::<usize>();
-        let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); ncol]; nrow];
+        let mut result: Vec<Vec<DCRTPoly>> =
+            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
 
         // Copy elements from self
         for i in 0..self.nrow {
@@ -217,7 +232,8 @@ where
     fn tensor(&self, other: &Self) -> Self {
         let nrow = self.nrow * other.nrow;
         let ncol = self.ncol * other.ncol;
-        let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); ncol]; nrow];
+        let mut result: Vec<Vec<DCRTPoly>> =
+            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
 
         for i1 in 0..self.nrow {
             for j1 in 0..self.ncol {
@@ -237,10 +253,7 @@ where
 
 // ====== Arithmetic ======
 
-impl<P> Add for DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams> + Mul<Output = P> + Neg<Output = P> + 'static,
-{
+impl Add for DCRTPolyMatrix {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
         let nrow = self.row_size();
@@ -255,14 +268,12 @@ where
     }
 }
 
-impl<P> Neg for DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams> + Neg<Output = P> + 'static,
-{
+impl Neg for DCRTPolyMatrix {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        let mut c: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); self.ncol]; self.nrow];
+        let mut c: Vec<Vec<DCRTPoly>> =
+            vec![vec![DCRTPoly::const_zero(&self.params); self.ncol]; self.nrow];
         for i in 0..self.nrow {
             for j in 0..self.ncol {
                 c[i][j] = -self.inner[i][j].clone();
@@ -272,10 +283,7 @@ where
     }
 }
 
-impl<P> Mul for DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams> + Mul<Output = P> + 'static,
-{
+impl Mul for DCRTPolyMatrix {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -288,7 +296,7 @@ where
             );
         }
         let common = self.ncol;
-        let mut c: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); ncol]; nrow];
+        let mut c: Vec<Vec<DCRTPoly>> = vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
         for i in 0..nrow {
             for j in 0..ncol {
                 for k in 0..common {
@@ -301,16 +309,14 @@ where
 }
 
 // Implement multiplication of a matrix by a polynomial
-impl<P> Mul<P> for DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams> + Mul<Output = P> + Clone + 'static,
-{
+impl Mul<DCRTPoly> for DCRTPolyMatrix {
     type Output = Self;
 
-    fn mul(self, rhs: P) -> Self::Output {
+    fn mul(self, rhs: DCRTPoly) -> Self::Output {
         let nrow = self.nrow;
         let ncol = self.ncol;
-        let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); ncol]; nrow];
+        let mut result: Vec<Vec<DCRTPoly>> =
+            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
 
         for i in 0..nrow {
             for j in 0..ncol {
@@ -323,16 +329,14 @@ where
 }
 
 // Implement multiplication of a matrix reference by a polynomial
-impl<P> Mul<P> for &DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams> + Mul<Output = P> + Clone + 'static,
-{
-    type Output = DCRTPolyMatrix<P>;
+impl Mul<DCRTPoly> for &DCRTPolyMatrix {
+    type Output = DCRTPolyMatrix;
 
-    fn mul(self, rhs: P) -> Self::Output {
+    fn mul(self, rhs: DCRTPoly) -> Self::Output {
         let nrow = self.nrow;
         let ncol = self.ncol;
-        let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); ncol]; nrow];
+        let mut result: Vec<Vec<DCRTPoly>> =
+            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
 
         for i in 0..nrow {
             for j in 0..ncol {
@@ -345,16 +349,14 @@ where
 }
 
 // Implement multiplication of a matrix by a polynomial reference
-impl<P> Mul<&P> for DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams> + Mul<Output = P> + Clone + 'static,
-{
+impl Mul<&DCRTPoly> for DCRTPolyMatrix {
     type Output = Self;
 
-    fn mul(self, rhs: &P) -> Self::Output {
+    fn mul(self, rhs: &DCRTPoly) -> Self::Output {
         let nrow = self.nrow;
         let ncol = self.ncol;
-        let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); ncol]; nrow];
+        let mut result: Vec<Vec<DCRTPoly>> =
+            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
 
         for i in 0..nrow {
             for j in 0..ncol {
@@ -367,16 +369,14 @@ where
 }
 
 // Implement multiplication of a matrix reference by a polynomial reference
-impl<P> Mul<&P> for &DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams> + Mul<Output = P> + Clone + 'static,
-{
-    type Output = DCRTPolyMatrix<P>;
+impl Mul<&DCRTPoly> for &DCRTPolyMatrix {
+    type Output = DCRTPolyMatrix;
 
-    fn mul(self, rhs: &P) -> Self::Output {
+    fn mul(self, rhs: &DCRTPoly) -> Self::Output {
         let nrow = self.nrow;
         let ncol = self.ncol;
-        let mut result: Vec<Vec<P>> = vec![vec![P::const_zero(&self.params); ncol]; nrow];
+        let mut result: Vec<Vec<DCRTPoly>> =
+            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
 
         for i in 0..nrow {
             for j in 0..ncol {
@@ -387,39 +387,3 @@ where
         DCRTPolyMatrix { inner: result, params: self.params.clone(), nrow, ncol }
     }
 }
-
-// ====== Traits ======
-
-impl<P> Clone for DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams>,
-{
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            params: self.params.clone(),
-            nrow: self.nrow,
-            ncol: self.ncol,
-        }
-    }
-}
-
-impl<P> Debug for DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams>,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DCRTPolyMatrix").field("inner", &self.inner).finish()
-    }
-}
-
-impl<P> PartialEq for DCRTPolyMatrix<P>
-where
-    P: Poly<Params = DCRTPolyParams>,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
-    }
-}
-
-impl<P> Eq for DCRTPolyMatrix<P> where P: Poly<Params = DCRTPolyParams> {}
