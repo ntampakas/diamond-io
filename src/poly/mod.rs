@@ -9,5 +9,5 @@ pub mod sampler;
 
 // export trait
 pub use matrix::PolynomialMatrix;
-pub use polynomial::{PElem, Polynomial};
 pub use params::PolyParams;
+pub use polynomial::{PElem, Polynomial};

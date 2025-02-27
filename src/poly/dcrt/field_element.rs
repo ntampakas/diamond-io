@@ -11,7 +11,7 @@ pub struct FieldElement {
 }
 
 impl FieldElement {
-    pub fn new<V: Into<BigInt>,M: Into<BigUint>>(value: V, modulus: M) -> Self {
+    pub fn new<V: Into<BigInt>, M: Into<BigUint>>(value: V, modulus: M) -> Self {
         let value = value.into().to_biguint().unwrap();
         let modulus = modulus.into();
         let reduced_value = value % modulus.clone();
