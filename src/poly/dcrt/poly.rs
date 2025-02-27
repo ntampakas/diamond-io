@@ -8,9 +8,9 @@ use std::{
     sync::Arc,
 };
 
-use crate::poly::{Poly, PolyParams};
-
 use super::fin_ring::{FinRing, FinRingParams};
+use super::params::DCRTPolyParams;
+use crate::poly::{Poly, PolyElem, PolyParams};
 
 #[derive(Clone, Debug)]
 pub struct DCRTPoly {
@@ -28,11 +28,14 @@ impl DCRTPoly {
 }
 
 impl Poly for DCRTPoly {
-    type Error = std::io::Error; // TODO: add error type
-    type Elem = FieldElement;
-    type Params = PolyParams;
+    type Elem = FinRing;
+    type Params = DCRTPolyParams;
 
-    fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Result<Self, Self::Error> {
+    fn coeffs(&self) -> Vec<Self::Elem> {
+        todo!()
+    }
+
+    fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Self {
         // TODO: check if coeffs modulus is the same as params modulus
         // TODO: check if coeffs length is the same as the ring size
         let mut coeffs_cxx = CxxVector::<i64>::new();
@@ -40,13 +43,13 @@ impl Poly for DCRTPoly {
             coeffs_cxx.pin_mut().push(coeff.value().try_into().unwrap());
         }
         let res = ffi::DCRTPolyGenFromVec(params.get_params(), &coeffs_cxx);
-        Ok(DCRTPoly::new(res))
+        DCRTPoly::new(res)
     }
 
-    fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error> {
+    fn from_const(params: &Self::Params, constant: &Self::Elem) -> Self {
         let res =
             ffi::DCRTPolyGenFromConst(params.get_params(), constant.value().to_u64_digits()[0]);
-        Ok(DCRTPoly::new(res))
+        DCRTPoly::new(res)
     }
 
     fn const_zero(params: &Self::Params) -> Self {
@@ -59,10 +62,11 @@ impl Poly for DCRTPoly {
         DCRTPoly::new(res)
     }
 
-    fn const_minus_one(params: &Self::Params) -> Result<Self, Self::Error> {
-        let fe = FieldElement::new(-1, params.get_modulus());
-        let res = ffi::DCRTPolyGenFromConst(params.get_params(), fe.value().to_u64_digits()[0]);
-        Ok(DCRTPoly::new(res))
+    fn const_minus_one(params: &Self::Params) -> Self {
+        // let fe = FinRing::minus_one(params);
+        // let res = ffi::DCRTPolyGenFromConst(params.get_params(), fe.value().to_u64_digits()[0]);
+        // Ok(DCRTPoly::new(res))
+        todo!()
     }
 }
 
@@ -146,16 +150,16 @@ mod tests {
 
         // todo: replace value and modulus from param
         let coeffs1 = [
-            FieldElement::new(100u32, q.clone()),
-            FieldElement::new(200u32, q.clone()),
-            FieldElement::new(300u32, q.clone()),
-            FieldElement::new(400u32, q.clone()),
+            FinRing::new(100u32, q.clone()),
+            FinRing::new(200u32, q.clone()),
+            FinRing::new(300u32, q.clone()),
+            FinRing::new(400u32, q.clone()),
         ];
         let coeffs2 = [
-            FieldElement::new(500u32, q.clone()),
-            FieldElement::new(600u32, q.clone()),
-            FieldElement::new(700u32, q.clone()),
-            FieldElement::new(800u32, q.clone()),
+            FinRing::new(500u32, q.clone()),
+            FinRing::new(600u32, q.clone()),
+            FinRing::new(700u32, q.clone()),
+            FinRing::new(800u32, q.clone()),
         ];
 
         // 3. Create polynomials from those coefficients.

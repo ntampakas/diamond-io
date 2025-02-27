@@ -3,11 +3,11 @@ use std::{
     sync::Arc,
 };
 
-use num_bigint::{BigInt, BigUint};
-
 use crate::poly::{params::PolyElemParams, PolyElem};
+use num_bigint::{BigInt, BigUint};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct FinRingParams {
     modulus: Arc<BigUint>,
 }
@@ -24,7 +24,7 @@ impl FinRingParams {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct FinRing {
     value: BigUint,
     params: FinRingParams,

@@ -1,10 +1,10 @@
-use std::sync::Arc;
-
 use num_bigint::BigUint;
 use openfhe::{
     cxx::UniquePtr,
     ffi::{self, ILDCRTParamsImpl},
 };
+use std::fmt::Debug;
+use std::sync::Arc;
 
 pub trait PolyElemParams: Debug + Clone {
     fn get_modulus(&self) -> BigUint;
