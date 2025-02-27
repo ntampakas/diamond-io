@@ -11,7 +11,7 @@ where
     D: digest::Digest,
 {
     type Error: std::error::Error + Send + Sync + 'static;
-    type Key;
+    type Key; // TODO: what to do with this type?
 
     fn sample_hash<B: AsRef<[u8]>>(
         &self,

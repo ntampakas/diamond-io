@@ -9,10 +9,23 @@ pub struct DCRTPolyMatrix<P>
 where
     P: Polynomial,
 {
-    pub inner: Vec<Vec<P>>,
-    pub params: P::Params,
+    inner: Vec<Vec<P>>,
+    params: P::Params,
     nrow: usize,
     ncol: usize,
+}
+
+// Add getter methods for inner and params
+impl<P> DCRTPolyMatrix<P>
+where
+    P: Polynomial,
+{
+    pub fn inner(&self) -> &Vec<Vec<P>> {
+        &self.inner
+    }
+    pub fn params(&self) -> &P::Params {
+        &self.params
+    }
 }
 
 impl<P> PolynomialMatrix<P> for DCRTPolyMatrix<P>

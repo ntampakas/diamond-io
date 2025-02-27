@@ -7,13 +7,17 @@ use openfhe::{
 
 #[derive(Clone)]
 pub struct PolyParams {
-    pub ptr_params: Arc<UniquePtr<ILDCRTParamsImpl>>, //TODO: add getter for params
+    ptr_params: Arc<UniquePtr<ILDCRTParamsImpl>>,
 }
 
 impl PolyParams {
     pub fn new(n: u32, size: u32, k_res: u32) -> Self {
         let ptr_params = ffi::GenILDCRTParamsByOrderSizeBits(2 * n, size, k_res);
         Self { ptr_params: ptr_params.into() }
+    }
+
+    pub fn get_params(&self) -> &UniquePtr<ILDCRTParamsImpl> {
+        &self.ptr_params
     }
 
     pub fn get_modulus(&self) -> u64 {

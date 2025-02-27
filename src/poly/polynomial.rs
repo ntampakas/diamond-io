@@ -56,13 +56,13 @@ pub trait Polynomial:
 {
     type Error: std::error::Error + Send + Sync + 'static;
     type Elem: PElem;
-    type Params: Clone;
-    // fn degree(&self) -> usize;
-    // fn coeffs(&self, poly: &Self::Poly) -> &[PElem<T>];
+    type Params: Clone; // TODO: Do we need a generic trait for params?
+                        // fn degree(&self) -> usize;
+                        // fn coeffs(&self, poly: &Self::Poly) -> &[PElem<T>];
     fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Result<Self, Self::Error>;
     fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error>;
     fn const_zero(params: &Self::Params) -> Self;
     fn const_one(params: &Self::Params) -> Self;
-    // fn const_minus_one(params: &Params) -> Result<Self, Self::Error>;
+    fn const_minus_one(params: &Self::Params) -> Result<Self, Self::Error>;
     // fn extract_highest_bits(&self, poly: &Self::Poly) -> Result<Vec<bool>, Self::Error>;
 }

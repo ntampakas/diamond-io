@@ -1,6 +1,6 @@
 use std::ops::{Add, Mul};
 
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint};
 
 use crate::poly::PElem;
 
@@ -11,8 +11,8 @@ pub struct FieldElement {
 }
 
 impl FieldElement {
-    pub fn new<T: Into<BigUint>>(value: T, modulus: T) -> Self {
-        let value = value.into();
+    pub fn new<V: Into<BigInt>,M: Into<BigUint>>(value: V, modulus: M) -> Self {
+        let value = value.into().to_biguint().unwrap();
         let modulus = modulus.into();
         let reduced_value = value % modulus.clone();
         Self { value: reduced_value, modulus }

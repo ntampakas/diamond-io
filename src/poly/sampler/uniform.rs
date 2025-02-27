@@ -39,11 +39,11 @@ impl MatrixUniformSampler<DCRTPoly, DCRTPolyMatrix<DCRTPoly>> {
 
     fn sample_poly(&self, params: &PolyParams) -> DCRTPoly {
         let sampled_poly = match self.dist_type {
-            UniformDistType::FinRingDist => ffi::DCRTPolyGenFromDug(&params.ptr_params),
+            UniformDistType::FinRingDist => ffi::DCRTPolyGenFromDug(params.get_params()),
             UniformDistType::GaussianDist(sigma) => {
-                ffi::DCRTPolyGenFromDgg(&params.ptr_params, sigma)
+                ffi::DCRTPolyGenFromDgg(params.get_params(), sigma)
             }
-            UniformDistType::BitDist => ffi::DCRTPolyGenFromBug(&params.ptr_params),
+            UniformDistType::BitDist => ffi::DCRTPolyGenFromBug(params.get_params()),
         };
         DCRTPoly::new(sampled_poly)
     }
@@ -63,7 +63,7 @@ impl MatrixUniformSamplerTrait<DCRTPoly, DCRTPolyMatrix<DCRTPoly>>
         for row in 0..nrow {
             for col in 0..ncol {
                 let sampled_poly = self.sample_poly(&self.params);
-                if sampled_poly.ptr_poly.is_null() {
+                if sampled_poly.get_poly().is_null() {
                     return Err(MatrixUniformSamplerError::NullPointer);
                 }
                 c[row][col] = self.sample_poly(&self.params);
@@ -103,7 +103,7 @@ mod tests {
         assert_eq!(matrix3.row_size(), 5);
         assert_eq!(matrix3.col_size(), 12);
 
-        // Test matrix addition - TODO: move this to DCRTPolyMatrix tests
+        // Test matrix arithmetic
         let added_matrix = matrix1.clone() + matrix2;
         assert_eq!(added_matrix.row_size(), 20);
         assert_eq!(added_matrix.col_size(), 5);
@@ -135,7 +135,7 @@ mod tests {
         assert_eq!(matrix3.row_size(), 5);
         assert_eq!(matrix3.col_size(), 12);
 
-        // Test matrix addition TODO: move this to DCRTPolyMatrix tests
+        // Test matrix arithmetic
         let added_matrix = matrix1.clone() + matrix2;
         assert_eq!(added_matrix.row_size(), 20);
         assert_eq!(added_matrix.col_size(), 5);
@@ -168,7 +168,7 @@ mod tests {
         assert_eq!(matrix3.row_size(), 5);
         assert_eq!(matrix3.col_size(), 12);
 
-        // Test matrix addition - TODO: move this to DCRTPolyMatrix tests
+        // Test matrix arithmetic
         let added_matrix = matrix1.clone() + matrix2;
         assert_eq!(added_matrix.row_size(), 20);
         assert_eq!(added_matrix.col_size(), 5);

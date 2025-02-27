@@ -11,6 +11,7 @@ pub trait PolynomialMatrix<P: Polynomial>:
     type Matrix;
 
     // fn poly_vec_to_matrix(&self, polys: Vec<P>) -> Self::Matrix;
+    fn from_poly_vec(params: &P::Params, vec: Self::Matrix) -> Self;
     fn row_size(&self) -> usize;
     fn col_size(&self) -> usize;
     // fn entry(&self, matrix: &Self::Matrix, i: usize, j: usize) -> Result<P, Self::Error>;
@@ -42,7 +43,6 @@ pub trait PolynomialMatrix<P: Polynomial>:
     //     self.slice(matrix, 0, rows, start, end)
     // }
     fn zero(params: &P::Params, rows: usize, columns: usize) -> Self;
-    fn from_poly_vec(params: &P::Params, vec: Self::Matrix) -> Self;
     // fn identity(&self, size: usize, scale: Option<&P>) -> Result<Self::Matrix, Self::Error>;
     fn identity(&self) -> Result<Self, Self::Error>;
     // fn transpose(&self, matrix: &Self::Matrix) -> Result<Self::Matrix, Self::Error>;

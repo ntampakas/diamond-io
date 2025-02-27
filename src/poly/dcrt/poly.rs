@@ -14,17 +14,21 @@ use super::FieldElement;
 
 #[derive(Clone, Debug)]
 pub struct DCRTPoly {
-    pub ptr_poly: Arc<UniquePtr<DCRTPolyImpl>>,
+    ptr_poly: Arc<UniquePtr<DCRTPolyImpl>>,
 }
 
 impl DCRTPoly {
     pub fn new(ptr_poly: UniquePtr<DCRTPolyImpl>) -> Self {
         Self { ptr_poly: ptr_poly.into() }
     }
+
+    pub fn get_poly(&self) -> &UniquePtr<DCRTPolyImpl> {
+        &self.ptr_poly
+    }
 }
 
 impl Polynomial for DCRTPoly {
-    type Error = std::io::Error;
+    type Error = std::io::Error; // TODO: add error type
     type Elem = FieldElement;
     type Params = PolyParams;
 
@@ -35,24 +39,30 @@ impl Polynomial for DCRTPoly {
         for coeff in coeffs {
             coeffs_cxx.pin_mut().push(coeff.value().try_into().unwrap());
         }
-        let res = ffi::DCRTPolyGenFromVec(&params.ptr_params, &coeffs_cxx);
+        let res = ffi::DCRTPolyGenFromVec(&params.get_params(), &coeffs_cxx);
         Ok(DCRTPoly::new(res))
     }
 
     fn from_const(params: &Self::Params, constant: &Self::Elem) -> Result<Self, Self::Error> {
         let res =
-            ffi::DCRTPolyGenFromConst(&params.ptr_params, constant.value().to_u64_digits()[0]);
+            ffi::DCRTPolyGenFromConst(&params.get_params(), constant.value().to_u64_digits()[0]);
         Ok(DCRTPoly::new(res))
     }
 
     fn const_zero(params: &Self::Params) -> Self {
-        let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, 0);
+        let res = ffi::DCRTPolyGenFromConst(&params.get_params(), 0);
         DCRTPoly::new(res)
     }
 
     fn const_one(params: &Self::Params) -> Self {
-        let res = ffi::DCRTPolyGenFromConst(&params.ptr_params, 1);
+        let res = ffi::DCRTPolyGenFromConst(&params.get_params(), 1);
         DCRTPoly::new(res)
+    }
+
+    fn const_minus_one(params: &Self::Params) -> Result<Self, Self::Error> {
+        let fe = FieldElement::new(-1, params.get_modulus());
+        let res = ffi::DCRTPolyGenFromConst(&params.get_params(), fe.value().to_u64_digits()[0]);
+        Ok(DCRTPoly::new(res))
     }
 }
 
@@ -131,21 +141,21 @@ mod tests {
 
     #[test]
     fn test_dcrtpoly_arithmetic() {
-        let dummy_modulus = 65537;
         let params = PolyParams::new(16, 4, 51);
+        let q = params.get_modulus();
 
         // todo: replace value and modulus from param
         let coeffs1 = [
-            FieldElement::new(100u32, dummy_modulus),
-            FieldElement::new(200u32, dummy_modulus),
-            FieldElement::new(300u32, dummy_modulus),
-            FieldElement::new(400u32, dummy_modulus),
+            FieldElement::new(100u32, q),
+            FieldElement::new(200u32, q),
+            FieldElement::new(300u32, q),
+            FieldElement::new(400u32, q),
         ];
         let coeffs2 = [
-            FieldElement::new(500u32, dummy_modulus),
-            FieldElement::new(600u32, dummy_modulus),
-            FieldElement::new(700u32, dummy_modulus),
-            FieldElement::new(800u32, dummy_modulus),
+            FieldElement::new(500u32, q),
+            FieldElement::new(600u32, q),
+            FieldElement::new(700u32, q),
+            FieldElement::new(800u32, q),
         ];
 
         // 3. Create polynomials from those coefficients.
