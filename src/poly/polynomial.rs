@@ -1,13 +1,13 @@
 use phantom_zone_math::util::serde::Serde;
 
-use crate::poly::params::{PolyElemParams, PolyParams};
+use crate::poly::params::PolyParams;
 use std::{
     fmt::Debug,
     ops::{Add, AddAssign, Mul, MulAssign, Neg},
 };
 
 pub trait PolyElem: Sized + Debug + Eq + Ord + Send + Sync + Add + Mul {
-    type Params: PolyElemParams;
+    type Params;
 
     fn zero(params: &Self::Params) -> Self;
     fn one(params: &Self::Params) -> Self;
