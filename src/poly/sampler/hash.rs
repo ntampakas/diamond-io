@@ -64,14 +64,13 @@ where
         let q = self.params.get_modulus() as usize; // TODO: fix type
         let field_elements = match self.dist_type {
             PolyHashDistType::FinRingDist => {
-                // number of hashes to be performed (index) = ceil( (nrow * ncol * n * log2(q)) / (hash_output_size) )
-                // number of resulting bits (bits) = hash_output_size * index
+                // * index = number of hashes to be performed = ceil( (nrow * ncol * n * ilog2(q)) / (hash_output_size) )
+                // * bits = number of resulting bits from hashing ops = hash_output_size * index
+                // * field_elements = number of field elements sampled = (bits / ilog2(q)) which is always greater than or equal to nrow * ncol * n
                 let log2q = q.ilog2() as usize;
                 let index = (nrow * ncol * n * log2q).div_ceil(hash_output_size);
                 let mut bits = Vec::with_capacity(hash_output_size * index);
-                let mut field_elements = Vec::with_capacity(
-                    hash_output_size * (nrow * ncol * n).div_ceil(hash_output_size),
-                );
+                let mut field_elements = Vec::with_capacity((index * hash_output_size) / log2q);
                 for i in 0..(index) {
                     //  H ( key || tag || i )
                     let mut hasher = D::new();
@@ -99,8 +98,10 @@ where
                 field_elements
             }
             PolyHashDistType::BitDist => {
-                // number of hashes to be performed (index) = ceil( (nrow * ncol * n) / (hash_output_size) )
-                // number of resulting bits (bits) = hash_output_size * index
+                // * index = number of hashes to be performed = ceil( (nrow * ncol * n) / (hash_output_size) )
+                // * bits = number of resulting bits from hashing ops = hash_output_size * index
+                // * field_elements = number of field elements sampled = bits
+                // which is always greater than or equal to nrow * ncol * n
                 let index = (nrow * ncol * n).div_ceil(hash_output_size);
                 let mut field_elements = Vec::with_capacity(hash_output_size * index);
                 for i in 0..index {
@@ -121,6 +122,14 @@ where
                 field_elements
             }
         };
+
+        // Check if we have enough field elements (not sure if this will ever happen)
+        if field_elements.len() < nrow * ncol * n {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Not enough field elements to sample hash",
+            ));
+        }
 
         // From field elements to nrow * ncol polynomials
         let total_poly = nrow * ncol;
