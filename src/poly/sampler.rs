@@ -49,7 +49,7 @@ pub trait PolyTrapdoorSampler {
     // type Error: std::error::Error + Send + Sync + 'static;
     type M: PolyMatrix;
     type Trapdoor;
-    fn trapdoor(&self) -> (Self::M, Self::Trapdoor);
+    fn trapdoor(&self, base: usize) -> Self::Trapdoor;
 
     fn preimage(&self, trapdoor: &Self::Trapdoor, target: &Self::M) -> Self::M;
 }
