@@ -13,13 +13,6 @@ pub struct DCRTPolyParams {
     ptr_params: Arc<UniquePtr<ILDCRTParamsImpl>>,
 }
 
-// impl PolyElemParams for DCRTPolyParams {
-//     fn modulus(&self) -> BigUint {
-//         let modulus = &self.ptr_params.as_ref().GetModulus();
-//         BigUint::from_str_radix(modulus, 10).unwrap()
-//     }
-// }
-
 impl PolyParams for DCRTPolyParams {
     fn ring_dimension(&self) -> u32 {
         let ring_dimension = &self.ptr_params.as_ref().GetRingDimension();

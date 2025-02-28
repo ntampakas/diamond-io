@@ -6,12 +6,6 @@ use crate::poly::{
     Poly, PolyMatrix,
 };
 
-// #[derive(Error, Debug)]
-// pub enum MatrixUniformSamplerError {
-//     #[error("Attempted to dereference a null pointer")]
-//     NullPointer,
-// }
-
 pub struct DCRTPolyUniformSampler {
     params: DCRTPolyParams,
 }

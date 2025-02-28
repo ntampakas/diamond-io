@@ -4,13 +4,6 @@ use std::{
     fmt::Debug,
     ops::{Add, Mul, Neg},
 };
-// use thiserror::Error;
-
-// #[derive(Debug, Error)]
-// pub enum DCRTPolyMatrixError {
-//     #[error("Concat error: while the shape of the first matrix is ({0}, {1}), that of the {2}-th
-// matirx is ({3},{4})")]     ConcatError(usize, usize, usize, usize, usize),
-// }
 
 #[derive(Clone)]
 pub struct DCRTPolyMatrix {
@@ -48,7 +41,6 @@ impl DCRTPolyMatrix {
 }
 
 impl PolyMatrix for DCRTPolyMatrix {
-    // type Error = DCRTPolyMatrixError;
     type P = DCRTPoly;
 
     fn from_poly_vec(params: &DCRTPolyParams, vec: Vec<Vec<DCRTPoly>>) -> Self {

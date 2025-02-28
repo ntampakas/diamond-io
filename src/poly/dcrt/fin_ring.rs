@@ -6,23 +6,6 @@ use std::{
 use crate::poly::PolyElem;
 use num_bigint::{BigInt, BigUint};
 
-// #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-// pub struct FinRingParams {
-//     modulus: Arc<BigUint>,
-// }
-
-// impl PolyElemParams for FinRingParams {
-//     fn modulus(&self) -> BigUint {
-//         self.modulus.as_ref().clone()
-//     }
-// }
-
-// impl FinRingParams {
-//     pub fn new(modulus: Arc<BigUint>) -> Self {
-//         Self { modulus }
-//     }
-// }
-
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct FinRing {
     value: BigUint,
