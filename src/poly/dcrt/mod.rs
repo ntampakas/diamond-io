@@ -1,4 +1,5 @@
 pub mod fin_ring;
+pub mod gadget;
 pub mod matrix;
 pub mod params;
 pub mod poly;
