@@ -23,7 +23,7 @@ pub trait PolyHashSampler<K: AsRef<[u8]>> {
     fn expose_key(&self) -> &[u8];
 }
 
-pub trait PolyUniformSample {
+pub trait PolyUniformSampler {
     type M: PolyMatrix;
 
     fn sample_uniform(&self, rows: usize, columns: usize, dist: DistType) -> Self::M;

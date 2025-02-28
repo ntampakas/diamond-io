@@ -2,7 +2,7 @@ use super::{DCRTPoly, DCRTPolyParams};
 use crate::poly::{Poly, PolyMatrix};
 use std::{
     fmt::Debug,
-    ops::{Add, Mul, Neg},
+    ops::{Add, Mul, Neg, Sub},
 };
 
 #[derive(Clone)]
@@ -129,6 +129,7 @@ impl PolyMatrix for DCRTPolyMatrix {
 
     // (m * n1), (m * n2) -> (m * (n1 + n2))
     fn concat_columns(&self, others: &[Self]) -> Self {
+        #[cfg(debug_assertions)]
         for (idx, other) in others.iter().enumerate() {
             if self.nrow != other.nrow {
                 panic!("Concat error: while the shape of the first matrix is ({0}, {1}), that of the {2}-th matirx is ({3},{4})",self.nrow,self.ncol,idx,other.nrow,other.ncol);
@@ -161,6 +162,7 @@ impl PolyMatrix for DCRTPolyMatrix {
 
     // (m1 * n), (m2 * n) -> ((m1 + m2) * n)
     fn concat_rows(&self, others: &[Self]) -> Self {
+        #[cfg(debug_assertions)]
         for (idx, other) in others.iter().enumerate() {
             if self.ncol != other.ncol {
                 panic!("Concat error: while the shape of the first matrix is ({0}, {1}), that of the {2}-th matirx is ({3},{4})",self.nrow,self.ncol,idx,other.nrow,other.ncol);
@@ -241,6 +243,16 @@ impl PolyMatrix for DCRTPolyMatrix {
 
         DCRTPolyMatrix { inner: result, params: self.params.clone(), nrow, ncol }
     }
+
+    fn gadget_vector(params: &<Self::P as Poly>::Params) -> Self {
+        todo!()
+    }
+    fn gadget_matrix(params: &<Self::P as Poly>::Params, size: usize) -> Self {
+        todo!()
+    }
+    fn decompose(&self) -> Self {
+        todo!()
+    }
 }
 
 // ====== Arithmetic ======
@@ -248,21 +260,34 @@ impl PolyMatrix for DCRTPolyMatrix {
 impl Add for DCRTPolyMatrix {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
+        self + &rhs
+    }
+}
+
+// Implement addition of a matrix by a matrix reference
+impl<'a> Add<&'a DCRTPolyMatrix> for DCRTPolyMatrix {
+    type Output = Self;
+
+    fn add(self, rhs: &'a DCRTPolyMatrix) -> Self::Output {
+        #[cfg(debug_assertions)]
         if self.nrow != rhs.nrow || self.ncol != rhs.ncol {
             panic!(
                 "Addition requires matrices of same dimensions: self({}, {}) != rhs({}, {})",
                 self.nrow, self.ncol, rhs.nrow, rhs.ncol
             );
         }
+
         let nrow = self.row_size();
         let ncol = self.col_size();
         let mut result = self.inner;
+
         for i in 0..nrow {
             for j in 0..ncol {
                 result[i][j] += rhs.inner[i][j].clone();
             }
         }
-        Self { inner: result.to_vec(), params: self.params, ncol, nrow }
+
+        Self { inner: result, params: self.params, ncol, nrow }
     }
 }
 
@@ -285,8 +310,18 @@ impl Mul for DCRTPolyMatrix {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
+        self * &rhs
+    }
+}
+
+// Implement multiplication of a matrix by a matrix reference
+impl<'a> Mul<&'a DCRTPolyMatrix> for DCRTPolyMatrix {
+    type Output = Self;
+
+    fn mul(self, rhs: &'a DCRTPolyMatrix) -> Self::Output {
         let nrow = self.nrow;
         let ncol = rhs.ncol;
+        #[cfg(debug_assertions)]
         if rhs.nrow != self.ncol {
             panic!(
                 "Multiplication condition failed: rhs.nrow ({}) must equal self.ncol ({})",
@@ -311,38 +346,7 @@ impl Mul<DCRTPoly> for DCRTPolyMatrix {
     type Output = Self;
 
     fn mul(self, rhs: DCRTPoly) -> Self::Output {
-        let nrow = self.nrow;
-        let ncol = self.ncol;
-        let mut result: Vec<Vec<DCRTPoly>> =
-            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
-
-        for i in 0..nrow {
-            for j in 0..ncol {
-                result[i][j] = self.inner[i][j].clone() * rhs.clone();
-            }
-        }
-
-        DCRTPolyMatrix { inner: result, params: self.params, nrow, ncol }
-    }
-}
-
-// Implement multiplication of a matrix reference by a polynomial
-impl Mul<DCRTPoly> for &DCRTPolyMatrix {
-    type Output = DCRTPolyMatrix;
-
-    fn mul(self, rhs: DCRTPoly) -> Self::Output {
-        let nrow = self.nrow;
-        let ncol = self.ncol;
-        let mut result: Vec<Vec<DCRTPoly>> =
-            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
-
-        for i in 0..nrow {
-            for j in 0..ncol {
-                result[i][j] = self.inner[i][j].clone() * rhs.clone();
-            }
-        }
-
-        DCRTPolyMatrix { inner: result, params: self.params.clone(), nrow, ncol }
+        self * &rhs
     }
 }
 
@@ -353,12 +357,11 @@ impl Mul<&DCRTPoly> for DCRTPolyMatrix {
     fn mul(self, rhs: &DCRTPoly) -> Self::Output {
         let nrow = self.nrow;
         let ncol = self.ncol;
-        let mut result: Vec<Vec<DCRTPoly>> =
-            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
+        let mut result: Vec<Vec<DCRTPoly>> = self.inner;
 
         for i in 0..nrow {
             for j in 0..ncol {
-                result[i][j] = self.inner[i][j].clone() * rhs.clone();
+                result[i][j] *= rhs.clone();
             }
         }
 
@@ -366,22 +369,38 @@ impl Mul<&DCRTPoly> for DCRTPolyMatrix {
     }
 }
 
-// Implement multiplication of a matrix reference by a polynomial reference
-impl Mul<&DCRTPoly> for &DCRTPolyMatrix {
-    type Output = DCRTPolyMatrix;
+// Implement subtraction for matrices
+impl Sub for DCRTPolyMatrix {
+    type Output = Self;
 
-    fn mul(self, rhs: &DCRTPoly) -> Self::Output {
-        let nrow = self.nrow;
-        let ncol = self.ncol;
-        let mut result: Vec<Vec<DCRTPoly>> =
-            vec![vec![DCRTPoly::const_zero(&self.params); ncol]; nrow];
+    fn sub(self, rhs: Self) -> Self::Output {
+        self - &rhs
+    }
+}
+
+// Implement subtraction of a matrix by a matrix reference
+impl<'a> Sub<&'a DCRTPolyMatrix> for DCRTPolyMatrix {
+    type Output = Self;
+
+    fn sub(self, rhs: &'a DCRTPolyMatrix) -> Self::Output {
+        #[cfg(debug_assertions)]
+        if self.nrow != rhs.nrow || self.ncol != rhs.ncol {
+            panic!(
+                "Subtraction requires matrices of same dimensions: self({}, {}) != rhs({}, {})",
+                self.nrow, self.ncol, rhs.nrow, rhs.ncol
+            );
+        }
+
+        let nrow = self.row_size();
+        let ncol = self.col_size();
+        let mut result = self.inner;
 
         for i in 0..nrow {
             for j in 0..ncol {
-                result[i][j] = self.inner[i][j].clone() * rhs.clone();
+                result[i][j] -= rhs.inner[i][j].clone();
             }
         }
 
-        DCRTPolyMatrix { inner: result, params: self.params.clone(), nrow, ncol }
+        Self { inner: result, params: self.params, ncol, nrow }
     }
 }

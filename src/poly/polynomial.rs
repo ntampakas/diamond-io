@@ -1,12 +1,29 @@
 use crate::poly::params::PolyParams;
 use std::{
     fmt::Debug,
-    ops::{Add, AddAssign, Mul, MulAssign, Neg},
+    ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
-pub trait PolyElem: Sized + Debug + Eq + Ord + Send + Sync + Add + Mul {
+pub trait PolyElem:
+    Sized
+    + Debug
+    + Eq
+    + Ord
+    + Send
+    + Sync
+    + Clone
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Neg<Output = Self>
+    + AddAssign
+    + SubAssign
+    + MulAssign
+    + for<'a> Add<&'a Self, Output = Self>
+    + for<'a> Sub<&'a Self, Output = Self>
+    + for<'a> Mul<&'a Self, Output = Self>
+{
     type Params;
-
     fn zero(params: &Self::Params) -> Self;
     fn one(params: &Self::Params) -> Self;
     fn minus_one(params: &Self::Params) -> Self;
@@ -15,9 +32,22 @@ pub trait PolyElem: Sized + Debug + Eq + Ord + Send + Sync + Add + Mul {
 
 /// Describes the common interface polynomials
 pub trait Poly:
-    Sized + Clone + Debug + PartialEq + Eq + Add + AddAssign + Mul + MulAssign + Neg
+    Sized
+    + Clone
+    + Debug
+    + PartialEq
+    + Eq
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Neg<Output = Self>
+    + AddAssign
+    + SubAssign
+    + MulAssign
+    + for<'a> Add<&'a Self, Output = Self>
+    + for<'a> Sub<&'a Self, Output = Self>
+    + for<'a> Mul<&'a Self, Output = Self>
 {
-    // type Error: std::error::Error + Send + Sync + 'static;
     type Elem: PolyElem;
     type Params: PolyParams;
     fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Self;

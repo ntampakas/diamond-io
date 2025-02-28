@@ -5,7 +5,7 @@ use openfhe::{
 };
 use std::{
     fmt::Debug,
-    ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub},
+    ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     sync::Arc,
 };
 
@@ -73,6 +73,14 @@ impl Add for DCRTPoly {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
+        self + &rhs
+    }
+}
+
+impl<'a> Add<&'a DCRTPoly> for DCRTPoly {
+    type Output = Self;
+
+    fn add(self, rhs: &'a DCRTPoly) -> Self::Output {
         let res = ffi::DCRTPolyAdd(&rhs.ptr_poly, &self.ptr_poly);
         DCRTPoly::new(res)
     }
@@ -82,6 +90,14 @@ impl Mul for DCRTPoly {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
+        self * &rhs
+    }
+}
+
+impl<'a> Mul<&'a DCRTPoly> for DCRTPoly {
+    type Output = Self;
+
+    fn mul(self, rhs: &'a DCRTPoly) -> Self::Output {
         let res = ffi::DCRTPolyMul(&rhs.ptr_poly, &self.ptr_poly);
         DCRTPoly::new(res)
     }
@@ -91,8 +107,16 @@ impl Sub for DCRTPoly {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let minus_rhs = rhs.neg();
-        self.add(minus_rhs)
+        self - &rhs
+    }
+}
+
+impl<'a> Sub<&'a DCRTPoly> for DCRTPoly {
+    type Output = Self;
+
+    fn sub(self, rhs: &'a DCRTPoly) -> Self::Output {
+        let minus_rhs = rhs.clone().neg();
+        self + minus_rhs
     }
 }
 
@@ -118,9 +142,13 @@ impl Eq for DCRTPoly {}
 
 impl AddAssign for DCRTPoly {
     fn add_assign(&mut self, rhs: Self) {
-        if self.ptr_poly.is_null() || rhs.ptr_poly.is_null() {
-            panic!("Attempted to dereference a null pointer");
-        }
+        let res = ffi::DCRTPolyAdd(&rhs.ptr_poly, &self.ptr_poly);
+        self.ptr_poly = res.into();
+    }
+}
+
+impl<'a> AddAssign<&'a DCRTPoly> for DCRTPoly {
+    fn add_assign(&mut self, rhs: &'a DCRTPoly) {
         let res = ffi::DCRTPolyAdd(&rhs.ptr_poly, &self.ptr_poly);
         self.ptr_poly = res.into();
     }
@@ -128,10 +156,32 @@ impl AddAssign for DCRTPoly {
 
 impl MulAssign for DCRTPoly {
     fn mul_assign(&mut self, rhs: Self) {
-        if self.ptr_poly.is_null() || rhs.ptr_poly.is_null() {
-            panic!("Attempted to dereference a null pointer");
-        }
         let res = ffi::DCRTPolyMul(&rhs.ptr_poly, &self.ptr_poly);
+        self.ptr_poly = res.into();
+    }
+}
+
+impl<'a> MulAssign<&'a DCRTPoly> for DCRTPoly {
+    fn mul_assign(&mut self, rhs: &'a DCRTPoly) {
+        let res = ffi::DCRTPolyMul(&rhs.ptr_poly, &self.ptr_poly);
+        self.ptr_poly = res.into();
+    }
+}
+
+impl SubAssign for DCRTPoly {
+    fn sub_assign(&mut self, rhs: Self) {
+        // Negate rhs and then add it to self
+        let neg_rhs = rhs.neg();
+        let res = ffi::DCRTPolyAdd(&neg_rhs.ptr_poly, &self.ptr_poly);
+        self.ptr_poly = res.into();
+    }
+}
+
+impl<'a> SubAssign<&'a DCRTPoly> for DCRTPoly {
+    fn sub_assign(&mut self, rhs: &'a DCRTPoly) {
+        // Clone the reference to negate it
+        let neg_rhs = rhs.clone().neg();
+        let res = ffi::DCRTPolyAdd(&neg_rhs.ptr_poly, &self.ptr_poly);
         self.ptr_poly = res.into();
     }
 }
