@@ -2,15 +2,9 @@ use openfhe::ffi;
 
 use crate::poly::{
     dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams},
-    sampler::{DistType, PolyUniformSample},
+    sampler::{DistType, PolyUniformSampler},
     Poly, PolyMatrix,
 };
-
-// #[derive(Error, Debug)]
-// pub enum MatrixUniformSamplerError {
-//     #[error("Attempted to dereference a null pointer")]
-//     NullPointer,
-// }
 
 pub struct DCRTPolyUniformSampler {
     params: DCRTPolyParams,
@@ -31,7 +25,7 @@ impl DCRTPolyUniformSampler {
     }
 }
 
-impl PolyUniformSample for DCRTPolyUniformSampler {
+impl PolyUniformSampler for DCRTPolyUniformSampler {
     type M = DCRTPolyMatrix;
 
     fn sample_uniform(&self, rows: usize, columns: usize, dist: DistType) -> Self::M {
@@ -115,6 +109,7 @@ mod tests {
         let matrix1 = sampler.sample_uniform(20, 5, DistType::BitDist);
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
+        // [TODO] Test the norm of each coefficient of polynomials in the matrix.
 
         let matrix2 = sampler.sample_uniform(20, 5, DistType::BitDist);
 

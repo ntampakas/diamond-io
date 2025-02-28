@@ -1,16 +1,40 @@
 use super::Poly;
 use std::{
     fmt::Debug,
-    ops::{Add, Mul, Neg},
+    ops::{Add, Mul, Neg, Sub},
 };
 
 pub trait PolyMatrix:
-    Sized + Clone + Debug + PartialEq + Eq + Add + Mul + Neg + Mul<Self::P>
+    Sized
+    + Clone
+    + Debug
+    + PartialEq
+    + Eq
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Neg<Output = Self>
+    + for<'a> Add<&'a Self, Output = Self>
+    + for<'a> Sub<&'a Self, Output = Self>
+    + for<'a> Mul<&'a Self, Output = Self>
+    + Mul<Self::P, Output = Self>
+    + for<'a> Mul<&'a Self::P, Output = Self>
 {
-    // type Error: std::error::Error + Send + Sync + 'static;
     type P: Poly;
 
     fn from_poly_vec(params: &<Self::P as Poly>::Params, vec: Vec<Vec<Self::P>>) -> Self;
+    /// Creates a row vector (1 x n matrix) from a vector of DCRTPoly elements.
+    fn from_poly_vec_row(params: &<Self::P as Poly>::Params, vec: Vec<Self::P>) -> Self {
+        // Wrap the vector in another vector to create a single row
+        let wrapped_vec = vec![vec];
+        Self::from_poly_vec(params, wrapped_vec)
+    }
+    /// Creates a column vector (n x 1 matrix) from a vector of DCRTPoly elements.
+    fn from_poly_vec_column(params: &<Self::P as Poly>::Params, vec: Vec<Self::P>) -> Self {
+        // Transform the vector into a vector of single-element vectors
+        let wrapped_vec = vec.into_iter().map(|elem| vec![elem]).collect();
+        Self::from_poly_vec(params, wrapped_vec)
+    }
     fn entry(&self, i: usize, j: usize) -> &Self::P;
     fn size(&self) -> (usize, usize);
     fn row_size(&self) -> usize {
@@ -44,4 +68,7 @@ pub trait PolyMatrix:
     // (m1 * n1), (m2 * n2) -> ((m1 + m2) * (n1 + n2))
     fn concat_diag(&self, others: &[Self]) -> Self;
     fn tensor(&self, other: &Self) -> Self;
+    fn gadget_vector(params: &<Self::P as Poly>::Params) -> Self;
+    fn gadget_matrix(params: &<Self::P as Poly>::Params, size: usize) -> Self;
+    fn decompose(&self) -> Self;
 }
