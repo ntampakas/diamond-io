@@ -2,7 +2,7 @@ use openfhe::ffi;
 
 use crate::poly::{
     dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams},
-    sampler::{DistType, PolyUniformSample},
+    sampler::{DistType, PolyUniformSampler},
     Poly, PolyMatrix,
 };
 
@@ -25,7 +25,7 @@ impl DCRTPolyUniformSampler {
     }
 }
 
-impl PolyUniformSample for DCRTPolyUniformSampler {
+impl PolyUniformSampler for DCRTPolyUniformSampler {
     type M = DCRTPolyMatrix;
 
     fn sample_uniform(&self, rows: usize, columns: usize, dist: DistType) -> Self::M {
