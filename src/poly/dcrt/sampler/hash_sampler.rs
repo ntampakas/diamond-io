@@ -173,6 +173,7 @@ mod tests {
         let ncol = 300;
         let tag = b"MyTag";
         let matrix_result = sampler.sample_hash(tag, nrow, ncol, DistType::BitDist);
+        // [TODO] Test the norm of each coefficient of polynomials in the matrix.
 
         let new_key = [1u8; 32];
         sampler.set_key(new_key);

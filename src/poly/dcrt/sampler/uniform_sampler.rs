@@ -109,6 +109,7 @@ mod tests {
         let matrix1 = sampler.sample_uniform(20, 5, DistType::BitDist);
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
+        // [TODO] Test the norm of each coefficient of polynomials in the matrix.
 
         let matrix2 = sampler.sample_uniform(20, 5, DistType::BitDist);
 
