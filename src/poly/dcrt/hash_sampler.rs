@@ -82,7 +82,7 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
         let n = self.params.ring_dimension() as usize;
         let q = Arc::new(self.params.modulus());
 
-        let mut ring_elems = match dist {
+        let ring_elems = match dist {
             DistType::FinRingDist => {
                 // * index = number of hashes to be performed = ceil( (nrow * ncol * n *
                 //   ceil(log2(q))) / (hash_output_size) )
@@ -149,7 +149,7 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
             }
         };
 
-        Self::ring_elems_to_matrix(&self, ring_elems, nrow, ncol)
+        Self::ring_elems_to_matrix(self, ring_elems, nrow, ncol)
     }
 
     fn set_key(&mut self, key: [u8; 32]) {
@@ -180,7 +180,8 @@ mod tests {
         sampler.set_key(new_key);
         sampler.expose_key();
 
-        // assert!(matrix_result.is_ok(), "sample_hash returned an error: {:?}", matrix_result.err());
+        // assert!(matrix_result.is_ok(), "sample_hash returned an error: {:?}",
+        // matrix_result.err());
         let matrix = matrix_result;
         assert_eq!(matrix.row_size(), nrow, "Matrix row count mismatch");
         assert_eq!(matrix.col_size(), ncol, "Matrix column count mismatch");

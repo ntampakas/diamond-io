@@ -1,5 +1,6 @@
+use num_bigint::BigUint;
 use openfhe::{
-    cxx::{CxxVector, UniquePtr},
+    cxx::UniquePtr,
     ffi::{self, DCRTPolyImpl},
 };
 use std::{
@@ -8,9 +9,8 @@ use std::{
     sync::Arc,
 };
 
-use super::fin_ring::FinRing;
-use super::params::DCRTPolyParams;
-use crate::poly::{Poly, PolyElem, PolyParams};
+use super::{fin_ring::FinRing, params::DCRTPolyParams};
+use crate::poly::Poly;
 
 #[derive(Clone, Debug)]
 pub struct DCRTPoly {
@@ -38,31 +38,30 @@ impl Poly for DCRTPoly {
     fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Self {
         // TODO: check if coeffs modulus is the same as params modulus
         // TODO: check if coeffs length is the same as the ring size
-        let mut coeffs_cxx = CxxVector::<i64>::new();
+        let mut coeffs_cxx = vec![];
         for coeff in coeffs {
-            coeffs_cxx.pin_mut().push(coeff.value().try_into().unwrap());
+            coeffs_cxx.push(coeff.value().to_string());
         }
         let res = ffi::DCRTPolyGenFromVec(params.get_params(), &coeffs_cxx);
         DCRTPoly::new(res)
     }
 
     fn from_const(params: &Self::Params, constant: &Self::Elem) -> Self {
-        let res =
-            ffi::DCRTPolyGenFromConst(params.get_params(), constant.value().to_u64_digits()[0]);
+        let res = ffi::DCRTPolyGenFromConst(params.get_params(), &constant.value().to_string());
         DCRTPoly::new(res)
     }
 
     fn const_zero(params: &Self::Params) -> Self {
-        let res = ffi::DCRTPolyGenFromConst(params.get_params(), 0);
+        let res = ffi::DCRTPolyGenFromConst(params.get_params(), &BigUint::ZERO.to_string());
         DCRTPoly::new(res)
     }
 
     fn const_one(params: &Self::Params) -> Self {
-        let res = ffi::DCRTPolyGenFromConst(params.get_params(), 1);
+        let res = ffi::DCRTPolyGenFromConst(params.get_params(), &BigUint::from(1u32).to_string());
         DCRTPoly::new(res)
     }
 
-    fn const_minus_one(params: &Self::Params) -> Self {
+    fn const_minus_one(_params: &Self::Params) -> Self {
         // let fe = FinRing::minus_one(params);
         // let res = ffi::DCRTPolyGenFromConst(params.get_params(), fe.value().to_u64_digits()[0]);
         // Ok(DCRTPoly::new(res))
@@ -141,6 +140,8 @@ impl MulAssign for DCRTPoly {
 
 #[cfg(test)]
 mod tests {
+
+    use crate::poly::PolyParams;
 
     use super::*;
 

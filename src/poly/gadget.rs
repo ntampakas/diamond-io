@@ -1,4 +1,4 @@
-use super::{matrix::PolyMatrix, params::PolyParams};
+use super::matrix::PolyMatrix;
 
 pub trait PolyGadget {
     type Error: std::error::Error + Send + Sync + 'static;

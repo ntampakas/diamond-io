@@ -5,7 +5,6 @@ use std::{
 
 use crate::poly::PolyElem;
 use num_bigint::{BigInt, BigUint};
-use serde::{Deserialize, Serialize};
 
 // #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 // pub struct FinRingParams {

@@ -1,13 +1,10 @@
-use std::marker::PhantomData;
-
 use openfhe::ffi;
 
 use crate::poly::{
     dcrt::{DCRTPoly, DCRTPolyMatrix},
     sampler::{DistType, PolyUniformSample},
-    Poly, PolyMatrix, PolyParams,
+    Poly, PolyMatrix,
 };
-use thiserror::Error;
 
 use super::DCRTPolyParams;
 

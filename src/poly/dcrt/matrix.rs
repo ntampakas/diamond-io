@@ -1,5 +1,5 @@
 use super::{DCRTPoly, DCRTPolyParams};
-use crate::poly::{Poly, PolyMatrix, PolyParams};
+use crate::poly::{Poly, PolyMatrix};
 use std::{
     fmt::Debug,
     ops::{Add, Mul, Neg},
@@ -8,8 +8,8 @@ use std::{
 
 // #[derive(Debug, Error)]
 // pub enum DCRTPolyMatrixError {
-//     #[error("Concat error: while the shape of the first matrix is ({0}, {1}), that of the {2}-th matirx is ({3},{4})")]
-//     ConcatError(usize, usize, usize, usize, usize),
+//     #[error("Concat error: while the shape of the first matrix is ({0}, {1}), that of the {2}-th
+// matirx is ({3},{4})")]     ConcatError(usize, usize, usize, usize, usize),
 // }
 
 #[derive(Clone)]

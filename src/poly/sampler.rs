@@ -1,4 +1,4 @@
-use super::{Poly, PolyMatrix};
+use super::PolyMatrix;
 
 // pub enum DistType {
 //     FinRingDist,
