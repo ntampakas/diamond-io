@@ -256,6 +256,12 @@ impl PolyMatrix for DCRTPolyMatrix {
 impl Add for DCRTPolyMatrix {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
+        if self.nrow != rhs.nrow || self.ncol != rhs.ncol {
+            panic!(
+                "Addition requires matrices of same dimensions: self({}, {}) != rhs({}, {})",
+                self.nrow, self.ncol, rhs.nrow, rhs.ncol
+            );
+        }
         let nrow = self.row_size();
         let ncol = self.col_size();
         let mut result = self.inner;

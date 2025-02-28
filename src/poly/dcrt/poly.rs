@@ -10,7 +10,7 @@ use std::{
 };
 
 use super::{fin_ring::FinRing, params::DCRTPolyParams};
-use crate::poly::Poly;
+use crate::poly::{Poly, PolyParams};
 
 #[derive(Clone, Debug)]
 pub struct DCRTPoly {
@@ -36,36 +36,34 @@ impl Poly for DCRTPoly {
     }
 
     fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Self {
-        // TODO: check if coeffs modulus is the same as params modulus
-        // TODO: check if coeffs length is the same as the ring size
-        let mut coeffs_cxx = vec![];
+        let mut coeffs_cxx = Vec::with_capacity(coeffs.len());
+        let modulus = params.modulus();
         for coeff in coeffs {
+            let coeff_modulus = coeff.modulus();
+            assert_eq!(coeff_modulus.clone(), modulus);
             coeffs_cxx.push(coeff.value().to_string());
         }
-        let res = ffi::DCRTPolyGenFromVec(params.get_params(), &coeffs_cxx);
-        DCRTPoly::new(res)
+        DCRTPoly::new(ffi::DCRTPolyGenFromVec(params.get_params(), &coeffs_cxx))
     }
 
     fn from_const(params: &Self::Params, constant: &Self::Elem) -> Self {
-        let res = ffi::DCRTPolyGenFromConst(params.get_params(), &constant.value().to_string());
-        DCRTPoly::new(res)
+        DCRTPoly::new(ffi::DCRTPolyGenFromConst(params.get_params(), &constant.value().to_string()))
     }
 
     fn const_zero(params: &Self::Params) -> Self {
-        let res = ffi::DCRTPolyGenFromConst(params.get_params(), &BigUint::ZERO.to_string());
-        DCRTPoly::new(res)
+        DCRTPoly::new(ffi::DCRTPolyGenFromConst(params.get_params(), &BigUint::ZERO.to_string()))
     }
 
     fn const_one(params: &Self::Params) -> Self {
-        let res = ffi::DCRTPolyGenFromConst(params.get_params(), &BigUint::from(1u32).to_string());
-        DCRTPoly::new(res)
+        DCRTPoly::new(ffi::DCRTPolyGenFromConst(
+            params.get_params(),
+            &BigUint::from(1u32).to_string(),
+        ))
     }
 
-    fn const_minus_one(_params: &Self::Params) -> Self {
-        // let fe = FinRing::minus_one(params);
-        // let res = ffi::DCRTPolyGenFromConst(params.get_params(), fe.value().to_u64_digits()[0]);
-        // Ok(DCRTPoly::new(res))
-        todo!()
+    fn const_minus_one(params: &Self::Params) -> Self {
+        let constant_value = params.modulus() - BigUint::from(1u32);
+        DCRTPoly::new(ffi::DCRTPolyGenFromConst(params.get_params(), &constant_value.to_string()))
     }
 }
 
