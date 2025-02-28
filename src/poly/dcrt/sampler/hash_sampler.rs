@@ -2,7 +2,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 use crate::{
     poly::{
-        dcrt::{DCRTPoly, DCRTPolyMatrix, FinRing},
+        dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams, FinRing},
         sampler::{DistType, PolyHashSampler},
         Poly, PolyMatrix, PolyParams,
     },
@@ -10,8 +10,6 @@ use crate::{
 };
 use digest::OutputSizeUser;
 use num_bigint::BigUint;
-
-use super::DCRTPolyParams;
 
 pub struct DCRTPolyHashSampler<H: OutputSizeUser + digest::Digest> {
     key: [u8; 32],

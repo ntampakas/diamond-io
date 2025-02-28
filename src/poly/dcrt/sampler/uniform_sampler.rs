@@ -1,12 +1,10 @@
 use openfhe::ffi;
 
 use crate::poly::{
-    dcrt::{DCRTPoly, DCRTPolyMatrix},
+    dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams},
     sampler::{DistType, PolyUniformSample},
     Poly, PolyMatrix,
 };
-
-use super::DCRTPolyParams;
 
 // #[derive(Error, Debug)]
 // pub enum MatrixUniformSamplerError {
