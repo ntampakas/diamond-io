@@ -185,27 +185,22 @@ mod tests {
         assert_eq!(matrix.col_size(), ncol, "Matrix column count mismatch");
     }
 
-    // #[test] // TODO: fix
-    // fn test_poly_hash_sampler_fin_ring_dist() {
-    //     let key = [0u8; 32];
-    //     let params = PolyParams::new(16, 4, 51);
-    //     let mut sampler = PolyHashSampler::<DCRTPoly, DCRTPolyMatrix<DCRTPoly>, Keccak256>::new(
-    //         key,
-    //         PolyHashDistType::FinRingDist,
-    //         params,
-    //     );
-    //     let nrow = 100;
-    //     let ncol = 300;
-    //     let tag = b"MyTag";
-    //     let matrix_result = sampler.sample_hash(tag, nrow, ncol);
+    #[test]
+    fn test_poly_hash_sampler_fin_ring_dist() {
+        let key = [0u8; 32];
+        let params = DCRTPolyParams::new(16, 4, 51);
+        let mut sampler = DCRTPolyHashSampler::<Keccak256>::new(key, params);
+        let nrow = 100;
+        let ncol = 300;
+        let tag = b"MyTag";
+        let matrix_result = sampler.sample_hash(tag, nrow, ncol, DistType::FinRingDist);
 
-    //     let new_key = [1u8; 32];
-    //     sampler.set_key(new_key);
-    //     sampler.expose_key();
+        let new_key = [1u8; 32];
+        sampler.set_key(new_key);
+        sampler.expose_key();
 
-    //     assert!(matrix_result.is_ok(), "sample_hash returned an error: {:?}",
-    // matrix_result.err());     let matrix = matrix_result.unwrap();
-    //     assert_eq!(matrix.row_size(), nrow, "Matrix row count mismatch");
-    //     assert_eq!(matrix.col_size(), ncol, "Matrix column count mismatch");
-    // }
+        let matrix = matrix_result;
+        assert_eq!(matrix.row_size(), nrow, "Matrix row count mismatch");
+        assert_eq!(matrix.col_size(), ncol, "Matrix column count mismatch");
+    }
 }
