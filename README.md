@@ -1,9 +1,9 @@
-## BGG+ Encoding and Key Homomorphism in RLWE
+## diamond-io
 
-Implementation of BGG+ encoding and key homomorphism in RLWE based on [DDP+17](https://eprint.iacr.org/2017/601.pdf)
+Implementation of [Diamond iO](https://eprint.iacr.org/2025/236)
 
 #### Test
 
 ```
-cargo test --release
+just ci
 ```
