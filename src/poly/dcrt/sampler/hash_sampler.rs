@@ -178,8 +178,6 @@ mod tests {
         sampler.set_key(new_key);
         sampler.expose_key();
 
-        // assert!(matrix_result.is_ok(), "sample_hash returned an error: {:?}",
-        // matrix_result.err());
         let matrix = matrix_result;
         assert_eq!(matrix.row_size(), nrow, "Matrix row count mismatch");
         assert_eq!(matrix.col_size(), ncol, "Matrix column count mismatch");
