@@ -34,7 +34,6 @@ pub trait PolyHashSampler<K: AsRef<[u8]>> {
     ) -> Self::M;
 
     fn set_key(&mut self, key: K);
-
     fn expose_key(&self) -> &[u8];
 }
 
@@ -49,7 +48,6 @@ pub trait PolyTrapdoorSampler {
     // type Error: std::error::Error + Send + Sync + 'static;
     type M: PolyMatrix;
     type Trapdoor;
-    fn trapdoor(&self, base: usize) -> Self::Trapdoor;
-
-    fn preimage(&self, trapdoor: &Self::Trapdoor, target: &Self::M) -> Self::M;
+    fn trapdoor(&self) -> (Self::Trapdoor, Self::M);
+    fn preimage(&self, trapdoor: &Self::Trapdoor, target: &Self::M, sigma: f64) -> Self::M;
 }
