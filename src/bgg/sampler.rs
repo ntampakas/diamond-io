@@ -1,7 +1,6 @@
 use super::{BggEncoding, BggPublicKey};
 use crate::poly::{matrix::*, sampler::*, *};
 use itertools::Itertools;
-use rand::RngCore;
 use std::{marker::PhantomData, sync::Arc};
 
 /// A sampler of a public key A in the BGG+ RLWE encoding scheme

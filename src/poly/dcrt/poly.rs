@@ -1,4 +1,5 @@
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint};
+use num_traits::Num;
 use openfhe::{
     cxx::UniquePtr,
     ffi::{self, DCRTPolyImpl},
@@ -6,6 +7,7 @@ use openfhe::{
 use std::{
     fmt::Debug,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    str::FromStr,
     sync::Arc,
 };
 
@@ -32,7 +34,18 @@ impl Poly for DCRTPoly {
     type Params = DCRTPolyParams;
 
     fn coeffs(&self) -> Vec<Self::Elem> {
-        todo!()
+        let coeffs = self
+            .ptr_poly
+            .GetCoefficients()
+            .iter()
+            .map(|s| {
+                FinRing::new(
+                    BigInt::from_str(&s).unwrap(),
+                    BigUint::from_str_radix(&self.ptr_poly.GetModulus(), 10).unwrap().into(),
+                )
+            })
+            .collect();
+        coeffs
     }
 
     fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Self {
@@ -111,12 +124,12 @@ impl Sub for DCRTPoly {
     }
 }
 
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl<'a> Sub<&'a DCRTPoly> for DCRTPoly {
     type Output = Self;
 
     fn sub(self, rhs: &'a DCRTPoly) -> Self::Output {
-        let minus_rhs = rhs.clone().neg();
-        self + minus_rhs
+        self + rhs.clone().neg()
     }
 }
 
