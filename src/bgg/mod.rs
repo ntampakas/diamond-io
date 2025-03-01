@@ -5,8 +5,6 @@
 pub mod eval;
 pub mod sampler;
 
-use itertools::Itertools;
-
 use crate::poly::{matrix::*, *};
 // use thiserror::Error;
 

@@ -1,5 +1,7 @@
-pub mod hash_sampler;
-pub mod uniform_sampler;
+pub mod hash;
+pub mod trapdoor;
+pub mod uniform;
 
-pub use hash_sampler::DCRTPolyHashSampler;
-pub use uniform_sampler::DCRTPolyUniformSampler;
+pub use hash::DCRTPolyHashSampler;
+pub use trapdoor::DCRTPolyTrapdoorSampler;
+pub use uniform::DCRTPolyUniformSampler;

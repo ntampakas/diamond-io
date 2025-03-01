@@ -7,12 +7,12 @@ use crate::poly::PolyElem;
 use num_bigint::{BigInt, BigUint};
 
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-pub struct FinRing {
+pub struct FinRingElem {
     value: BigUint,
     modulus: Arc<BigUint>,
 }
 
-impl FinRing {
+impl FinRingElem {
     pub fn new<V: Into<BigInt>>(value: V, modulus: Arc<BigUint>) -> Self {
         let value = value.into().to_biguint().unwrap();
         let reduced_value =
@@ -29,7 +29,7 @@ impl FinRing {
     }
 }
 
-impl PolyElem for FinRing {
+impl PolyElem for FinRingElem {
     type Modulus = Arc<BigUint>;
     fn zero(modulus: &Self::Modulus) -> Self {
         Self::new(0, modulus.clone())
@@ -51,7 +51,7 @@ impl PolyElem for FinRing {
 
 // ====== Arithmetic ======
 
-impl Add for FinRing {
+impl Add for FinRingElem {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -59,27 +59,27 @@ impl Add for FinRing {
     }
 }
 
-impl<'a> Add<&'a FinRing> for FinRing {
+impl<'a> Add<&'a FinRingElem> for FinRingElem {
     type Output = Self;
 
-    fn add(self, rhs: &'a FinRing) -> Self::Output {
+    fn add(self, rhs: &'a Self) -> Self::Output {
         Self::new(self.value + &rhs.value, self.modulus)
     }
 }
 
-impl AddAssign for FinRing {
+impl AddAssign for FinRingElem {
     fn add_assign(&mut self, rhs: Self) {
         *self = Self::new(&self.value + rhs.value, self.modulus.clone());
     }
 }
 
-impl<'a> AddAssign<&'a FinRing> for FinRing {
-    fn add_assign(&mut self, rhs: &'a FinRing) {
+impl<'a> AddAssign<&'a FinRingElem> for FinRingElem {
+    fn add_assign(&mut self, rhs: &'a Self) {
         *self = Self::new(&self.value + &rhs.value, self.modulus.clone());
     }
 }
 
-impl Mul for FinRing {
+impl Mul for FinRingElem {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -87,27 +87,27 @@ impl Mul for FinRing {
     }
 }
 
-impl<'a> Mul<&'a FinRing> for FinRing {
+impl<'a> Mul<&'a FinRingElem> for FinRingElem {
     type Output = Self;
 
-    fn mul(self, rhs: &'a FinRing) -> Self::Output {
+    fn mul(self, rhs: &'a Self) -> Self::Output {
         Self::new(self.value * &rhs.value, self.modulus)
     }
 }
 
-impl MulAssign for FinRing {
+impl MulAssign for FinRingElem {
     fn mul_assign(&mut self, rhs: Self) {
         *self = Self::new(&self.value * rhs.value, self.modulus.clone());
     }
 }
 
-impl<'a> MulAssign<&'a FinRing> for FinRing {
-    fn mul_assign(&mut self, rhs: &'a FinRing) {
+impl<'a> MulAssign<&'a FinRingElem> for FinRingElem {
+    fn mul_assign(&mut self, rhs: &'a Self) {
         *self = Self::new(&self.value * &rhs.value, self.modulus.clone());
     }
 }
 
-impl Sub for FinRing {
+impl Sub for FinRingElem {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -115,27 +115,27 @@ impl Sub for FinRing {
     }
 }
 
-impl<'a> Sub<&'a FinRing> for FinRing {
+impl<'a> Sub<&'a FinRingElem> for FinRingElem {
     type Output = Self;
 
-    fn sub(self, rhs: &'a FinRing) -> Self::Output {
+    fn sub(self, rhs: &'a Self) -> Self::Output {
         self + (&-rhs.clone())
     }
 }
 
-impl SubAssign for FinRing {
+impl SubAssign for FinRingElem {
     fn sub_assign(&mut self, rhs: Self) {
         *self = self.clone() - rhs;
     }
 }
 
-impl<'a> SubAssign<&'a FinRing> for FinRing {
-    fn sub_assign(&mut self, rhs: &'a FinRing) {
+impl<'a> SubAssign<&'a FinRingElem> for FinRingElem {
+    fn sub_assign(&mut self, rhs: &'a Self) {
         *self = self.clone() - rhs;
     }
 }
 
-impl Neg for FinRing {
+impl Neg for FinRingElem {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
@@ -143,5 +143,108 @@ impl Neg for FinRing {
             return self;
         }
         Self::new(self.modulus.as_ref() - &self.value, self.modulus)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup() -> Arc<BigUint> {
+        Arc::new(BigUint::from(17u8))
+    }
+
+    #[test]
+    fn test_new_and_accessors() {
+        let modulus = setup();
+
+        // Test basic construction
+        let elem = FinRingElem::new(5, modulus.clone());
+        assert_eq!(elem.value(), &BigUint::from(5u8));
+        assert_eq!(elem.modulus(), &BigUint::from(17u8));
+
+        // Test reduction
+        let elem = FinRingElem::new(20, modulus.clone()); // 20 ≡ 3 (mod 17)
+        assert_eq!(elem.value(), &BigUint::from(3u8));
+    }
+
+    #[test]
+    fn test_poly_elem_traits() {
+        let modulus = setup();
+
+        // Test zero, one, and minus_one
+        let zero = FinRingElem::zero(&modulus);
+        let one = FinRingElem::one(&modulus);
+        let minus_one = FinRingElem::minus_one(&modulus);
+
+        assert_eq!(zero.value(), &BigUint::from(0u8));
+        assert_eq!(one.value(), &BigUint::from(1u8));
+        assert_eq!(minus_one.value(), &BigUint::from(16u8)); // -1 ≡ 16 (mod 17)
+
+        // Test extract_highest_bits
+        let small = FinRingElem::new(3, modulus.clone());
+        let large = FinRingElem::new(15, modulus.clone());
+        assert!(small.extract_highest_bits()); // 3 < 17/2
+        assert!(!large.extract_highest_bits()); // 15 > 17/2
+    }
+
+    #[test]
+    fn test_arithmetic_operations() {
+        let modulus = setup();
+
+        // Addition tests
+        let a = FinRingElem::new(5, modulus.clone());
+        let b = FinRingElem::new(7, modulus.clone());
+
+        assert_eq!((a.clone() + b.clone()).value(), &BigUint::from(12u8));
+        assert_eq!((a.clone() + &b).value(), &BigUint::from(12u8));
+
+        let mut c = a.clone();
+        c += b.clone();
+        assert_eq!(c.value(), &BigUint::from(12u8));
+
+        let mut d = a.clone();
+        d += &b;
+        assert_eq!(d.value(), &BigUint::from(12u8));
+
+        // Multiplication tests
+        let prod = a.clone() * b.clone();
+        assert_eq!(prod.value(), &BigUint::from(35u8 % 17u8));
+
+        let mut e = a.clone();
+        e *= b.clone();
+        assert_eq!(e.value(), &BigUint::from(35u8 % 17u8));
+
+        // Subtraction tests
+        let diff = a.clone() - b.clone();
+        assert_eq!(diff.value(), &BigUint::from(15u8)); // 5 - 7 ≡ -2 ≡ 15 (mod 17)
+
+        let mut f = a.clone();
+        f -= b.clone();
+        assert_eq!(f.value(), &BigUint::from(15u8));
+
+        // Negation test
+        let neg_a = -a.clone();
+        assert_eq!(neg_a.value(), &BigUint::from(12u8)); // -5 ≡ 12 (mod 17)
+
+        // Test zero negation
+        let zero = FinRingElem::zero(&modulus);
+        let neg_zero = -zero;
+        assert_eq!(neg_zero.value(), &BigUint::from(0u8));
+    }
+
+    #[test]
+    fn test_arithmetic_with_reduction() {
+        let modulus = setup();
+
+        // Test addition with reduction
+        let a = FinRingElem::new(15, modulus.clone());
+        let b = FinRingElem::new(16, modulus.clone());
+        assert_eq!((a + b).value(), &BigUint::from(14u8)); // 31 ≡ 14 (mod 17)
+
+        // Test multiplication with reduction
+        let c = FinRingElem::new(13, modulus.clone());
+        let d = FinRingElem::new(15, modulus.clone());
+        assert_eq!((c * d).value(), &BigUint::from(8u8)); // 195 ≡ 8 (mod 17)
     }
 }

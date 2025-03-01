@@ -1,5 +1,5 @@
 use super::{BggEncoding, BggPublicKey};
-use crate::poly::{matrix::*, *};
+use crate::poly::matrix::*;
 use std::ops::{Add, Mul};
 
 impl<M: PolyMatrix> Add for BggPublicKey<M> {
@@ -9,7 +9,7 @@ impl<M: PolyMatrix> Add for BggPublicKey<M> {
     }
 }
 
-impl<'a, M: PolyMatrix> Add<&'a Self> for BggPublicKey<M> {
+impl<M: PolyMatrix> Add<&Self> for BggPublicKey<M> {
     type Output = Self;
     fn add(self, other: &Self) -> Self {
         Self { matrix: self.matrix + &other.matrix }
@@ -23,7 +23,7 @@ impl<M: PolyMatrix> Mul for BggPublicKey<M> {
     }
 }
 
-impl<'a, M: PolyMatrix> Mul<&'a Self> for BggPublicKey<M> {
+impl<M: PolyMatrix> Mul<&Self> for BggPublicKey<M> {
     type Output = Self;
     fn mul(self, other: &Self) -> Self {
         let decomposed = other.matrix.decompose();
@@ -39,7 +39,7 @@ impl<M: PolyMatrix> Add for BggEncoding<M> {
     }
 }
 
-impl<'a, M: PolyMatrix> Add<&'a Self> for BggEncoding<M> {
+impl<M: PolyMatrix> Add<&Self> for BggEncoding<M> {
     type Output = Self;
     fn add(self, other: &Self) -> Self {
         let vector = self.vector + &other.vector;
@@ -52,6 +52,7 @@ impl<'a, M: PolyMatrix> Add<&'a Self> for BggEncoding<M> {
     }
 }
 
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl<M: PolyMatrix> Mul for BggEncoding<M> {
     type Output = Self;
     fn mul(self, other: Self) -> Self {
@@ -59,7 +60,7 @@ impl<M: PolyMatrix> Mul for BggEncoding<M> {
     }
 }
 
-impl<'a, M: PolyMatrix> Mul<&'a Self> for BggEncoding<M> {
+impl<M: PolyMatrix> Mul<&Self> for BggEncoding<M> {
     type Output = Self;
     fn mul(self, other: &Self) -> Self {
         if self.plaintext.is_none() {
