@@ -462,7 +462,7 @@ mod tests {
         let params = DCRTPolyParams::new(16, 4, 51);
         let gadget_vector = DCRTPolyMatrix::gadget_vector(&params);
         assert_eq!(gadget_vector.row_size(), 1);
-        assert_eq!(gadget_vector.col_size(), ceil_log2(&params.modulus()) + 1);
+        assert_eq!(gadget_vector.col_size(), ceil_log2(&params.modulus()));
     }
 
     #[test]
@@ -470,7 +470,7 @@ mod tests {
         let params = DCRTPolyParams::new(16, 4, 51);
         let size = 3;
         let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, size);
-        assert_eq!(gadget_matrix.row_size(), size * (ceil_log2(&params.modulus()) + 1));
+        assert_eq!(gadget_matrix.row_size(), size * (ceil_log2(&params.modulus())));
         assert_eq!(gadget_matrix.col_size(), size);
     }
 

@@ -40,7 +40,7 @@ impl Poly for DCRTPoly {
             .iter()
             .map(|s| {
                 FinRing::new(
-                    BigInt::from_str(&s).unwrap(),
+                    BigInt::from_str(s).unwrap(),
                     BigUint::from_str_radix(&self.ptr_poly.GetModulus(), 10).unwrap().into(),
                 )
             })
