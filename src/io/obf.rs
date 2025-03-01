@@ -67,9 +67,9 @@ where
     let mut bs = vec![];
     let mut b_trapdoors = vec![];
     for _ in 0..=input_size {
-        let (b_0, b_0_trapdoor) = sampler.trapdoor();
-        let (b_1, b_1_trapdoor) = sampler.trapdoor();
-        let (b_star, b_star_trapdoor) = sampler.trapdoor();
+        let (b_0_trapdoor, b_0) = sampler.trapdoor();
+        let (b_1_trapdoor, b_1) = sampler.trapdoor();
+        let (b_star_trapdoor, b_star) = sampler.trapdoor();
         bs.push((b_0, b_1, b_star));
         b_trapdoors.push((b_0_trapdoor, b_1_trapdoor, b_star_trapdoor));
     }

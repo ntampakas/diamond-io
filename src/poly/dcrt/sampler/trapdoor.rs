@@ -22,7 +22,7 @@ impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
         // trapdoor.into()
     }
 
-    fn preimage(&self, _trapdoor: &Self::Trapdoor, _target: &Self::M, _sigma: f64) -> Self::M {
+    fn preimage(&self, _trapdoor: &Self::Trapdoor, _target: &Self::M) -> Self::M {
         todo!()
         // let n_row = target.row_size();
         // let n_col = target.col_size();
