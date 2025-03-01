@@ -1,15 +1,22 @@
 use std::sync::Arc;
 
-use crate::poly::{
-    dcrt::{DCRTPolyMatrix, DCRTPolyParams},
-    sampler::PolyTrapdoorSampler,
+use crate::{
+    poly::{
+        dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams},
+        sampler::PolyTrapdoorSampler,
+        PolyMatrix, PolyParams,
+    },
+    utils::ceil_log2,
 };
 
-use openfhe::{cxx::UniquePtr, ffi::RLWETrapdoorPair};
+use openfhe::{
+    cxx::UniquePtr,
+    ffi::{DCRTPolyTrapdoorGen, RLWETrapdoorPair},
+};
 
 pub struct DCRTPolyTrapdoorSampler {
-    _params: DCRTPolyParams,
-    _base: usize,
+    params: DCRTPolyParams,
+    base: usize,
 }
 
 impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
@@ -17,9 +24,21 @@ impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
     type Trapdoor = Arc<UniquePtr<RLWETrapdoorPair>>;
 
     fn trapdoor(&self) -> (Self::Trapdoor, Self::M) {
-        todo!()
-        // let trapdoor = DCRTPolyTrapdoorGen(self.params.get_params(), self.base as i64, false); // TODO: check if we need balanced to be true
-        // trapdoor.into()
+        let trapdoor_output =
+            DCRTPolyTrapdoorGen(self.params.get_params(), self.base as i64, false);
+        let trapdoor = trapdoor_output.GetTrapdoorPtr();
+        let ncol = ceil_log2(&self.params.modulus()) + 2;
+
+        let mut matrix_inner = Vec::with_capacity(1);
+        let mut row = Vec::with_capacity(ncol);
+        for i in 0..ncol {
+            let poly = trapdoor_output.GetPolyAtIndex(i);
+            let dcrt_poly = DCRTPoly::new(poly);
+            row.push(dcrt_poly);
+        }
+        matrix_inner.push(row);
+        let matrix = DCRTPolyMatrix::from_poly_vec(&self.params, matrix_inner);
+        (trapdoor.into(), matrix)
     }
 
     fn preimage(&self, _trapdoor: &Self::Trapdoor, _target: &Self::M, _sigma: f64) -> Self::M {
