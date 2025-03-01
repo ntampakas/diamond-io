@@ -1,4 +1,5 @@
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint};
+use num_traits::Num;
 use openfhe::{
     cxx::UniquePtr,
     ffi::{self, DCRTPolyImpl},
@@ -6,10 +7,11 @@ use openfhe::{
 use std::{
     fmt::Debug,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    str::FromStr,
     sync::Arc,
 };
 
-use super::{fin_ring::FinRing, params::DCRTPolyParams};
+use super::{fin_ring::FinRingElem, params::DCRTPolyParams};
 use crate::poly::{Poly, PolyParams};
 
 #[derive(Clone, Debug)]
@@ -28,11 +30,22 @@ impl DCRTPoly {
 }
 
 impl Poly for DCRTPoly {
-    type Elem = FinRing;
+    type Elem = FinRingElem;
     type Params = DCRTPolyParams;
 
     fn coeffs(&self) -> Vec<Self::Elem> {
-        todo!()
+        let coeffs = self
+            .ptr_poly
+            .GetCoefficients()
+            .iter()
+            .map(|s| {
+                FinRingElem::new(
+                    BigInt::from_str(s).unwrap(),
+                    BigUint::from_str_radix(&self.ptr_poly.GetModulus(), 10).unwrap().into(),
+                )
+            })
+            .collect();
+        coeffs
     }
 
     fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Self {
@@ -80,7 +93,7 @@ impl Add for DCRTPoly {
 impl<'a> Add<&'a DCRTPoly> for DCRTPoly {
     type Output = Self;
 
-    fn add(self, rhs: &'a DCRTPoly) -> Self::Output {
+    fn add(self, rhs: &'a Self) -> Self::Output {
         let res = ffi::DCRTPolyAdd(&rhs.ptr_poly, &self.ptr_poly);
         DCRTPoly::new(res)
     }
@@ -97,7 +110,7 @@ impl Mul for DCRTPoly {
 impl<'a> Mul<&'a DCRTPoly> for DCRTPoly {
     type Output = Self;
 
-    fn mul(self, rhs: &'a DCRTPoly) -> Self::Output {
+    fn mul(self, rhs: &'a Self) -> Self::Output {
         let res = ffi::DCRTPolyMul(&rhs.ptr_poly, &self.ptr_poly);
         DCRTPoly::new(res)
     }
@@ -111,12 +124,12 @@ impl Sub for DCRTPoly {
     }
 }
 
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl<'a> Sub<&'a DCRTPoly> for DCRTPoly {
     type Output = Self;
 
-    fn sub(self, rhs: &'a DCRTPoly) -> Self::Output {
-        let minus_rhs = rhs.clone().neg();
-        self + minus_rhs
+    fn sub(self, rhs: &'a Self) -> Self::Output {
+        self + rhs.clone().neg()
     }
 }
 
@@ -148,7 +161,7 @@ impl AddAssign for DCRTPoly {
 }
 
 impl<'a> AddAssign<&'a DCRTPoly> for DCRTPoly {
-    fn add_assign(&mut self, rhs: &'a DCRTPoly) {
+    fn add_assign(&mut self, rhs: &'a Self) {
         let res = ffi::DCRTPolyAdd(&rhs.ptr_poly, &self.ptr_poly);
         self.ptr_poly = res.into();
     }
@@ -162,7 +175,7 @@ impl MulAssign for DCRTPoly {
 }
 
 impl<'a> MulAssign<&'a DCRTPoly> for DCRTPoly {
-    fn mul_assign(&mut self, rhs: &'a DCRTPoly) {
+    fn mul_assign(&mut self, rhs: &'a Self) {
         let res = ffi::DCRTPolyMul(&rhs.ptr_poly, &self.ptr_poly);
         self.ptr_poly = res.into();
     }
@@ -178,7 +191,7 @@ impl SubAssign for DCRTPoly {
 }
 
 impl<'a> SubAssign<&'a DCRTPoly> for DCRTPoly {
-    fn sub_assign(&mut self, rhs: &'a DCRTPoly) {
+    fn sub_assign(&mut self, rhs: &'a Self) {
         // Clone the reference to negate it
         let neg_rhs = rhs.clone().neg();
         let res = ffi::DCRTPolyAdd(&neg_rhs.ptr_poly, &self.ptr_poly);
@@ -200,16 +213,16 @@ mod tests {
 
         // todo: replace value and modulus from param
         let coeffs1 = [
-            FinRing::new(100u32, q.clone()),
-            FinRing::new(200u32, q.clone()),
-            FinRing::new(300u32, q.clone()),
-            FinRing::new(400u32, q.clone()),
+            FinRingElem::new(100u32, q.clone()),
+            FinRingElem::new(200u32, q.clone()),
+            FinRingElem::new(300u32, q.clone()),
+            FinRingElem::new(400u32, q.clone()),
         ];
         let coeffs2 = [
-            FinRing::new(500u32, q.clone()),
-            FinRing::new(600u32, q.clone()),
-            FinRing::new(700u32, q.clone()),
-            FinRing::new(800u32, q.clone()),
+            FinRingElem::new(500u32, q.clone()),
+            FinRingElem::new(600u32, q.clone()),
+            FinRingElem::new(700u32, q.clone()),
+            FinRingElem::new(800u32, q.clone()),
         ];
 
         // 3. Create polynomials from those coefficients.
@@ -241,14 +254,12 @@ mod tests {
         assert_eq!(poly_mul_assign, product, "*= result should match separate *");
 
         // 9. Test from_const / const_zero / const_one
-        // todo: `get_coeffs``
-        // let const_poly = DCRTPoly::from_const(&params, &FieldElement::new(123, dummy_modulus))
-        //     .expect("Failed to create DCRTPoly from const");
-        // assert_eq!(
-        //     const_poly,
-        //     DCRTPoly::from_coeffs(&params, &[FieldElement::new(123, dummy_modulus); 1]).unwrap(),
-        //     "from_const should produce a polynomial with all coeffs = 123"
-        // );
+        let const_poly = DCRTPoly::from_const(&params, &FinRingElem::new(123, q.clone()));
+        assert_eq!(
+            const_poly,
+            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(123, q); 1]),
+            "from_const should produce a polynomial with all coeffs = 123"
+        );
 
         let zero_poly = DCRTPoly::const_zero(&params);
         assert_eq!(zero_poly, zero_poly.clone() + zero_poly.clone(), "0 + 0 = 0");

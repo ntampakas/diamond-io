@@ -1,12 +1,9 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use crate::{
-    poly::{
-        dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams, FinRing},
-        sampler::{DistType, PolyHashSampler},
-        Poly, PolyMatrix, PolyParams,
-    },
-    utils::ceil_log2,
+use crate::poly::{
+    dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams, FinRingElem},
+    sampler::{DistType, PolyHashSampler},
+    Poly, PolyMatrix, PolyParams,
 };
 use digest::OutputSizeUser;
 use num_bigint::BigUint;
@@ -32,7 +29,7 @@ impl<H: OutputSizeUser + digest::Digest> DCRTPolyHashSampler<H> {
 
     fn ring_elems_to_matrix(
         &self,
-        ring_elems: Vec<FinRing>,
+        ring_elems: Vec<FinRingElem>,
         nrow: usize,
         ncol: usize,
     ) -> DCRTPolyMatrix {
@@ -82,13 +79,12 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
 
         let ring_elems = match dist {
             DistType::FinRingDist => {
-                // * index = number of hashes to be performed = ceil( (nrow * ncol * n *
-                //   ceil(log2(q))) / (hash_output_size) )
-                // * bits = number of resulting bits from hashing ops = hash_output_size * index
-                // * field_elements = number of field elements sampled = (bits / ceil(log2(q)))
+                // index = number of hashes to be performed = ceil( (nrow * ncol * n * ceil(log2(q))) / (hash_output_size) )
+                // field_elements = number of field elements sampled = (bits / ceil(log2(q)))
                 //   which is always greater than or equal to nrow * ncol * n
-                let ceil_log2q = ceil_log2(&q); // TODO: check if this is correct
+                let ceil_log2q = self.params.modulus_bits();
                 let index = (nrow * ncol * n * ceil_log2q).div_ceil(hash_output_size);
+                // bits = number of resulting bits from hashing ops = hash_output_size * index
                 let mut bits = Vec::with_capacity(hash_output_size * index);
                 let mut ring_elems = Vec::with_capacity((index * hash_output_size) / ceil_log2q);
                 for i in 0..(index) {
@@ -112,7 +108,7 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
                     let value_bits = &bits[offset..offset + ceil_log2q];
                     let value = BigUint::from_radix_be(value_bits, 2).unwrap();
                     offset += ceil_log2q;
-                    let fe = FinRing::new(value, q.clone());
+                    let fe = FinRingElem::new(value, q.clone());
                     ring_elems.push(fe);
                 }
                 ring_elems
@@ -136,7 +132,7 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
                     for &byte in hasher.finalize().iter() {
                         for bit_index in 0..8 {
                             let bit = (byte >> bit_index) & 1;
-                            ring_elems.push(FinRing::new(bit as u64, q.clone()));
+                            ring_elems.push(FinRingElem::new(bit as u64, q.clone()));
                         }
                     }
                 }

@@ -5,7 +5,7 @@
 pub mod eval;
 pub mod sampler;
 
-use crate::poly::{matrix::*, *};
+use crate::poly::matrix::*;
 // use thiserror::Error;
 
 // #[derive(Error, Debug)]
