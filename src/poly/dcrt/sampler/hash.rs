@@ -81,7 +81,6 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
             DistType::FinRingDist => {
                 // index = number of hashes to be performed = ceil(nrow * ncol * n * ceil(log2(q)) / hash_output_size)
                 // field_elements = number of field elements sampled = (bits / ceil(log2(q)))
-                //   which is always greater than or equal to nrow * ncol * n
                 let bit_length = self.params.modulus_bits();
                 let index = (nrow * ncol * n * bit_length).div_ceil(hash_output_size);
                 // bits = number of resulting bits from hashing ops = hash_output_size * index
@@ -90,16 +89,24 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
                 for i in 0..(index) {
                     //  H ( key || tag || i )
                     let mut hasher = H::new();
-                    // todo: we currently assuming index is less than 256
+                    // todo: we currently assuming index is less than u32
                     let min_i_type = std::mem::size_of_val(&i);
                     if min_i_type > std::mem::size_of::<u8>() {
-                        panic!("i is too large to be represented as a u8");
+                        let mut combined =
+                            Vec::with_capacity(self.key.len() + tag.as_ref().len() + 32);
+                        combined.extend_from_slice(&self.key);
+                        combined.extend_from_slice(tag.as_ref());
+                        combined.extend_from_slice(&i.to_be_bytes());
+                        hasher.update(&combined);
+                    } else {
+                        let mut combined =
+                            Vec::with_capacity(self.key.len() + tag.as_ref().len() + 1);
+                        combined.extend_from_slice(&self.key);
+                        combined.extend_from_slice(tag.as_ref());
+                        combined.push(i as u8);
+                        hasher.update(&combined);
                     }
-                    let mut combined = Vec::with_capacity(self.key.len() + tag.as_ref().len() + 1);
-                    combined.extend_from_slice(&self.key);
-                    combined.extend_from_slice(tag.as_ref());
-                    combined.push(i as u8);
-                    hasher.update(&combined);
+
                     for &byte in hasher.finalize().iter() {
                         for bit_index in 0..8 {
                             let bit = (byte >> bit_index) & 1;
@@ -119,11 +126,8 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
                 ring_elems
             }
             DistType::BitDist => {
-                // * index = number of hashes to be performed = ceil( (nrow * ncol * n) /
-                //   (hash_output_size) )
-                // * bits = number of resulting bits from hashing ops = hash_output_size * index
-                // * field_elements = number of field elements sampled = bits which is always
-                //   greater than or equal to nrow * ncol * n
+                // index = number of hashes to be performed = ceil(nrow * ncol * n * ceil(log2(q)) / hash_output_size)
+                // field_elements = number of field elements sampled = (bits / ceil(log2(q)))
                 let index = (nrow * ncol * n).div_ceil(hash_output_size);
                 let mut ring_elems = Vec::with_capacity(hash_output_size * index);
                 for i in 0..index {
