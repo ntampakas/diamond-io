@@ -3,7 +3,6 @@ pub mod matrix;
 pub mod params;
 pub mod poly;
 pub mod sampler;
-pub mod trapdoor;
 
 pub use fin_ring::FinRing;
 pub use matrix::DCRTPolyMatrix;
