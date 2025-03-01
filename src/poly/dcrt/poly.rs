@@ -257,14 +257,21 @@ mod tests {
         let const_poly = DCRTPoly::from_const(&params, &FinRingElem::new(123, q.clone()));
         assert_eq!(
             const_poly,
-            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(123, q); 1]),
+            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(123, q.clone()); 1]),
             "from_const should produce a polynomial with all coeffs = 123"
         );
-
         let zero_poly = DCRTPoly::const_zero(&params);
-        assert_eq!(zero_poly, zero_poly.clone() + zero_poly.clone(), "0 + 0 = 0");
+        assert_eq!(
+            zero_poly,
+            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(0, q.clone()); 1]),
+            "const_zero should produce a polynomial with all coeffs = 0"
+        );
 
         let one_poly = DCRTPoly::const_one(&params);
-        assert_eq!(zero_poly, one_poly.clone() - one_poly.clone(), "1 - 1 = 0");
+        assert_eq!(
+            one_poly,
+            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(1, q); 1]),
+            "one_poly should produce a polynomial with all coeffs = 1"
+        );
     }
 }

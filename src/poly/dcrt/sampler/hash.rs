@@ -79,22 +79,34 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
 
         let ring_elems = match dist {
             DistType::FinRingDist => {
-                // index = number of hashes to be performed = ceil( (nrow * ncol * n * ceil(log2(q))) / (hash_output_size) )
+                // index = number of hashes to be performed = ceil(nrow * ncol * n * ceil(log2(q)) / hash_output_size)
                 // field_elements = number of field elements sampled = (bits / ceil(log2(q)))
-                //   which is always greater than or equal to nrow * ncol * n
-                let ceil_log2q = self.params.modulus_bits();
-                let index = (nrow * ncol * n * ceil_log2q).div_ceil(hash_output_size);
+                let bit_length = self.params.modulus_bits();
+                let index = (nrow * ncol * n * bit_length).div_ceil(hash_output_size);
                 // bits = number of resulting bits from hashing ops = hash_output_size * index
                 let mut bits = Vec::with_capacity(hash_output_size * index);
-                let mut ring_elems = Vec::with_capacity((index * hash_output_size) / ceil_log2q);
+                let mut ring_elems = Vec::with_capacity((index * hash_output_size) / bit_length);
                 for i in 0..(index) {
                     //  H ( key || tag || i )
                     let mut hasher = H::new();
-                    let mut combined = Vec::with_capacity(self.key.len() + tag.as_ref().len() + 1);
-                    combined.extend_from_slice(&self.key);
-                    combined.extend_from_slice(tag.as_ref());
-                    combined.push(i as u8);
-                    hasher.update(&combined);
+                    // todo: we currently assuming index is less than u32
+                    let min_i_type = std::mem::size_of_val(&i);
+                    if min_i_type > std::mem::size_of::<u8>() {
+                        let mut combined =
+                            Vec::with_capacity(self.key.len() + tag.as_ref().len() + 32);
+                        combined.extend_from_slice(&self.key);
+                        combined.extend_from_slice(tag.as_ref());
+                        combined.extend_from_slice(&i.to_be_bytes());
+                        hasher.update(&combined);
+                    } else {
+                        let mut combined =
+                            Vec::with_capacity(self.key.len() + tag.as_ref().len() + 1);
+                        combined.extend_from_slice(&self.key);
+                        combined.extend_from_slice(tag.as_ref());
+                        combined.push(i as u8);
+                        hasher.update(&combined);
+                    }
+
                     for &byte in hasher.finalize().iter() {
                         for bit_index in 0..8 {
                             let bit = (byte >> bit_index) & 1;
@@ -104,21 +116,18 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
                 }
                 // From bits to field elements
                 let mut offset = 0;
-                for _ in 0..(bits.len() / ceil_log2q) {
-                    let value_bits = &bits[offset..offset + ceil_log2q];
+                for _ in 0..(bits.len() / bit_length) {
+                    let value_bits = &bits[offset..offset + bit_length];
                     let value = BigUint::from_radix_be(value_bits, 2).unwrap();
-                    offset += ceil_log2q;
+                    offset += bit_length;
                     let fe = FinRingElem::new(value, q.clone());
                     ring_elems.push(fe);
                 }
                 ring_elems
             }
             DistType::BitDist => {
-                // * index = number of hashes to be performed = ceil( (nrow * ncol * n) /
-                //   (hash_output_size) )
-                // * bits = number of resulting bits from hashing ops = hash_output_size * index
-                // * field_elements = number of field elements sampled = bits which is always
-                //   greater than or equal to nrow * ncol * n
+                // index = number of hashes to be performed = ceil(nrow * ncol * n * ceil(log2(q)) / hash_output_size)
+                // field_elements = number of field elements sampled = (bits / ceil(log2(q)))
                 let index = (nrow * ncol * n).div_ceil(hash_output_size);
                 let mut ring_elems = Vec::with_capacity(hash_output_size * index);
                 for i in 0..index {
@@ -159,6 +168,7 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
 mod tests {
     use super::*;
     use keccak_asm::Keccak256;
+    use proptest::prelude::*;
 
     #[test]
     fn test_poly_hash_sampler() {
@@ -197,5 +207,43 @@ mod tests {
         let matrix = matrix_result;
         assert_eq!(matrix.row_size(), nrow, "Matrix row count mismatch");
         assert_eq!(matrix.col_size(), ncol, "Matrix column count mismatch");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(10))]
+
+        #[test]
+        fn test_bitdecomposition_hash_sampler_ring(
+            rows in 1usize..5usize,
+            columns in 1usize..5usize,
+            key in any::<[u8; 32]>(),
+            tag in any::<u64>(),
+        ) {
+            let params = DCRTPolyParams::default();
+            let tag_bytes = tag.to_le_bytes();
+            let sampler = DCRTPolyHashSampler::<Keccak256>::new(key, params.clone());
+            let matrix = sampler.sample_hash(tag_bytes, rows, columns, DistType::FinRingDist);
+            let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, rows);
+            let decomposed = matrix.decompose();
+            let expected_matrix = gadget_matrix * decomposed;
+            assert_eq!(matrix, expected_matrix);
+        }
+
+        #[test]
+        fn test_bitdecomposition_hash_sampler_bit(
+            rows in 1usize..5usize,
+            columns in 1usize..5usize,
+            key in any::<[u8; 32]>(),
+            tag in any::<u64>(),
+        ) {
+            let params = DCRTPolyParams::default();
+            let tag_bytes = tag.to_le_bytes();
+            let sampler = DCRTPolyHashSampler::<Keccak256>::new(key, params.clone());
+            let matrix = sampler.sample_hash(tag_bytes, rows, columns, DistType::BitDist);
+            let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, rows);
+            let decomposed = matrix.decompose();
+            let expected_matrix = gadget_matrix * decomposed;
+            assert_eq!(matrix, expected_matrix);
+        }
     }
 }

@@ -261,12 +261,12 @@ impl PolyMatrix for DCRTPolyMatrix {
     fn gadget_matrix(params: &<Self::P as Poly>::Params, size: usize) -> Self {
         let bit_length = params.modulus_bits();
         let mut poly_vec = Vec::with_capacity(bit_length);
-        // Gadget vector g = (2^0, 2^1, ..., 2^{log(q)-1})
-        // where g ∈ Z_q^{log(q)}
-        for i in 0..bit_length {
-            let value = BigInt::from(2).pow(i.try_into().unwrap());
-            let fe: FinRingElem = FinRingElem::new(value, params.modulus().into());
-            poly_vec.push(DCRTPoly::from_const(params, &fe));
+        for i in 0u32..(bit_length as u32) {
+            let value = BigInt::from(2).pow(i);
+            poly_vec.push(DCRTPoly::from_const(
+                params,
+                &FinRingElem::new(value, params.modulus().into()),
+            ));
         }
         let gadget_vector = Self::from_poly_vec(params, vec![poly_vec]);
         let identity = DCRTPolyMatrix::identity(params, size, None);
@@ -278,18 +278,16 @@ impl PolyMatrix for DCRTPolyMatrix {
         let new_nrow = self.nrow * bit_length;
         let mut new_inner = vec![vec![DCRTPoly::const_zero(&self.params); self.ncol]; new_nrow];
 
-        // Fill in the decomposed values
         for i in 0..self.nrow {
             for j in 0..self.ncol {
-                let c_ij = &self.inner[i][j];
-                let coeffs = c_ij.coeffs();
+                let coeffs = self.inner[i][j].coeffs();
                 let coeff_len = coeffs.len();
                 for bit in 0..bit_length {
                     let mut bit_coeffs = Vec::with_capacity(coeff_len);
-                    for coeff_val in coeffs.clone() {
+                    for coeff_val in &coeffs {
                         // bit_value in {0, 1}
                         let val = (coeff_val.value() >> bit) & BigUint::from(1u32);
-                        let elem = FinRingElem::new(val.clone(), self.params.modulus().into());
+                        let elem = FinRingElem::new(val, self.params.modulus().into());
                         bit_coeffs.push(elem);
                     }
                     let bit_poly = DCRTPoly::from_coeffs(&self.params, &bit_coeffs);
@@ -453,13 +451,12 @@ impl<'a> Sub<&'a DCRTPolyMatrix> for DCRTPolyMatrix {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use crate::poly::dcrt::DCRTPolyParams;
 
     #[test]
     fn test_gadget_matrix() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let size = 3;
         let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, size);
         assert_eq!(gadget_matrix.row_size(), size);
@@ -468,7 +465,7 @@ mod tests {
 
     #[test]
     fn test_decompose() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let bit_length = params.modulus_bits();
 
         // Create a simple 2x8 matrix with some non-zero values
@@ -493,7 +490,7 @@ mod tests {
 
     #[test]
     fn test_matrix_basic_operations() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
 
         // Test zero and identity matrices
         let zero = DCRTPolyMatrix::zero(&params, 2, 2);
@@ -525,7 +522,7 @@ mod tests {
 
     #[test]
     fn test_matrix_concatenation() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let value = FinRingElem::new(5u32, params.modulus().into());
 
         let mut matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
@@ -552,7 +549,7 @@ mod tests {
 
     #[test]
     fn test_matrix_tensor_product() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let value = FinRingElem::new(5u32, params.modulus().into());
 
         let mut matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
@@ -573,7 +570,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Addition requires matrices of same dimensions")]
     fn test_matrix_addition_mismatch() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
         let matrix2 = DCRTPolyMatrix::zero(&params, 2, 3);
         let _sum = matrix1 + matrix2;
@@ -582,7 +579,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Multiplication condition failed")]
     fn test_matrix_multiplication_mismatch() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
         let matrix2 = DCRTPolyMatrix::zero(&params, 3, 2);
         let _prod = matrix1 * matrix2;

@@ -47,6 +47,7 @@ impl PolyUniformSampler for DCRTPolyUniformSampler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn test_ring_dist() {
@@ -125,5 +126,58 @@ mod tests {
         let mult_matrix = matrix1 * matrix3;
         assert_eq!(mult_matrix.row_size(), 20);
         assert_eq!(mult_matrix.col_size(), 12);
+    }
+
+    proptest::proptest! {
+        #![proptest_config(ProptestConfig::with_cases(10))]
+
+        #[test]
+        fn test_bitdecomposition_uniform_sampler_ring(
+            rows in 1usize..10usize,
+            columns in 1usize..10usize,
+        ) {
+            let params = DCRTPolyParams::default();
+            println!("Testing with: rows={}, columns={}, dist={:?}", rows, columns,  DistType::FinRingDist);
+            let s = DCRTPolyUniformSampler::new(params.clone());
+            let matrix = s.sample_uniform(rows, columns, DistType::FinRingDist);
+            assert!(rows > 0 && columns > 0, "Invalid dimensions");
+            let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, rows);
+            let decomposed = matrix.decompose();
+            let expected_matrix = gadget_matrix * decomposed;
+            assert_eq!(matrix, expected_matrix);
+        }
+
+        #[test]
+        fn test_bitdecomposition_uniform_sampler_bit(
+            rows in 1usize..10usize,
+            columns in 1usize..10usize,
+        ) {
+            let params = DCRTPolyParams::default();
+            println!("Testing with: rows={}, columns={}, dist={:?}", rows, columns,  DistType::BitDist);
+            let s = DCRTPolyUniformSampler::new(params.clone());
+            let matrix = s.sample_uniform(rows, columns, DistType::BitDist);
+            assert!(rows > 0 && columns > 0, "Invalid dimensions");
+            let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, rows);
+            let decomposed = matrix.decompose();
+            let expected_matrix = gadget_matrix * decomposed;
+            assert_eq!(matrix, expected_matrix);
+        }
+
+        #[test]
+        fn test_bitdecomposition_uniform_sampler_gaussian(
+            rows in 1usize..10usize,
+            columns in 1usize..10usize,
+            sigma in 1.0f64..10.0f64,
+        ) {
+            let params = DCRTPolyParams::default();
+            println!("Testing with: rows={}, columns={}, dist={:?}", rows, columns, DistType::GaussDist { sigma });
+            let s = DCRTPolyUniformSampler::new(params.clone());
+            let matrix = s.sample_uniform(rows, columns, DistType::GaussDist { sigma });
+            assert!(rows > 0 && columns > 0, "Invalid dimensions");
+            let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, rows);
+            let decomposed = matrix.decompose();
+            let expected_matrix = gadget_matrix * decomposed;
+            assert_eq!(matrix, expected_matrix);
+        }
     }
 }
