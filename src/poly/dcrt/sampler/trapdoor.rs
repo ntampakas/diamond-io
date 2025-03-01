@@ -18,7 +18,7 @@ use openfhe::{
 };
 
 pub struct DCRTPolyTrapdoor {
-    _trapdoor_output: Arc<UniquePtr<DCRTTrapdoorImpl>>,
+    trapdoor_output: Arc<UniquePtr<DCRTTrapdoorImpl>>,
     _trapdoor_pair: Arc<UniquePtr<RLWETrapdoorPair>>,
     _matrix: DCRTPolyMatrix,
 }
@@ -26,11 +26,12 @@ pub struct DCRTPolyTrapdoor {
 pub struct DCRTPolyTrapdoorSampler {
     params: DCRTPolyParams,
     base: usize,
+    sigma: f64,
 }
 
 impl DCRTPolyTrapdoorSampler {
-    pub fn new(params: DCRTPolyParams, base: usize) -> Self {
-        Self { params, base }
+    pub fn new(params: DCRTPolyParams, base: usize, sigma: f64) -> Self {
+        Self { params, base, sigma }
     }
 }
 
@@ -54,7 +55,7 @@ impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
         matrix_inner.push(row);
         let row_matrix = DCRTPolyMatrix::from_poly_vec(&self.params, matrix_inner);
         let trapdoor = DCRTPolyTrapdoor {
-            _trapdoor_output: trapdoor_output.into(),
+            trapdoor_output: trapdoor_output.into(),
             _trapdoor_pair: trapdoor_pair.into(),
             _matrix: row_matrix.clone(),
         };
@@ -62,16 +63,21 @@ impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
         (trapdoor, row_matrix)
     }
 
-    fn preimage(&self, trapdoor: &Self::Trapdoor, target: &Self::M, _sigma: f64) -> Self::M {
-        // TODO: add sigma paramters
+    fn preimage(&self, trapdoor: &Self::Trapdoor, target: &Self::M) -> Self::M {
         // TODO: target must be a matrix
         let target_poly = target.entry(0, 0).clone();
         let n = self.params.ring_dimension();
         let k = ceil_log2(&self.params.modulus());
 
         // generate preimage
-        let _preimage =
-            DCRTPolyGaussSamp(n as usize, k, &trapdoor._trapdoor_output, target_poly.get_poly(), 2);
+        let _preimage = DCRTPolyGaussSamp(
+            n as usize,
+            k,
+            &trapdoor.trapdoor_output,
+            target_poly.get_poly(),
+            2,
+            self.sigma,
+        );
 
         // create a column matrix of size ceil_log2(&sampler.params.modulus()) + 2 from preimage
         let nrow = ceil_log2(&self.params.modulus()) + 2;
@@ -96,7 +102,8 @@ mod tests {
     fn test_trapdoor_generation() {
         let params = DCRTPolyParams::new(16, 4, 51);
         let base = 2;
-        let sampler = DCRTPolyTrapdoorSampler::new(params, base);
+        let sigma = 4.57825;
+        let sampler = DCRTPolyTrapdoorSampler::new(params, base, sigma);
 
         let (_trapdoor, public_matrix) = sampler.trapdoor();
 
@@ -123,15 +130,16 @@ mod tests {
     fn test_preimage_generation() {
         let params = DCRTPolyParams::new(16, 4, 51);
         let base = 2;
-        let sampler = DCRTPolyTrapdoorSampler::new(params.clone(), base);
+        let sigma = 4.57825;
+        let sampler = DCRTPolyTrapdoorSampler::new(params.clone(), base, sigma);
         let (_trapdoor, public_matrix) = sampler.trapdoor();
         // create a target matrix with 1 row and 1 column
         let target =
             DCRTPolyMatrix::from_poly_vec(&params, vec![vec![public_matrix.entry(0, 0).clone()]]);
-        let _preimage = sampler.preimage(&_trapdoor, &target, 2.0);
+        let preimage = sampler.preimage(&_trapdoor, &target);
 
         // Public matrix * preimage should be equal to target
-        let product = public_matrix * &_preimage;
+        let product = public_matrix * &preimage;
         assert_eq!(product, target, "Product of public matrix and preimage should equal target");
     }
 }
