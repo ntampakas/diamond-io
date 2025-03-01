@@ -3,6 +3,7 @@ use crate::bgg::*;
 use crate::bgg::{eval::*, sampler::*, *};
 use crate::poly::{matrix::*, sampler::*, *};
 use crate::utils::*;
+use itertools::Itertools;
 use num_traits::{One, Zero};
 use rand::Rng;
 use rand::RngCore;
@@ -12,16 +13,16 @@ use std::sync::Arc;
 const TAG_R_0: &[u8] = b"R_0";
 const TAG_R_1: &[u8] = b"R_1";
 const TAG_A_FHE_BAR: &[u8] = b"A_FHE_BAR";
-const TAG_BGG_PUBKEY_INPUT: &[u8] = b"BGG_PUBKEY_INPUT";
-const TAG_BGG_PUBKEY_FHEKEY: &[u8] = b"BGG_PUBKEY_FHEKY";
+const TAG_BGG_PUBKEY_INPUT_PREFIX: &[u8] = b"BGG_PUBKEY_INPUT:";
+const TAG_BGG_PUBKEY_FHEKEY_PREFIX: &[u8] = b"BGG_PUBKEY_FHEKY:";
 
 #[derive(Debug, Clone)]
 pub struct PublicSampledData<S: PolyHashSampler<[u8; 32]>> {
     pub r_0: S::M,
     pub r_1: S::M,
     pub a_fhe_bar: S::M,
-    pub pubkeys_input: Vec<BggPublicKey<S::M>>,
-    pub pubkeys_fhe_key: Vec<BggPublicKey<S::M>>,
+    pub pubkeys_input: Vec<Vec<BggPublicKey<S::M>>>,
+    pub pubkeys_fhe_key: Vec<Vec<BggPublicKey<S::M>>>,
     pub t_0: (S::M, S::M),
     pub t_1: (S::M, S::M),
     _s: PhantomData<S>,
@@ -32,6 +33,7 @@ impl<S: PolyHashSampler<[u8; 32]>> PublicSampledData<S> {
         params: &<<S::M as PolyMatrix>::P as Poly>::Params,
         hash_sampler: Arc<S>,
         bgg_pubkey_sampler: &BGGPublicKeySampler<[u8; 32], S>,
+        input_size: usize,
         packed_input_size: usize,
     ) -> Self {
         let r_0_bar = hash_sampler.sample_hash(TAG_R_0, 1, 1, DistType::BitDist);
@@ -42,8 +44,20 @@ impl<S: PolyHashSampler<[u8; 32]>> PublicSampledData<S> {
         let log_q = params.modulus_bits();
         let a_fhe_bar =
             hash_sampler.sample_hash(TAG_A_FHE_BAR, 2, 2 * log_q, DistType::FinRingDist);
-        let pubkeys_input = bgg_pubkey_sampler.sample(TAG_BGG_PUBKEY_INPUT, packed_input_size + 1);
-        let pubkeys_fhe_key = bgg_pubkey_sampler.sample(TAG_BGG_PUBKEY_FHEKEY, 2);
+        let pubkeys_input = (0..input_size + 1)
+            .map(|idx| {
+                bgg_pubkey_sampler.sample(
+                    &[TAG_BGG_PUBKEY_INPUT_PREFIX, &idx.to_le_bytes()].concat(),
+                    packed_input_size + 1,
+                )
+            })
+            .collect_vec();
+        let pubkeys_fhe_key = (0..input_size + 1)
+            .map(|idx| {
+                bgg_pubkey_sampler
+                    .sample(&[TAG_BGG_PUBKEY_FHEKEY_PREFIX, &idx.to_le_bytes()].concat(), 2)
+            })
+            .collect_vec();
         let identity_input = S::M::identity(params, packed_input_size + 1, None);
         let gadget_2 = S::M::gadget_matrix(params, 2);
         let identity_2 = S::M::identity(params, 2, None);

@@ -31,6 +31,7 @@ where
         params.as_ref(),
         sampler.clone(),
         &bgg_pubkey_sampler,
+        input_size,
         packed_input_size,
     );
     let s_bar = sampler.sample_uniform(1, 1, DistType::BitDist).entry(1, 1).clone();
@@ -57,12 +58,12 @@ where
     let zero_plaintexts: Vec<M::P> =
         (0..packed_input_size).map(|_| M::P::const_zero(params.as_ref())).collect();
     let encode_input = bgg_encode_sampler.sample(
-        &public_data.pubkeys_input,
+        &public_data.pubkeys_input[0],
         &vec![vec![<M::P as Poly>::const_one(params.as_ref())], zero_plaintexts].concat(),
         true,
     );
     let encode_fhe_key =
-        bgg_encode_sampler.sample(&public_data.pubkeys_fhe_key, &t.get_row(1), false);
+        bgg_encode_sampler.sample(&public_data.pubkeys_fhe_key[0], &t.get_row(1), false);
     let mut bs = vec![];
     let mut b_trapdoors = vec![];
     for _ in 0..=input_size {
@@ -112,8 +113,12 @@ where
         let mut ks = vec![];
         for bit in 0..1 {
             let (t_input, t_fhe_key) = if bit == 0 { &public_data.t_0 } else { &public_data.t_1 };
-            let at_input = public_data.pubkeys_input[idx].matrix.clone() * t_input;
-            let at_fhe_key = public_data.pubkeys_fhe_key[idx].matrix.clone() * t_fhe_key;
+            let at_input = public_data.pubkeys_input[idx][0]
+                .concat_matrix(&public_data.pubkeys_input[idx][1..])
+                * t_input;
+            let at_fhe_key = public_data.pubkeys_fhe_key[idx][0]
+                .concat_matrix(&public_data.pubkeys_fhe_key[idx][1..])
+                * t_fhe_key;
             let former = at_input.concat_columns(&[at_fhe_key]);
             let inserted_poly_index = idx / dim;
             let inserted_coeff_index = idx % dim;
@@ -133,10 +138,11 @@ where
                 }
                 M::from_poly_vec_row(params.as_ref(), polys) * &gadget_2
             };
-            let a_input_next =
-                public_data.pubkeys_input[idx + 1].matrix.clone() - &inserted_poly_gadget;
-            let latter =
-                a_input_next.concat_columns(&[public_data.pubkeys_fhe_key[idx + 1].matrix.clone()]);
+            let a_input_next = public_data.pubkeys_input[idx + 1][0]
+                .concat_matrix(&public_data.pubkeys_input[idx + 1][1..])
+                - &inserted_poly_gadget;
+            let latter = a_input_next.concat_columns(&[public_data.pubkeys_fhe_key[idx + 1][0]
+                .concat_matrix(&public_data.pubkeys_fhe_key[idx + 1][1..])]);
             let k_target = former.concat_rows(&[latter]);
             let trapdoor = if bit == 0 { b_next_0_trapdoor } else { b_next_1_trapdoor };
             let k = sampler.preimage(trapdoor, &k_target);
@@ -144,6 +150,27 @@ where
         }
         k_preimages.push((ks[0].clone(), ks[1].clone()));
     }
+
+    // here we support only inner product between the fhe secret key t and the input x
+    let mut ip_pubkey = None;
+    for idx in 0..packed_input_size {
+        let muled = public_data.pubkeys_input[input_size][idx].clone()
+            * &public_data.pubkeys_fhe_key[input_size][0];
+        match ip_pubkey {
+            None => {
+                ip_pubkey = Some(muled);
+            }
+            Some(ip) => {
+                ip_pubkey = Some(ip + muled);
+            }
+        }
+    }
+    let ip_pubkey = ip_pubkey.unwrap();
+    let final_preimage_target =
+        ip_pubkey.matrix.concat_rows(&[M::zero(params.as_ref(), 2, ip_pubkey.matrix.col_size())]);
+    let (_, _, b_final_trapdoor) = &b_trapdoors[input_size];
+    let final_preimage = sampler.preimage(b_final_trapdoor, &final_preimage_target);
+
     Obfuscation {
         hash_key,
         b_fhe,
@@ -153,5 +180,6 @@ where
         m_preimages,
         n_preimages,
         k_preimages,
+        final_preimage,
     }
 }

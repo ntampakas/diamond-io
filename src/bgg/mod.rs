@@ -5,6 +5,8 @@
 pub mod eval;
 pub mod sampler;
 
+use itertools::Itertools;
+
 use crate::poly::{matrix::*, *};
 // use thiserror::Error;
 
@@ -23,6 +25,10 @@ impl<M: PolyMatrix> BggPublicKey<M> {
     pub fn new(matrix: M) -> Self {
         Self { matrix }
     }
+
+    pub fn concat_matrix(&self, others: &[Self]) -> M {
+        self.matrix.concat_columns(&others.iter().map(|x| x.matrix.clone()).collect_vec()[..])
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -39,5 +45,9 @@ impl<M: PolyMatrix> BggEncoding<M> {
         plaintext: Option<<M as PolyMatrix>::P>,
     ) -> Self {
         Self { vector, pubkey, plaintext }
+    }
+
+    pub fn concat_vector(&self, others: &[Self]) -> M {
+        self.vector.concat_columns(&others.iter().map(|x| x.vector.clone()).collect_vec()[..])
     }
 }

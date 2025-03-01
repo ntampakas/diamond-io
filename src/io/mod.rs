@@ -33,5 +33,5 @@ pub struct Obfuscation<M: PolyMatrix> {
     pub m_preimages: Vec<(M, M)>,
     pub n_preimages: Vec<(M, M)>,
     pub k_preimages: Vec<(M, M)>,
-    // pub final_preimage: PolyMatrix<T, P, M>,
+    pub final_preimage: M,
 }

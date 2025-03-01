@@ -27,8 +27,13 @@ where
     let input_size = input.len();
     let packed_input_size = ceil_div(input_size, dim);
     let bgg_pubkey_sampler = BGGPublicKeySampler::new(params.clone(), sampler.clone());
-    let public_data =
-        PublicSampledData::sample(params.as_ref(), sampler, &bgg_pubkey_sampler, packed_input_size);
+    let public_data = PublicSampledData::sample(
+        params.as_ref(),
+        sampler,
+        &bgg_pubkey_sampler,
+        input_size,
+        packed_input_size,
+    );
     let (mut ps, mut cs_input, mut cs_fhe_key) = (vec![], vec![], vec![]);
     ps.push(obfuscation.p_init.clone());
     let encode_inputs =
