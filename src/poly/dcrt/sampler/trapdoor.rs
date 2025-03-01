@@ -1,12 +1,9 @@
 use std::sync::Arc;
 
-use crate::{
-    poly::{
-        dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams},
-        sampler::PolyTrapdoorSampler,
-        PolyMatrix, PolyParams,
-    },
-    utils::ceil_log2,
+use crate::poly::{
+    dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams},
+    sampler::PolyTrapdoorSampler,
+    PolyMatrix, PolyParams,
 };
 
 use openfhe::{
@@ -43,7 +40,7 @@ impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
         let trapdoor_output =
             DCRTPolyTrapdoorGen(self.params.get_params(), self.base as i64, false);
         let trapdoor_pair = trapdoor_output.GetTrapdoorPtr();
-        let ncol = ceil_log2(&self.params.modulus()) + 2;
+        let ncol = &self.params.modulus_bits() + 2;
 
         let mut matrix_inner = Vec::with_capacity(1);
         let mut row = Vec::with_capacity(ncol);
@@ -65,7 +62,7 @@ impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
     fn preimage(&self, trapdoor: &Self::Trapdoor, target: &Self::M) -> Self::M {
         let target_poly = target.entry(0, 0).clone(); // TODO: target must be a matrix
         let n = self.params.ring_dimension();
-        let k = ceil_log2(&self.params.modulus());
+        let k = self.params.modulus_bits();
 
         let preimage = DCRTPolyGaussSamp(
             n as usize,
@@ -76,8 +73,7 @@ impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
             self.sigma,
         );
 
-        let nrow = ceil_log2(&self.params.modulus()) + 2;
-
+        let nrow = k + 2;
         let mut matrix_inner = Vec::with_capacity(nrow);
         for i in 0..nrow {
             let poly = GetMatrixElement(&preimage, i, 0); // TODO: replace this functionality
@@ -103,7 +99,7 @@ mod tests {
 
         let (_trapdoor, public_matrix) = sampler.trapdoor();
 
-        let expected_cols = ceil_log2(&sampler.params.modulus()) + 2;
+        let expected_cols = &sampler.params.modulus_bits() + 2;
 
         // Check dimensions of the public matrix
         assert_eq!(public_matrix.row_size(), 1, "Public matrix should have 1 row");
