@@ -1,25 +1,10 @@
 use super::PolyMatrix;
-use proptest::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
 pub enum DistType {
     FinRingDist,
     GaussDist { sigma: f64 },
     BitDist,
-}
-
-impl Arbitrary for DistType {
-    type Parameters = ();
-    type Strategy = BoxedStrategy<Self>;
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        prop_oneof![
-            Just(DistType::FinRingDist),
-            any::<f64>().prop_map(|sigma| DistType::GaussDist { sigma }),
-            Just(DistType::BitDist)
-        ]
-        .boxed()
-    }
 }
 
 pub trait PolyHashSampler<K: AsRef<[u8]>> {
