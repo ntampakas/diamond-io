@@ -1,175 +1,252 @@
-use super::{BggEncoding, BggError, BggPublicKey};
-use crate::poly::{gadget::PolyGadgetOps, matrix::*, *};
-use std::{marker::PhantomData, sync::Arc};
+use super::{BggEncoding, BggPublicKey};
+use crate::poly::matrix::*;
+use std::ops::{Add, Mul};
 
-#[derive(Debug, Clone)]
-pub struct BGGEvaluator<
-    T: PolyElemOps,
-    P: PolyOps<T>,
-    M: PolyMatrixOps<T, P>,
-    G: PolyGadgetOps<T, P, M>,
-> {
-    pub poly_op: Arc<P>,
-    pub matrix_op: Arc<M>,
-    pub gadget_op: Arc<G>,
-    _t: PhantomData<T>,
+impl<M: PolyMatrix> Add for BggPublicKey<M> {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        self + &other
+    }
 }
 
-impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, P, M>>
-    BGGEvaluator<T, P, M, G>
-{
-    pub fn new(poly_op: Arc<P>, matrix_op: Arc<M>, gadget_op: Arc<G>) -> Self {
-        Self { poly_op, matrix_op, gadget_op, _t: PhantomData }
+impl<M: PolyMatrix> Add<&Self> for BggPublicKey<M> {
+    type Output = Self;
+    fn add(self, other: &Self) -> Self {
+        Self { matrix: self.matrix + &other.matrix }
     }
+}
 
-    pub fn add_public_keys(
-        &self,
-        a: &BggPublicKey<T, P, M>,
-        b: &BggPublicKey<T, P, M>,
-        new_index: usize,
-    ) -> Result<BggPublicKey<T, P, M>, BggError> {
-        let new_matrix = self
-            .matrix_op
-            .add(&a.matrix, &b.matrix)
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        Ok(BggPublicKey { matrix: new_matrix, index: new_index })
+impl<M: PolyMatrix> Mul for BggPublicKey<M> {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self {
+        self * &other
     }
+}
 
-    pub fn neg_public_keys(
-        &self,
-        a: &BggPublicKey<T, P, M>,
-        new_index: usize,
-    ) -> Result<BggPublicKey<T, P, M>, BggError> {
-        let new_matrix =
-            self.matrix_op.neg(&a.matrix).map_err(|e| BggError::MatrixError(e.to_string()))?;
-        Ok(BggPublicKey { matrix: new_matrix, index: new_index })
+impl<M: PolyMatrix> Mul<&Self> for BggPublicKey<M> {
+    type Output = Self;
+    fn mul(self, other: &Self) -> Self {
+        let decomposed = other.matrix.decompose();
+        let matrix = self.matrix.clone() * decomposed;
+        Self { matrix }
     }
+}
 
-    pub fn sub_public_keys(
-        &self,
-        a: &BggPublicKey<T, P, M>,
-        b: &BggPublicKey<T, P, M>,
-        new_index: usize,
-    ) -> Result<BggPublicKey<T, P, M>, BggError> {
-        let new_matrix = self
-            .matrix_op
-            .sub(&a.matrix, &b.matrix)
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        Ok(BggPublicKey { matrix: new_matrix, index: new_index })
+impl<M: PolyMatrix> Add for BggEncoding<M> {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        self + &other
     }
+}
 
-    pub fn mul_public_keys(
-        &self,
-        a: &BggPublicKey<T, P, M>,
-        b: &BggPublicKey<T, P, M>,
-        new_index: usize,
-    ) -> Result<BggPublicKey<T, P, M>, BggError> {
-        let decomposed_b = self
-            .gadget_op
-            .decompose(&b.matrix)
-            .map_err(|e| BggError::GadgetError(e.to_string()))?;
-        let new_matrix = self
-            .matrix_op
-            .mul(&a.matrix, &decomposed_b)
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        Ok(BggPublicKey { matrix: new_matrix, index: new_index })
-    }
-
-    pub fn add_encodings(
-        &self,
-        a: &BggEncoding<T, P, M>,
-        b: &BggEncoding<T, P, M>,
-        new_index: usize,
-    ) -> Result<BggEncoding<T, P, M>, BggError> {
-        let new_vector = self
-            .matrix_op
-            .add(&a.vector, &b.vector)
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        // let new_plaintext = if let Some()
-        let new_plaintext = match (a.plaintext.as_ref(), b.plaintext.as_ref()) {
-            (Some(a_plain), Some(b_plain)) => Some(
-                self.poly_op
-                    .add(a_plain, b_plain)
-                    .map_err(|e| BggError::PolyError(e.to_string()))?,
-            ),
+impl<M: PolyMatrix> Add<&Self> for BggEncoding<M> {
+    type Output = Self;
+    fn add(self, other: &Self) -> Self {
+        let vector = self.vector + &other.vector;
+        let pubkey = self.pubkey + &other.pubkey;
+        let plaintext = match (self.plaintext.as_ref(), other.plaintext.as_ref()) {
+            (Some(a), Some(b)) => Some(a.clone() + b),
             _ => None,
         };
-        Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
+        Self { vector, pubkey, plaintext }
     }
+}
 
-    pub fn neg_encoding(
-        &self,
-        a: &BggEncoding<T, P, M>,
-        new_index: usize,
-    ) -> Result<BggEncoding<T, P, M>, BggError> {
-        let new_vector =
-            self.matrix_op.neg(&a.vector).map_err(|e| BggError::MatrixError(e.to_string()))?;
-        let new_plaintext = match a.plaintext.as_ref() {
-            Some(a_plain) => {
-                Some(self.poly_op.neg(a_plain).map_err(|e| BggError::PolyError(e.to_string()))?)
-            }
-            _ => None,
-        };
-        Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
+#[allow(clippy::suspicious_arithmetic_impl)]
+impl<M: PolyMatrix> Mul for BggEncoding<M> {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self {
+        self + &other
     }
+}
 
-    pub fn sub_encodings(
-        &self,
-        a: &BggEncoding<T, P, M>,
-        b: &BggEncoding<T, P, M>,
-        new_index: usize,
-    ) -> Result<BggEncoding<T, P, M>, BggError> {
-        let new_vector = self
-            .matrix_op
-            .sub(&a.vector, &b.vector)
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        let new_plaintext = match (a.plaintext.as_ref(), b.plaintext.as_ref()) {
-            (Some(a_plain), Some(b_plain)) => Some(
-                self.poly_op
-                    .sub(a_plain, b_plain)
-                    .map_err(|e| BggError::PolyError(e.to_string()))?,
-            ),
-            _ => None,
-        };
-        Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
-    }
-
-    pub fn mul_encodings(
-        &self,
-        a: &BggEncoding<T, P, M>,
-        b: &BggEncoding<T, P, M>,
-        new_index: usize,
-    ) -> Result<BggEncoding<T, P, M>, BggError> {
-        if a.plaintext.is_none() {
-            return Err(BggError::UnknownPlaintextForMul(a.index, new_index));
+impl<M: PolyMatrix> Mul<&Self> for BggEncoding<M> {
+    type Output = Self;
+    fn mul(self, other: &Self) -> Self {
+        if self.plaintext.is_none() {
+            panic!("Unknown plaintext for the left-hand input of multiplication");
         }
-        let decomposed_b = self
-            .gadget_op
-            .decompose(&b.vector)
-            .map_err(|e| BggError::GadgetError(e.to_string()))?;
-        let first_term = self
-            .matrix_op
-            .mul(&a.vector, &decomposed_b)
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        let second_term = self
-            .matrix_op
-            .scalar_mul(&b.vector, a.plaintext.as_ref().unwrap())
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        let new_vector = self
-            .matrix_op
-            .add(&first_term, &second_term)
-            .map_err(|e| BggError::MatrixError(e.to_string()))?;
-        let new_plaintext = match (a.plaintext.as_ref(), b.plaintext.as_ref()) {
-            (Some(a_plain), Some(b_plain)) => Some(
-                self.poly_op
-                    .mul(a_plain, b_plain)
-                    .map_err(|e| BggError::PolyError(e.to_string()))?,
-            ),
+        let decomposed_b = other.pubkey.matrix.decompose();
+        let first_term = self.vector.clone() * decomposed_b;
+        let second_term = other.vector.clone() * self.plaintext.as_ref().unwrap();
+        let new_vector = first_term + second_term;
+        let new_plaintext = match (self.plaintext.as_ref(), other.plaintext.as_ref()) {
+            (Some(a), Some(b)) => Some(a.clone() * b),
             _ => None,
         };
-        Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
+        let new_pubkey = self.pubkey.clone() + &other.pubkey;
+        Self { vector: new_vector, pubkey: new_pubkey, plaintext: new_plaintext }
     }
 }
+
+// #[derive(Debug, Clone)]
+// pub struct BGGEvaluator<
+//     T: PolyElemOps,
+//     P: PolyOps<T>,
+//     M: PolyMatrixOps<T, P>,
+//     G: PolyGadgetOps<T, P, M>,
+// > {
+//     pub poly_op: Arc<P>,
+//     pub matrix_op: Arc<M>,
+//     pub gadget_op: Arc<G>,
+//     _t: PhantomData<T>,
+// }
+
+// impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>, G: PolyGadgetOps<T, P, M>>
+//     BGGEvaluator<T, P, M, G>
+// {
+//     pub fn new(poly_op: Arc<P>, matrix_op: Arc<M>, gadget_op: Arc<G>) -> Self {
+//         Self { poly_op, matrix_op, gadget_op, _t: PhantomData }
+//     }
+
+//     pub fn add_public_keys(
+//         &self,
+//         a: &BggPublicKey<T, P, M>,
+//         b: &BggPublicKey<T, P, M>,
+//         new_index: usize,
+//     ) -> Result<BggPublicKey<T, P, M>, BggError> {
+//         let new_matrix = self
+//             .matrix_op
+//             .add(&a.matrix, &b.matrix)
+//             .map_err(|e| BggError::MatrixError(e.to_string()))?;
+//         Ok(BggPublicKey { matrix: new_matrix, index: new_index })
+//     }
+
+//     pub fn neg_public_keys(
+//         &self,
+//         a: &BggPublicKey<T, P, M>,
+//         new_index: usize,
+//     ) -> Result<BggPublicKey<T, P, M>, BggError> {
+//         let new_matrix =
+//             self.matrix_op.neg(&a.matrix).map_err(|e| BggError::MatrixError(e.to_string()))?;
+//         Ok(BggPublicKey { matrix: new_matrix, index: new_index })
+//     }
+
+//     pub fn sub_public_keys(
+//         &self,
+//         a: &BggPublicKey<T, P, M>,
+//         b: &BggPublicKey<T, P, M>,
+//         new_index: usize,
+//     ) -> Result<BggPublicKey<T, P, M>, BggError> {
+//         let new_matrix = self
+//             .matrix_op
+//             .sub(&a.matrix, &b.matrix)
+//             .map_err(|e| BggError::MatrixError(e.to_string()))?;
+//         Ok(BggPublicKey { matrix: new_matrix, index: new_index })
+//     }
+
+//     pub fn mul_public_keys(
+//         &self,
+//         a: &BggPublicKey<T, P, M>,
+//         b: &BggPublicKey<T, P, M>,
+//         new_index: usize,
+//     ) -> Result<BggPublicKey<T, P, M>, BggError> {
+//         let decomposed_b = self
+//             .gadget_op
+//             .decompose(&b.matrix)
+//             .map_err(|e| BggError::GadgetError(e.to_string()))?;
+//         let new_matrix = self
+//             .matrix_op
+//             .mul(&a.matrix, &decomposed_b)
+//             .map_err(|e| BggError::MatrixError(e.to_string()))?;
+//         Ok(BggPublicKey { matrix: new_matrix, index: new_index })
+//     }
+
+//     pub fn add_encodings(
+//         &self,
+//         a: &BggEncoding<T, P, M>,
+//         b: &BggEncoding<T, P, M>,
+//         new_index: usize,
+//     ) -> Result<BggEncoding<T, P, M>, BggError> {
+//         let new_vector = self
+//             .matrix_op
+//             .add(&a.vector, &b.vector)
+//             .map_err(|e| BggError::MatrixError(e.to_string()))?;
+//         // let new_plaintext = if let Some()
+//         let new_plaintext = match (a.plaintext.as_ref(), b.plaintext.as_ref()) {
+//             (Some(a_plain), Some(b_plain)) => Some(
+//                 self.poly_op
+//                     .add(a_plain, b_plain)
+//                     .map_err(|e| BggError::PolyError(e.to_string()))?,
+//             ),
+//             _ => None,
+//         };
+//         Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
+//     }
+
+//     pub fn neg_encoding(
+//         &self,
+//         a: &BggEncoding<T, P, M>,
+//         new_index: usize,
+//     ) -> Result<BggEncoding<T, P, M>, BggError> {
+//         let new_vector =
+//             self.matrix_op.neg(&a.vector).map_err(|e| BggError::MatrixError(e.to_string()))?;
+//         let new_plaintext = match a.plaintext.as_ref() {
+//             Some(a_plain) => {
+//                 Some(self.poly_op.neg(a_plain).map_err(|e| BggError::PolyError(e.to_string()))?)
+//             }
+//             _ => None,
+//         };
+//         Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
+//     }
+
+//     pub fn sub_encodings(
+//         &self,
+//         a: &BggEncoding<T, P, M>,
+//         b: &BggEncoding<T, P, M>,
+//         new_index: usize,
+//     ) -> Result<BggEncoding<T, P, M>, BggError> {
+//         let new_vector = self
+//             .matrix_op
+//             .sub(&a.vector, &b.vector)
+//             .map_err(|e| BggError::MatrixError(e.to_string()))?;
+//         let new_plaintext = match (a.plaintext.as_ref(), b.plaintext.as_ref()) {
+//             (Some(a_plain), Some(b_plain)) => Some(
+//                 self.poly_op
+//                     .sub(a_plain, b_plain)
+//                     .map_err(|e| BggError::PolyError(e.to_string()))?,
+//             ),
+//             _ => None,
+//         };
+//         Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
+//     }
+
+//     pub fn mul_encodings(
+//         &self,
+//         a: &BggEncoding<T, P, M>,
+//         b: &BggEncoding<T, P, M>,
+//         new_index: usize,
+//     ) -> Result<BggEncoding<T, P, M>, BggError> {
+//         if a.plaintext.is_none() {
+//             return Err(BggError::UnknownPlaintextForMul(a.index, new_index));
+//         }
+//         let decomposed_b = self
+//             .gadget_op
+//             .decompose(&b.vector)
+//             .map_err(|e| BggError::GadgetError(e.to_string()))?;
+//         let first_term = self
+//             .matrix_op
+//             .mul(&a.vector, &decomposed_b)
+//             .map_err(|e| BggError::MatrixError(e.to_string()))?;
+//         let second_term = self
+//             .matrix_op
+//             .scalar_mul(&b.vector, a.plaintext.as_ref().unwrap())
+//             .map_err(|e| BggError::MatrixError(e.to_string()))?;
+//         let new_vector = self
+//             .matrix_op
+//             .add(&first_term, &second_term)
+//             .map_err(|e| BggError::MatrixError(e.to_string()))?;
+//         let new_plaintext = match (a.plaintext.as_ref(), b.plaintext.as_ref()) {
+//             (Some(a_plain), Some(b_plain)) => Some(
+//                 self.poly_op
+//                     .mul(a_plain, b_plain)
+//                     .map_err(|e| BggError::PolyError(e.to_string()))?,
+//             ),
+//             _ => None,
+//         };
+//         Ok(BggEncoding { vector: new_vector, plaintext: new_plaintext, index: new_index })
+//     }
+// }
 
 // use phantom_zone_math::{prelude::ModulusOps, ring::RingOps};
 

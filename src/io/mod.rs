@@ -1,5 +1,6 @@
-// pub mod eval;
-// pub mod obf;
+pub mod eval;
+pub mod obf;
+pub mod utils;
 
 use crate::{
     bgg::{BggEncoding, BggError, BggPublicKey},
@@ -27,18 +28,15 @@ where
     T: PolyElemOps,
     P: PolyOps<T>,
     M: PolyMatrixOps<T, P>,
-    // S: PolyUniformSampler<T, P, M, BitDist>
-    //     + PolyUniformSampler<T, P, M, GaussianDist>
-    //     + PolyUniformSampler<T, P, M, FinRingDist>
-    //     + PolyUniformSampler<T, P, M, BitDist>,
 {
     pub hash_key: Vec<u8>,
-    pub fhe_enc: PolyMatrix<T, P, M>,
-    pub input_encode: BggEncoding<T, P, M>,
-    pub fhe_key_encode: BggPublicKey<T, P, M>,
-    pub init_p: PolyMatrix<T, P, M>,
-    pub m_preimages: PolyMatrix<T, P, M>,
-    pub n_preimages: PolyMatrix<T, P, M>,
-    pub k_preimages: PolyMatrix<T, P, M>,
-    pub final_preimage: PolyMatrix<T, P, M>,
+    // pub fhe_enc: PolyMatrix<T, P, M>,
+    pub b_fhe: PolyMatrix<T, P, M>,
+    pub encode_input: Vec<BggEncoding<T, P, M>>,
+    pub encode_fhe_key: Vec<BggEncoding<T, P, M>>,
+    pub p_init: PolyMatrix<T, P, M>,
+    pub m_preimages: Vec<(PolyMatrix<T, P, M>, PolyMatrix<T, P, M>)>,
+    pub n_preimages: Vec<(PolyMatrix<T, P, M>, PolyMatrix<T, P, M>)>,
+    pub k_preimages: Vec<(PolyMatrix<T, P, M>, PolyMatrix<T, P, M>)>,
+    // pub final_preimage: PolyMatrix<T, P, M>,
 }
