@@ -254,14 +254,12 @@ mod tests {
         assert_eq!(poly_mul_assign, product, "*= result should match separate *");
 
         // 9. Test from_const / const_zero / const_one
-        // todo: `get_coeffs``
-        // let const_poly = DCRTPoly::from_const(&params, &FieldElement::new(123, dummy_modulus))
-        //     .expect("Failed to create DCRTPoly from const");
-        // assert_eq!(
-        //     const_poly,
-        //     DCRTPoly::from_coeffs(&params, &[FieldElement::new(123, dummy_modulus); 1]).unwrap(),
-        //     "from_const should produce a polynomial with all coeffs = 123"
-        // );
+        let const_poly = DCRTPoly::from_const(&params, &FinRingElem::new(123, q.clone()));
+        assert_eq!(
+            const_poly,
+            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(123, q); 1]),
+            "from_const should produce a polynomial with all coeffs = 123"
+        );
 
         let zero_poly = DCRTPoly::const_zero(&params);
         assert_eq!(zero_poly, zero_poly.clone() + zero_poly.clone(), "0 + 0 = 0");

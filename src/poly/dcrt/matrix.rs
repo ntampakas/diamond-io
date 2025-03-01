@@ -482,4 +482,101 @@ mod tests {
         let expected_matrix = decomposed * gadget_matrix;
         assert_eq!(matrix, expected_matrix);
     }
+
+    #[test]
+    fn test_matrix_basic_operations() {
+        let params = DCRTPolyParams::new(16, 4, 51);
+
+        // Test zero and identity matrices
+        let zero = DCRTPolyMatrix::zero(&params, 2, 2);
+        let identity = DCRTPolyMatrix::identity(&params, 2, None);
+
+        // Test matrix creation and equality
+        let mut matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
+        let value = FinRingElem::new(5u32, params.modulus().into());
+        matrix1.inner[0][0] = DCRTPoly::from_const(&params, &value);
+        matrix1.inner[1][1] = DCRTPoly::from_const(&params, &value);
+
+        let matrix2 = matrix1.clone();
+        assert_eq!(matrix1, matrix2);
+
+        // Test addition
+        let sum = matrix1.clone() + &matrix2;
+        let value_10 = FinRingElem::new(10u32, params.modulus().into());
+        let _expected_sum = DCRTPolyMatrix::zero(&params, 2, 2);
+        assert_eq!(sum.entry(0, 0).coeffs()[0], value_10);
+
+        // Test subtraction
+        let diff = matrix1.clone() - &matrix2;
+        assert_eq!(diff, zero);
+
+        // Test multiplication
+        let prod = matrix1.clone() * &identity;
+        assert_eq!(prod, matrix1);
+    }
+
+    #[test]
+    fn test_matrix_concatenation() {
+        let params = DCRTPolyParams::new(16, 4, 51);
+        let value = FinRingElem::new(5u32, params.modulus().into());
+
+        let mut matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
+        matrix1.inner[0][0] = DCRTPoly::from_const(&params, &value);
+
+        let mut matrix2 = DCRTPolyMatrix::zero(&params, 2, 2);
+        matrix2.inner[1][1] = DCRTPoly::from_const(&params, &value);
+
+        // Test column concatenation
+        let col_concat = matrix1.clone().concat_columns(&[matrix2.clone()]);
+        assert_eq!(col_concat.row_size(), 2);
+        assert_eq!(col_concat.col_size(), 4);
+
+        // Test row concatenation
+        let row_concat = matrix1.clone().concat_rows(&[matrix2.clone()]);
+        assert_eq!(row_concat.row_size(), 4);
+        assert_eq!(row_concat.col_size(), 2);
+
+        // Test diagonal concatenation
+        let diag_concat = matrix1.concat_diag(&[matrix2]);
+        assert_eq!(diag_concat.row_size(), 4);
+        assert_eq!(diag_concat.col_size(), 4);
+    }
+
+    #[test]
+    fn test_matrix_tensor_product() {
+        let params = DCRTPolyParams::new(16, 4, 51);
+        let value = FinRingElem::new(5u32, params.modulus().into());
+
+        let mut matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
+        matrix1.inner[0][0] = DCRTPoly::from_const(&params, &value);
+
+        let mut matrix2 = DCRTPolyMatrix::zero(&params, 2, 2);
+        matrix2.inner[0][0] = DCRTPoly::from_const(&params, &value);
+
+        let tensor = matrix1.tensor(&matrix2);
+        assert_eq!(tensor.row_size(), 4);
+        assert_eq!(tensor.col_size(), 4);
+
+        // Check that the (0,0) element is the product of the (0,0) elements
+        let value_25 = FinRingElem::new(25u32, params.modulus().into());
+        assert_eq!(tensor.entry(0, 0).coeffs()[0], value_25);
+    }
+
+    #[test]
+    #[should_panic(expected = "Addition requires matrices of same dimensions")]
+    fn test_matrix_addition_mismatch() {
+        let params = DCRTPolyParams::new(16, 4, 51);
+        let matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
+        let matrix2 = DCRTPolyMatrix::zero(&params, 2, 3);
+        let _sum = matrix1 + matrix2;
+    }
+
+    #[test]
+    #[should_panic(expected = "Multiplication condition failed")]
+    fn test_matrix_multiplication_mismatch() {
+        let params = DCRTPolyParams::new(16, 4, 51);
+        let matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
+        let matrix2 = DCRTPolyMatrix::zero(&params, 3, 2);
+        let _prod = matrix1 * matrix2;
+    }
 }
