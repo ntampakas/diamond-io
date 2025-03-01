@@ -61,13 +61,25 @@ pub trait PolyMatrix:
     fn zero(params: &<Self::P as Poly>::Params, rows: usize, columns: usize) -> Self;
     fn identity(params: &<Self::P as Poly>::Params, size: usize, scalar: Option<Self::P>) -> Self;
     fn transpose(&self) -> Self;
-    // (m * n1), (m * n2) -> (m * (n1 + n2))
+    /// (m * n1), (m * n2) -> (m * (n1 + n2))
     fn concat_columns(&self, others: &[Self]) -> Self;
-    // (m1 * n), (m2 * n) -> ((m1 + m2) * n)
+    /// (m1 * n), (m2 * n) -> ((m1 + m2) * n)
     fn concat_rows(&self, others: &[Self]) -> Self;
-    // (m1 * n1), (m2 * n2) -> ((m1 + m2) * (n1 + n2))
+    /// (m1 * n1), (m2 * n2) -> ((m1 + m2) * (n1 + n2))
     fn concat_diag(&self, others: &[Self]) -> Self;
     fn tensor(&self, other: &Self) -> Self;
+    /// Constructs a gadget matrix Gₙ
+    ///
+    /// Gadget vector g = (2^0, 2^1, ..., 2^{log(q)-1}),
+    /// where g ∈ Z_q^{log(q)}.
+    ///
+    /// Gₙ = Iₙ ⊗ gᵀ
+    ///
+    /// * `params` - Parameters describing the modulus and other ring characteristics.
+    /// * `size` - The size of the identity block (n), dictating the final matrix dimensions.
+    ///
+    /// A matrix of dimension n×(n·bit_length), in which each block row is a scaled identity
+    /// under the ring modulus.
     fn gadget_matrix(params: &<Self::P as Poly>::Params, size: usize) -> Self;
     fn decompose(&self) -> Self;
 }

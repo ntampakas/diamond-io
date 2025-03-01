@@ -5,10 +5,6 @@ use phantom_zone_math::{
     ring::{PrimeRing, RingOps},
 };
 
-pub fn ceil_div(a: usize, b: usize) -> usize {
-    a.div_ceil(b)
-}
-
 pub fn ceil_log2(q: &BigUint) -> usize {
     assert!(!q.is_zero(), "log2 is undefined for zero");
 

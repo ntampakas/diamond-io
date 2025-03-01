@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::poly::params::PolyParams;
 use num_bigint::BigUint;
 use num_traits::Num;
@@ -7,10 +5,20 @@ use openfhe::{
     cxx::UniquePtr,
     ffi::{self, ILDCRTParamsImpl},
 };
+use std::{fmt::Debug, sync::Arc};
 
 #[derive(Clone)]
 pub struct DCRTPolyParams {
     ptr_params: Arc<UniquePtr<ILDCRTParamsImpl>>,
+}
+
+impl Debug for DCRTPolyParams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DCRTPolyParams")
+            .field("modulus", &self.modulus())
+            .field("ring_dimension", &self.ring_dimension())
+            .finish()
+    }
 }
 
 impl PolyParams for DCRTPolyParams {
@@ -21,6 +29,13 @@ impl PolyParams for DCRTPolyParams {
     fn modulus(&self) -> BigUint {
         let modulus = &self.ptr_params.as_ref().GetModulus();
         BigUint::from_str_radix(modulus, 10).unwrap()
+    }
+}
+
+#[cfg(test)]
+impl Default for DCRTPolyParams {
+    fn default() -> Self {
+        Self::new(4, 16, 51)
     }
 }
 
@@ -40,10 +55,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_correct_params_initiation() {
+    fn test_params_initiation() {
         let n = 16;
         let size = 4;
         let k_res = 51;
-        let _ = DCRTPolyParams::new(n, size, k_res);
+        let p = DCRTPolyParams::new(n, size, k_res);
+        assert_eq!(p.ring_dimension(), n);
+        assert_eq!(p.modulus_bits(), 204);
     }
 }
