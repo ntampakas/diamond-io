@@ -1,9 +1,6 @@
-use num_bigint::BigUint;
-
 pub trait PolyParams: Clone {
-    fn modulus(&self) -> BigUint;
-    fn modulus_bits(&self) -> usize {
-        self.modulus().bits() as usize
-    }
+    type Modulus: Clone;
+    fn modulus(&self) -> Self::Modulus;
+    fn modulus_bits(&self) -> usize;
     fn ring_dimension(&self) -> u32;
 }

@@ -57,6 +57,18 @@ impl PolyMatrix for DCRTPolyMatrix {
         &self.inner[i][j]
     }
 
+    fn get_row(&self, i: usize) -> Vec<Self::P> {
+        self.inner[i].clone()
+    }
+
+    fn get_column(&self, j: usize) -> Vec<Self::P> {
+        let mut column = Vec::with_capacity(self.nrow);
+        for i in 0..self.nrow {
+            column.push(self.inner[i][j].clone());
+        }
+        column
+    }
+
     fn size(&self) -> (usize, usize) {
         (self.nrow, self.ncol)
     }

@@ -36,6 +36,8 @@ pub trait PolyMatrix:
         Self::from_poly_vec(params, wrapped_vec)
     }
     fn entry(&self, i: usize, j: usize) -> &Self::P;
+    fn get_row(&self, i: usize) -> Vec<Self::P>;
+    fn get_column(&self, j: usize) -> Vec<Self::P>;
     fn size(&self) -> (usize, usize);
     fn row_size(&self) -> usize {
         self.size().0

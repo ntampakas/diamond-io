@@ -11,23 +11,29 @@ use openfhe::{
 #[derive(Clone)]
 pub struct DCRTPolyParams {
     ptr_params: Arc<UniquePtr<ILDCRTParamsImpl>>,
+    modulus: Arc<BigUint>,
 }
 
 impl PolyParams for DCRTPolyParams {
+    type Modulus = Arc<BigUint>;
+
     fn ring_dimension(&self) -> u32 {
         let ring_dimension = &self.ptr_params.as_ref().GetRingDimension();
         *ring_dimension
     }
-    fn modulus(&self) -> BigUint {
-        let modulus = &self.ptr_params.as_ref().GetModulus();
-        BigUint::from_str_radix(modulus, 10).unwrap()
+    fn modulus(&self) -> Self::Modulus {
+        self.modulus.clone()
+    }
+    fn modulus_bits(&self) -> usize {
+        self.modulus().bits() as usize
     }
 }
 
 impl DCRTPolyParams {
     pub fn new(n: u32, size: u32, k_res: u32) -> Self {
         let ptr_params = ffi::GenILDCRTParamsByOrderSizeBits(2 * n, size, k_res);
-        Self { ptr_params: ptr_params.into() }
+        let modulus = BigUint::from_str_radix(&ptr_params.GetModulus(), 10).unwrap();
+        Self { ptr_params: ptr_params.into(), modulus: Arc::new(modulus) }
     }
 
     pub fn get_params(&self) -> &UniquePtr<ILDCRTParamsImpl> {

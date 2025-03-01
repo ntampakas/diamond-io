@@ -40,7 +40,7 @@ impl Poly for DCRTPoly {
         let modulus = params.modulus();
         for coeff in coeffs {
             let coeff_modulus = coeff.modulus();
-            assert_eq!(coeff_modulus.clone(), modulus);
+            assert_eq!(&coeff_modulus.clone(), modulus.as_ref());
             coeffs_cxx.push(coeff.value().to_string());
         }
         DCRTPoly::new(ffi::DCRTPolyGenFromVec(params.get_params(), &coeffs_cxx))
@@ -62,7 +62,7 @@ impl Poly for DCRTPoly {
     }
 
     fn const_minus_one(params: &Self::Params) -> Self {
-        let constant_value = params.modulus() - BigUint::from(1u32);
+        let constant_value = params.modulus().as_ref() - BigUint::from(1u32);
         DCRTPoly::new(ffi::DCRTPolyGenFromConst(params.get_params(), &constant_value.to_string()))
     }
 }
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn test_dcrtpoly_arithmetic() {
         let params = DCRTPolyParams::new(16, 4, 51);
-        let q = Arc::new(params.modulus());
+        let q = params.modulus();
 
         // todo: replace value and modulus from param
         let coeffs1 = [

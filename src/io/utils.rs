@@ -1,12 +1,12 @@
-use super::{Obfuscation, ObfuscationError};
+use super::Obfuscation;
 use crate::bgg::*;
 use crate::bgg::{eval::*, sampler::*, *};
-use crate::poly::gadget::PolyGadgetOps;
 use crate::poly::{matrix::*, sampler::*, *};
 use crate::utils::*;
 use num_traits::{One, Zero};
 use rand::Rng;
 use rand::RngCore;
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 const TAG_R_0: &[u8] = b"R_0";
@@ -16,66 +16,47 @@ const TAG_BGG_PUBKEY_INPUT: &[u8] = b"BGG_PUBKEY_INPUT";
 const TAG_BGG_PUBKEY_FHEKEY: &[u8] = b"BGG_PUBKEY_FHEKY";
 
 #[derive(Debug, Clone)]
-pub struct PublicSampledData<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>> {
-    pub r_0: PolyMatrix<T, P, M>,
-    pub r_1: PolyMatrix<T, P, M>,
-    pub a_fhe_bar: PolyMatrix<T, P, M>,
-    pub pubkeys_input: Vec<BggPublicKey<T, P, M>>,
-    pub pubkeys_fhe_key: Vec<BggPublicKey<T, P, M>>,
-    pub t_0: (PolyMatrix<T, P, M>, PolyMatrix<T, P, M>),
-    pub t_1: (PolyMatrix<T, P, M>, PolyMatrix<T, P, M>),
+pub struct PublicSampledData<S: PolyHashSampler<[u8; 32]>> {
+    pub r_0: S::M,
+    pub r_1: S::M,
+    pub a_fhe_bar: S::M,
+    pub pubkeys_input: Vec<BggPublicKey<S::M>>,
+    pub pubkeys_fhe_key: Vec<BggPublicKey<S::M>>,
+    pub t_0: (S::M, S::M),
+    pub t_1: (S::M, S::M),
+    _s: PhantomData<S>,
 }
 
-impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>> PublicSampledData<T, P, M> {
-    pub fn sample<G: PolyGadgetOps<T, P, M>, S: PolyHashSampler<T, P, M>>(
-        matrix_op: Arc<M>,
-        gadget_op: Arc<G>,
-        sampler: Arc<S>,
+impl<S: PolyHashSampler<[u8; 32]>> PublicSampledData<S> {
+    pub fn sample(
+        params: &<<S::M as PolyMatrix>::P as Poly>::Params,
+        hash_sampler: Arc<S>,
+        bgg_pubkey_sampler: &BGGPublicKeySampler<[u8; 32], S>,
         packed_input_size: usize,
-    ) -> Result<Self, ObfuscationError> {
-        let r_0_bar = sampler
-            .sample_hash::<_, BitDist>(TAG_R_0, 1, 1)
-            .map_err(|e| ObfuscationError::SampleError(e.to_string()))?;
-        let r_1_bar = sampler
-            .sample_hash::<_, BitDist>(TAG_R_1, 1, 1)
-            .map_err(|e| ObfuscationError::SampleError(e.to_string()))?;
-        let one = matrix_op.identity(1, None);
-        let r_0 = matrix_op
-            .concat_diag(&[r_0_bar, one.clone()])
-            .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
-        let r_1 = matrix_op
-            .concat_diag(&[r_1_bar, one.clone()])
-            .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
-
-        let log_q = sampler.modulus_bits();
-        let a_fhe_bar = sampler
-            .sample_hash::<_, FinRingDist>(TAG_A_FHE_BAR, 2, 2 * log_q)
-            .map_err(|e| ObfuscationError::SampleError(e.to_string()))?;
-        let bgg_pubkey_sampler = BGGPublicKeySampler::new(sampler, matrix_op.clone());
-        let pubkeys_input =
-            bgg_pubkey_sampler.sample(TAG_BGG_PUBKEY_INPUT, packed_input_size + 1)?;
-        let pubkeys_fhe_key = bgg_pubkey_sampler.sample(TAG_BGG_PUBKEY_FHEKEY, 2)?;
-        let identity_input = matrix_op.identity(packed_input_size + 1, None);
-        let gadget_2 = gadget_op.gadget_matrix(2);
-        let identity_2 = matrix_op.identity(2, None);
+    ) -> Self {
+        let r_0_bar = hash_sampler.sample_hash(TAG_R_0, 1, 1, DistType::BitDist);
+        let r_1_bar = hash_sampler.sample_hash(TAG_R_1, 1, 1, DistType::BitDist);
+        let one = S::M::identity(params, 1, None);
+        let r_0 = r_0_bar.concat_diag(&[one.clone()]);
+        let r_1 = r_1_bar.concat_diag(&[one.clone()]);
+        let log_q = params.modulus_bits();
+        let a_fhe_bar =
+            hash_sampler.sample_hash(TAG_A_FHE_BAR, 2, 2 * log_q, DistType::FinRingDist);
+        let pubkeys_input = bgg_pubkey_sampler.sample(TAG_BGG_PUBKEY_INPUT, packed_input_size + 1);
+        let pubkeys_fhe_key = bgg_pubkey_sampler.sample(TAG_BGG_PUBKEY_FHEKEY, 2);
+        let identity_input = S::M::identity(params, packed_input_size + 1, None);
+        let gadget_2 = S::M::gadget_matrix(params, 2);
+        let identity_2 = S::M::identity(params, 2, None);
         let mut ts = vec![];
         for bit in 0..1 {
             let r = if bit == 0 { r_0.clone() } else { r_1.clone() };
-            let rg = matrix_op
-                .mul(&r, &gadget_2)
-                .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
-            let rg_decomposed = gadget_op
-                .decompose(&rg)
-                .map_err(|e| ObfuscationError::GadgetError(e.to_string()))?;
-            let t_input = matrix_op
-                .tensor(&identity_input, &rg_decomposed)
-                .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
-            let t_fhe_key = matrix_op
-                .tensor(&identity_2, &rg_decomposed)
-                .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
+            let rg = r * &gadget_2;
+            let rg_decomposed = rg.decompose();
+            let t_input = identity_input.clone().tensor(&rg_decomposed);
+            let t_fhe_key = identity_2.clone().tensor(&rg_decomposed);
             ts.push((t_input, t_fhe_key));
         }
-        Ok(Self {
+        Self {
             r_0,
             r_1,
             a_fhe_bar,
@@ -83,6 +64,7 @@ impl<T: PolyElemOps, P: PolyOps<T>, M: PolyMatrixOps<T, P>> PublicSampledData<T,
             pubkeys_fhe_key,
             t_0: ts[0].clone(),
             t_1: ts[1].clone(),
-        })
+            _s: PhantomData,
+        }
     }
 }

@@ -1,10 +1,6 @@
 use super::{BggEncoding, BggPublicKey};
 use crate::poly::{matrix::*, *};
-use std::{
-    marker::PhantomData,
-    ops::{Add, Mul},
-    sync::Arc,
-};
+use std::ops::{Add, Mul};
 
 impl<M: PolyMatrix> Add for BggPublicKey<M> {
     type Output = Self;

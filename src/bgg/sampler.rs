@@ -70,7 +70,7 @@ impl<S: PolyUniformSampler> BGGEncodingSampler<S> {
     /// # Returns
     /// A new encoding sampler
     pub fn new(
-        secret: <S::M as PolyMatrix>::P,
+        secret: &<S::M as PolyMatrix>::P,
         params: Arc<<<S::M as PolyMatrix>::P as Poly>::Params>,
         error_sampler: Arc<S>,
         gauss_sigma: f64,

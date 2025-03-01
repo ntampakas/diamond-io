@@ -78,7 +78,7 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
     ) -> DCRTPolyMatrix {
         let hash_output_size = <H as digest::Digest>::output_size() * 8;
         let n = self.params.ring_dimension() as usize;
-        let q = Arc::new(self.params.modulus());
+        let q = self.params.modulus();
 
         let ring_elems = match dist {
             DistType::FinRingDist => {

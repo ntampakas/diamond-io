@@ -23,10 +23,10 @@ pub trait PolyElem:
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>
 {
-    type Params;
-    fn zero(params: &Self::Params) -> Self;
-    fn one(params: &Self::Params) -> Self;
-    fn minus_one(params: &Self::Params) -> Self;
+    type Modulus: Clone;
+    fn zero(modulus: &Self::Modulus) -> Self;
+    fn one(modulus: &Self::Modulus) -> Self;
+    fn minus_one(modulus: &Self::Modulus) -> Self;
     fn extract_highest_bits(&self) -> bool;
 }
 
@@ -49,7 +49,7 @@ pub trait Poly:
     + for<'a> Mul<&'a Self, Output = Self>
 {
     type Elem: PolyElem;
-    type Params: PolyParams;
+    type Params: PolyParams<Modulus = <Self::Elem as PolyElem>::Modulus>;
     fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Self;
     fn from_const(params: &Self::Params, constant: &Self::Elem) -> Self;
     fn coeffs(&self) -> Vec<Self::Elem>;

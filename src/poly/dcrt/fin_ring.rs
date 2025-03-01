@@ -30,19 +30,18 @@ impl FinRing {
 }
 
 impl PolyElem for FinRing {
-    type Params = Arc<BigUint>;
-
-    fn zero(params: &Self::Params) -> Self {
-        Self::new(0, params.clone())
+    type Modulus = Arc<BigUint>;
+    fn zero(modulus: &Self::Modulus) -> Self {
+        Self::new(0, modulus.clone())
     }
 
-    fn one(params: &Self::Params) -> Self {
-        Self::new(1, params.clone())
+    fn one(modulus: &Self::Modulus) -> Self {
+        Self::new(1, modulus.clone())
     }
 
-    fn minus_one(params: &Self::Params) -> Self {
-        let max_minus_one = params.as_ref() - &BigUint::from(1u8);
-        Self::new(max_minus_one, params.clone())
+    fn minus_one(modulus: &Self::Modulus) -> Self {
+        let max_minus_one = modulus.as_ref() - &BigUint::from(1u8);
+        Self::new(max_minus_one, modulus.clone())
     }
 
     fn extract_highest_bits(&self) -> bool {
