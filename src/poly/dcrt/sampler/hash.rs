@@ -79,17 +79,22 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
 
         let ring_elems = match dist {
             DistType::FinRingDist => {
-                // index = number of hashes to be performed = ceil( (nrow * ncol * n * ceil(log2(q))) / (hash_output_size) )
+                // index = number of hashes to be performed = ceil(nrow * ncol * n * ceil(log2(q)) / hash_output_size)
                 // field_elements = number of field elements sampled = (bits / ceil(log2(q)))
                 //   which is always greater than or equal to nrow * ncol * n
-                let ceil_log2q = self.params.modulus_bits();
-                let index = (nrow * ncol * n * ceil_log2q).div_ceil(hash_output_size);
+                let bit_length = self.params.modulus_bits();
+                let index = (nrow * ncol * n * bit_length).div_ceil(hash_output_size);
                 // bits = number of resulting bits from hashing ops = hash_output_size * index
                 let mut bits = Vec::with_capacity(hash_output_size * index);
-                let mut ring_elems = Vec::with_capacity((index * hash_output_size) / ceil_log2q);
+                let mut ring_elems = Vec::with_capacity((index * hash_output_size) / bit_length);
                 for i in 0..(index) {
                     //  H ( key || tag || i )
                     let mut hasher = H::new();
+                    // todo: we currently assuming index is less than 256
+                    let min_i_type = std::mem::size_of_val(&i);
+                    if min_i_type > std::mem::size_of::<u8>() {
+                        panic!("i is too large to be represented as a u8");
+                    }
                     let mut combined = Vec::with_capacity(self.key.len() + tag.as_ref().len() + 1);
                     combined.extend_from_slice(&self.key);
                     combined.extend_from_slice(tag.as_ref());
@@ -104,10 +109,10 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
                 }
                 // From bits to field elements
                 let mut offset = 0;
-                for _ in 0..(bits.len() / ceil_log2q) {
-                    let value_bits = &bits[offset..offset + ceil_log2q];
+                for _ in 0..(bits.len() / bit_length) {
+                    let value_bits = &bits[offset..offset + bit_length];
                     let value = BigUint::from_radix_be(value_bits, 2).unwrap();
-                    offset += ceil_log2q;
+                    offset += bit_length;
                     let fe = FinRingElem::new(value, q.clone());
                     ring_elems.push(fe);
                 }
