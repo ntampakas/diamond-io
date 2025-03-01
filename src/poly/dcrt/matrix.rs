@@ -251,7 +251,8 @@ impl PolyMatrix for DCRTPolyMatrix {
 
     /// Gadget vector g = (2^0, 2^1, ..., 2^{log(q)-1})
     /// where g ∈ Z_q^{log(q)}
-    fn gadget_vector(params: &<Self::P as Poly>::Params) -> Self {
+    fn gadget_matrix(params: &<Self::P as Poly>::Params, size: usize) -> Self {
+        let identity = DCRTPolyMatrix::identity(params, size, None);
         let q = params.modulus();
         let size = ceil_log2(&q);
         let mut poly_vec = Vec::with_capacity(size);
@@ -260,12 +261,7 @@ impl PolyMatrix for DCRTPolyMatrix {
             let fe: FinRing = FinRing::new(value, q.clone().into());
             poly_vec.push(DCRTPoly::from_const(params, &fe));
         }
-        Self::from_poly_vec(params, vec![poly_vec])
-    }
-
-    fn gadget_matrix(params: &<Self::P as Poly>::Params, size: usize) -> Self {
-        let identity = DCRTPolyMatrix::identity(params, size, None);
-        let gadget_vector = Self::gadget_vector(params);
+        let gadget_vector = Self::from_poly_vec(params, vec![poly_vec]);
         identity.tensor(&gadget_vector.transpose())
     }
 
@@ -456,14 +452,6 @@ impl<'a> Sub<&'a DCRTPolyMatrix> for DCRTPolyMatrix {
 mod tests {
     use super::*;
     use crate::poly::dcrt::DCRTPolyParams;
-
-    #[test]
-    fn test_gadget_vector() {
-        let params = DCRTPolyParams::new(16, 4, 51);
-        let gadget_vector = DCRTPolyMatrix::gadget_vector(&params);
-        assert_eq!(gadget_vector.row_size(), 1);
-        assert_eq!(gadget_vector.col_size(), ceil_log2(&params.modulus()));
-    }
 
     #[test]
     fn test_gadget_matrix() {

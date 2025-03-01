@@ -68,7 +68,6 @@ pub trait PolyMatrix:
     // (m1 * n1), (m2 * n2) -> ((m1 + m2) * (n1 + n2))
     fn concat_diag(&self, others: &[Self]) -> Self;
     fn tensor(&self, other: &Self) -> Self;
-    fn gadget_vector(params: &<Self::P as Poly>::Params) -> Self;
     fn gadget_matrix(params: &<Self::P as Poly>::Params, size: usize) -> Self;
     fn decompose(&self) -> Self;
 }
