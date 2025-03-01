@@ -11,7 +11,10 @@ use crate::{
 
 use openfhe::{
     cxx::UniquePtr,
-    ffi::{DCRTPolyTrapdoorGen, DCRTTrapdoorImpl, RLWETrapdoorPair},
+    ffi::{
+        DCRTPolyGaussSamp, DCRTPolyTrapdoorGen, DCRTTrapdoorImpl, GetMatrixElement,
+        RLWETrapdoorPair,
+    },
 };
 
 pub struct DCRTPolyTrapdoor {
@@ -59,22 +62,28 @@ impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
         (trapdoor, row_matrix)
     }
 
-    fn preimage(&self, _trapdoor: &Self::Trapdoor, _target: &Self::M, _sigma: f64) -> Self::M {
-        todo!()
-        // let n_row = target.row_size();
-        // let n_col = target.col_size();
-        // let mut preimages = Vec::with_capacity(n_row);
-        // for i in 0..n_row {
-        //     let mut row_preimages = Vec::with_capacity(n_col);
-        //     for j in 0..n_col {
-        //         let target_poly = target.entry(i, j).clone();
-        //         let preimage =
-        //             DCRTPolyGaussSamp(12, 5, trapdoor.get_trapdoor(), &target_poly.get_poly(), 10);
-        //         row_preimages.push(preimage);
-        //     }
-        //     preimages.push(row_preimages);
-        // }
-        // Self::M::from_poly_vec(&self.params, preimages)
+    fn preimage(&self, trapdoor: &Self::Trapdoor, target: &Self::M, _sigma: f64) -> Self::M {
+        // TODO: add sigma paramters
+        // TODO: target must be a matrix
+        let target_poly = target.entry(0, 0).clone();
+        let n = self.params.ring_dimension();
+        let k = ceil_log2(&self.params.modulus());
+
+        // generate preimage
+        let _preimage =
+            DCRTPolyGaussSamp(n as usize, k, &trapdoor._trapdoor_output, target_poly.get_poly(), 2);
+
+        // create a column matrix of size ceil_log2(&sampler.params.modulus()) + 2 from preimage
+        let nrow = ceil_log2(&self.params.modulus()) + 2;
+
+        let mut matrix_inner = Vec::with_capacity(nrow);
+        for i in 0..nrow {
+            let poly = GetMatrixElement(&_preimage, i, 0);
+            let dcrt_poly = DCRTPoly::new(poly);
+            matrix_inner.push(vec![dcrt_poly]);
+        }
+
+        DCRTPolyMatrix::from_poly_vec(&self.params, matrix_inner)
     }
 }
 
@@ -108,5 +117,21 @@ mod tests {
                 assert!(!poly.get_poly().is_null(), "Matrix entry should be a valid DCRTPoly");
             }
         }
+    }
+
+    #[test]
+    fn test_preimage_generation() {
+        let params = DCRTPolyParams::new(16, 4, 51);
+        let base = 2;
+        let sampler = DCRTPolyTrapdoorSampler::new(params.clone(), base);
+        let (_trapdoor, public_matrix) = sampler.trapdoor();
+        // create a target matrix with 1 row and 1 column
+        let target =
+            DCRTPolyMatrix::from_poly_vec(&params, vec![vec![public_matrix.entry(0, 0).clone()]]);
+        let _preimage = sampler.preimage(&_trapdoor, &target, 2.0);
+
+        // Public matrix * preimage should be equal to target
+        let product = public_matrix * &_preimage;
+        assert_eq!(product, target, "Product of public matrix and preimage should equal target");
     }
 }
