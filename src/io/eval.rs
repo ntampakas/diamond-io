@@ -70,5 +70,6 @@ where
         cs_input.push(c_input);
         cs_fhe_key.push(c_fhe_key);
     }
+    // [TODO] Operation using the final preimage.
     vec![]
 }
