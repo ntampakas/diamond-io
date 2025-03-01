@@ -14,7 +14,10 @@ pub struct DCRTPolyParams {
 
 impl Debug for DCRTPolyParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DCRTPolyParams").field("ptr_params", &self.modulus()).finish()
+        f.debug_struct("DCRTPolyParams")
+            .field("modulus", &self.modulus())
+            .field("ring_dimension", &self.ring_dimension())
+            .finish()
     }
 }
 
@@ -52,10 +55,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_correct_params_initiation() {
+    fn test_params_initiation() {
         let n = 16;
         let size = 4;
         let k_res = 51;
-        let _ = DCRTPolyParams::new(n, size, k_res);
+        let p = DCRTPolyParams::new(n, size, k_res);
+        assert_eq!(p.ring_dimension(), n);
+        assert_eq!(p.modulus_bits(), 204);
     }
 }
