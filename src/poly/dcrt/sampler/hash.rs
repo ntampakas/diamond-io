@@ -159,6 +159,7 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
 mod tests {
     use super::*;
     use keccak_asm::Keccak256;
+    use proptest::prelude::*;
 
     #[test]
     fn test_poly_hash_sampler() {
@@ -197,5 +198,43 @@ mod tests {
         let matrix = matrix_result;
         assert_eq!(matrix.row_size(), nrow, "Matrix row count mismatch");
         assert_eq!(matrix.col_size(), ncol, "Matrix column count mismatch");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(10))]
+
+        #[test]
+        fn test_bitdecomposition_hash_sampler_ring(
+            rows in 1usize..5usize,
+            columns in 1usize..5usize,
+            key in any::<[u8; 32]>(),
+            tag in any::<u64>(),
+        ) {
+            let params = DCRTPolyParams::default();
+            let tag_bytes = tag.to_le_bytes();
+            let sampler = DCRTPolyHashSampler::<Keccak256>::new(key, params.clone());
+            let matrix = sampler.sample_hash(tag_bytes, rows, columns, DistType::FinRingDist);
+            let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, rows);
+            let decomposed = matrix.decompose();
+            let expected_matrix = gadget_matrix * decomposed;
+            assert_eq!(matrix, expected_matrix);
+        }
+
+        #[test]
+        fn test_bitdecomposition_hash_sampler_bit(
+            rows in 1usize..5usize,
+            columns in 1usize..5usize,
+            key in any::<[u8; 32]>(),
+            tag in any::<u64>(),
+        ) {
+            let params = DCRTPolyParams::default();
+            let tag_bytes = tag.to_le_bytes();
+            let sampler = DCRTPolyHashSampler::<Keccak256>::new(key, params.clone());
+            let matrix = sampler.sample_hash(tag_bytes, rows, columns, DistType::BitDist);
+            let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, rows);
+            let decomposed = matrix.decompose();
+            let expected_matrix = gadget_matrix * decomposed;
+            assert_eq!(matrix, expected_matrix);
+        }
     }
 }

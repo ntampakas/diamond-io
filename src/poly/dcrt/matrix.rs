@@ -447,7 +447,7 @@ mod tests {
 
     #[test]
     fn test_gadget_matrix() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let size = 3;
         let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, size);
         assert_eq!(gadget_matrix.row_size(), size);
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_decompose() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let bit_length = params.modulus_bits();
 
         // Create a simple 2x8 matrix with some non-zero values
@@ -481,7 +481,7 @@ mod tests {
 
     #[test]
     fn test_matrix_basic_operations() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
 
         // Test zero and identity matrices
         let zero = DCRTPolyMatrix::zero(&params, 2, 2);
@@ -513,7 +513,7 @@ mod tests {
 
     #[test]
     fn test_matrix_concatenation() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let value = FinRingElem::new(5u32, params.modulus().into());
 
         let mut matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
@@ -540,7 +540,7 @@ mod tests {
 
     #[test]
     fn test_matrix_tensor_product() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let value = FinRingElem::new(5u32, params.modulus().into());
 
         let mut matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
@@ -561,7 +561,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Addition requires matrices of same dimensions")]
     fn test_matrix_addition_mismatch() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
         let matrix2 = DCRTPolyMatrix::zero(&params, 2, 3);
         let _sum = matrix1 + matrix2;
@@ -570,7 +570,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Multiplication condition failed")]
     fn test_matrix_multiplication_mismatch() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
         let matrix2 = DCRTPolyMatrix::zero(&params, 3, 2);
         let _prod = matrix1 * matrix2;
