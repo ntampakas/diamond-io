@@ -2,7 +2,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 use crate::{
     poly::{
-        dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams, FinRing},
+        dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams, FinRingElem},
         sampler::{DistType, PolyHashSampler},
         Poly, PolyMatrix, PolyParams,
     },
@@ -32,7 +32,7 @@ impl<H: OutputSizeUser + digest::Digest> DCRTPolyHashSampler<H> {
 
     fn ring_elems_to_matrix(
         &self,
-        ring_elems: Vec<FinRing>,
+        ring_elems: Vec<FinRingElem>,
         nrow: usize,
         ncol: usize,
     ) -> DCRTPolyMatrix {
@@ -112,7 +112,7 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
                     let value_bits = &bits[offset..offset + ceil_log2q];
                     let value = BigUint::from_radix_be(value_bits, 2).unwrap();
                     offset += ceil_log2q;
-                    let fe = FinRing::new(value, q.clone());
+                    let fe = FinRingElem::new(value, q.clone());
                     ring_elems.push(fe);
                 }
                 ring_elems
@@ -136,7 +136,7 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
                     for &byte in hasher.finalize().iter() {
                         for bit_index in 0..8 {
                             let bit = (byte >> bit_index) & 1;
-                            ring_elems.push(FinRing::new(bit as u64, q.clone()));
+                            ring_elems.push(FinRingElem::new(bit as u64, q.clone()));
                         }
                     }
                 }

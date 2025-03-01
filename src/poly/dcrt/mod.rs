@@ -4,7 +4,7 @@ pub mod params;
 pub mod poly;
 pub mod sampler;
 
-pub use fin_ring::FinRing;
+pub use fin_ring::FinRingElem;
 pub use matrix::DCRTPolyMatrix;
 pub use params::DCRTPolyParams;
 pub use poly::DCRTPoly;

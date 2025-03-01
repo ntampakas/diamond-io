@@ -7,12 +7,12 @@ use crate::poly::PolyElem;
 use num_bigint::{BigInt, BigUint};
 
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-pub struct FinRing {
+pub struct FinRingElem {
     value: BigUint,
     modulus: Arc<BigUint>,
 }
 
-impl FinRing {
+impl FinRingElem {
     pub fn new<V: Into<BigInt>>(value: V, modulus: Arc<BigUint>) -> Self {
         let value = value.into().to_biguint().unwrap();
         let reduced_value =
@@ -29,7 +29,7 @@ impl FinRing {
     }
 }
 
-impl PolyElem for FinRing {
+impl PolyElem for FinRingElem {
     type Params = Arc<BigUint>;
 
     fn zero(params: &Self::Params) -> Self {
@@ -52,7 +52,7 @@ impl PolyElem for FinRing {
 
 // ====== Arithmetic ======
 
-impl Add for FinRing {
+impl Add for FinRingElem {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -60,27 +60,27 @@ impl Add for FinRing {
     }
 }
 
-impl<'a> Add<&'a FinRing> for FinRing {
+impl<'a> Add<&'a FinRingElem> for FinRingElem {
     type Output = Self;
 
-    fn add(self, rhs: &'a FinRing) -> Self::Output {
+    fn add(self, rhs: &'a Self) -> Self::Output {
         Self::new(self.value + &rhs.value, self.modulus)
     }
 }
 
-impl AddAssign for FinRing {
+impl AddAssign for FinRingElem {
     fn add_assign(&mut self, rhs: Self) {
         *self = Self::new(&self.value + rhs.value, self.modulus.clone());
     }
 }
 
-impl<'a> AddAssign<&'a FinRing> for FinRing {
-    fn add_assign(&mut self, rhs: &'a FinRing) {
+impl<'a> AddAssign<&'a FinRingElem> for FinRingElem {
+    fn add_assign(&mut self, rhs: &'a Self) {
         *self = Self::new(&self.value + &rhs.value, self.modulus.clone());
     }
 }
 
-impl Mul for FinRing {
+impl Mul for FinRingElem {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -88,27 +88,27 @@ impl Mul for FinRing {
     }
 }
 
-impl<'a> Mul<&'a FinRing> for FinRing {
+impl<'a> Mul<&'a FinRingElem> for FinRingElem {
     type Output = Self;
 
-    fn mul(self, rhs: &'a FinRing) -> Self::Output {
+    fn mul(self, rhs: &'a Self) -> Self::Output {
         Self::new(self.value * &rhs.value, self.modulus)
     }
 }
 
-impl MulAssign for FinRing {
+impl MulAssign for FinRingElem {
     fn mul_assign(&mut self, rhs: Self) {
         *self = Self::new(&self.value * rhs.value, self.modulus.clone());
     }
 }
 
-impl<'a> MulAssign<&'a FinRing> for FinRing {
-    fn mul_assign(&mut self, rhs: &'a FinRing) {
+impl<'a> MulAssign<&'a FinRingElem> for FinRingElem {
+    fn mul_assign(&mut self, rhs: &'a Self) {
         *self = Self::new(&self.value * &rhs.value, self.modulus.clone());
     }
 }
 
-impl Sub for FinRing {
+impl Sub for FinRingElem {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -116,27 +116,27 @@ impl Sub for FinRing {
     }
 }
 
-impl<'a> Sub<&'a FinRing> for FinRing {
+impl<'a> Sub<&'a FinRingElem> for FinRingElem {
     type Output = Self;
 
-    fn sub(self, rhs: &'a FinRing) -> Self::Output {
+    fn sub(self, rhs: &'a Self) -> Self::Output {
         self + (&-rhs.clone())
     }
 }
 
-impl SubAssign for FinRing {
+impl SubAssign for FinRingElem {
     fn sub_assign(&mut self, rhs: Self) {
         *self = self.clone() - rhs;
     }
 }
 
-impl<'a> SubAssign<&'a FinRing> for FinRing {
-    fn sub_assign(&mut self, rhs: &'a FinRing) {
+impl<'a> SubAssign<&'a FinRingElem> for FinRingElem {
+    fn sub_assign(&mut self, rhs: &'a Self) {
         *self = self.clone() - rhs;
     }
 }
 
-impl Neg for FinRing {
+impl Neg for FinRingElem {
     type Output = Self;
 
     fn neg(self) -> Self::Output {

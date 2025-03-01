@@ -1,6 +1,6 @@
 use num_bigint::{BigInt, BigUint};
 
-use super::{DCRTPoly, DCRTPolyParams, FinRing};
+use super::{DCRTPoly, DCRTPolyParams, FinRingElem};
 use crate::{
     poly::{Poly, PolyMatrix, PolyParams},
     utils::ceil_log2,
@@ -258,7 +258,7 @@ impl PolyMatrix for DCRTPolyMatrix {
         let mut poly_vec = Vec::with_capacity(size);
         for i in 0..size {
             let value = BigInt::from(2).pow(i.try_into().unwrap());
-            let fe: FinRing = FinRing::new(value, q.clone().into());
+            let fe: FinRingElem = FinRingElem::new(value, q.clone().into());
             poly_vec.push(DCRTPoly::from_const(params, &fe));
         }
         let gadget_vector = Self::from_poly_vec(params, vec![poly_vec]);
@@ -285,7 +285,7 @@ impl PolyMatrix for DCRTPolyMatrix {
                     for coeff_val in coeffs.clone() {
                         // bit_value in {0, 1}
                         let val = (coeff_val.value() >> bit) & BigUint::from(1u32);
-                        let elem = FinRing::new(val.clone(), self.params.modulus().into());
+                        let elem = FinRingElem::new(val.clone(), self.params.modulus().into());
                         bit_coeffs.push(elem);
                     }
                     let bit_poly = DCRTPoly::from_coeffs(&self.params, &bit_coeffs);
@@ -469,7 +469,7 @@ mod tests {
 
         // Create a simple 2x2 matrix with some non-zero values
         let mut matrix = DCRTPolyMatrix::zero(&params, 2, 2);
-        let value = FinRing::new(5u32, params.modulus().into());
+        let value = FinRingElem::new(5u32, params.modulus().into());
         matrix.inner[0][0] = DCRTPoly::from_const(&params, &value);
         matrix.inner[1][1] = DCRTPoly::from_const(&params, &value);
 
