@@ -92,22 +92,23 @@ where
     let gadget_2 = M::gadget_matrix(params.as_ref(), 2);
     let (mut m_preimages, mut n_preimages, mut k_preimages) = (vec![], vec![], vec![]);
     for idx in 0..input_size {
+        let (_, _, b_cur_star) = &bs[idx];
         let (b_next_0, b_next_1, b_next_star) = &bs[idx + 1];
         let (_, _, b_cur_star_trapdoor) = &b_trapdoors[idx];
         let (b_next_0_trapdoor, b_next_1_trapdoor, _) = &b_trapdoors[idx + 1];
         let m_0 = {
             let ub = u_0.clone() * b_next_0;
-            sampler.preimage(b_cur_star_trapdoor, &ub)
+            sampler.preimage(b_cur_star_trapdoor, &b_cur_star, &ub)
         };
         let m_1 = {
             let ub = u_1.clone() * b_next_1;
-            sampler.preimage(b_cur_star_trapdoor, &ub)
+            sampler.preimage(b_cur_star_trapdoor, &b_cur_star, &ub)
         };
         m_preimages.push((m_0, m_1));
 
         let ub_star = u_star.clone() * b_next_star;
-        let n_0 = sampler.preimage(b_next_0_trapdoor, &ub_star);
-        let n_1 = sampler.preimage(b_next_1_trapdoor, &ub_star);
+        let n_0 = sampler.preimage(b_next_0_trapdoor, &b_next_0, &ub_star);
+        let n_1 = sampler.preimage(b_next_1_trapdoor, &b_next_1, &ub_star);
         n_preimages.push((n_0, n_1));
 
         let mut ks = vec![];
@@ -144,8 +145,9 @@ where
             let latter = a_input_next.concat_columns(&[public_data.pubkeys_fhe_key[idx + 1][0]
                 .concat_matrix(&public_data.pubkeys_fhe_key[idx + 1][1..])]);
             let k_target = former.concat_rows(&[latter]);
+            let b_matrix = if bit == 0 { b_next_0 } else { b_next_1 };
             let trapdoor = if bit == 0 { b_next_0_trapdoor } else { b_next_1_trapdoor };
-            let k = sampler.preimage(trapdoor, &k_target);
+            let k = sampler.preimage(trapdoor, b_matrix, &k_target);
             ks.push(k);
         }
         k_preimages.push((ks[0].clone(), ks[1].clone()));
@@ -168,8 +170,9 @@ where
     let ip_pubkey = ip_pubkey.unwrap();
     let final_preimage_target =
         ip_pubkey.matrix.concat_rows(&[M::zero(params.as_ref(), 2, ip_pubkey.matrix.col_size())]);
+    let (_, _, b_final) = &bs[input_size];
     let (_, _, b_final_trapdoor) = &b_trapdoors[input_size];
-    let final_preimage = sampler.preimage(b_final_trapdoor, &final_preimage_target);
+    let final_preimage = sampler.preimage(b_final_trapdoor, &b_final, &final_preimage_target);
 
     Obfuscation {
         hash_key,
