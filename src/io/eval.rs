@@ -1,13 +1,9 @@
 use super::utils::*;
 use super::Obfuscation;
-use crate::bgg::*;
-use crate::bgg::{eval::*, sampler::*, *};
-use crate::poly::{matrix::*, sampler::*, *};
+use crate::bgg::sampler::BGGPublicKeySampler;
+use crate::poly::{matrix::*, sampler::*, Poly, PolyParams};
 use crate::utils::*;
 use itertools::Itertools;
-use num_traits::{One, Zero};
-use rand::Rng;
-use rand::RngCore;
 use std::sync::Arc;
 
 pub fn eval_obf<M, S>(
@@ -20,10 +16,10 @@ where
     M: PolyMatrix,
     S: PolyHashSampler<[u8; 32], M = M>,
 {
-    sampler.set_key(obfuscation.hash_key.clone());
+    sampler.set_key(obfuscation.hash_key);
     let params = Arc::new(params);
     let sampler = Arc::new(sampler);
-    let dim = params.ring_dimension() as usize;
+    let dim = params.as_ref().ring_dimension() as usize;
     let input_size = input.len();
     let packed_input_size = ceil_div(input_size, dim);
     let bgg_pubkey_sampler = BGGPublicKeySampler::new(params.clone(), sampler.clone());
@@ -42,7 +38,7 @@ where
     let encode_fhe_key =
         obfuscation.encode_fhe_key.iter().map(|pubkey| pubkey.vector.clone()).collect_vec();
     cs_fhe_key.push(encode_fhe_key[0].concat_columns(&encode_fhe_key[1..]));
-    let log_q = params.modulus_bits();
+    let log_q = params.as_ref().modulus_bits();
     for (idx, input) in input.iter().enumerate() {
         let m =
             if *input { &obfuscation.m_preimages[idx].1 } else { &obfuscation.m_preimages[idx].0 };

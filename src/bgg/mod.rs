@@ -4,7 +4,7 @@
 // pub mod parameters;
 pub mod eval;
 pub mod sampler;
-use crate::poly::{matrix::*, *};
+use crate::poly::matrix::*;
 use itertools::Itertools;
 // use thiserror::Error;
 

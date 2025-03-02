@@ -263,10 +263,7 @@ impl PolyMatrix for DCRTPolyMatrix {
         let mut poly_vec = Vec::with_capacity(bit_length);
         for i in 0u32..(bit_length as u32) {
             let value = BigInt::from(2).pow(i);
-            poly_vec.push(DCRTPoly::from_const(
-                params,
-                &FinRingElem::new(value, params.modulus().into()),
-            ));
+            poly_vec.push(DCRTPoly::from_const(params, &FinRingElem::new(value, params.modulus())));
         }
         let gadget_vector = Self::from_poly_vec(params, vec![poly_vec]);
         let identity = DCRTPolyMatrix::identity(params, size, None);
@@ -287,7 +284,7 @@ impl PolyMatrix for DCRTPolyMatrix {
                     for coeff_val in &coeffs {
                         // bit_value in {0, 1}
                         let val = (coeff_val.value() >> bit) & BigUint::from(1u32);
-                        let elem = FinRingElem::new(val, self.params.modulus().into());
+                        let elem = FinRingElem::new(val, self.params.modulus());
                         bit_coeffs.push(elem);
                     }
                     let bit_poly = DCRTPoly::from_coeffs(&self.params, &bit_coeffs);
@@ -472,7 +469,7 @@ mod tests {
         let mut matrix = DCRTPolyMatrix::zero(&params, 2, 8);
         assert_eq!(matrix.row_size(), 2);
         assert_eq!(matrix.col_size(), 8);
-        let value = FinRingElem::new(5u32, params.modulus().into());
+        let value = FinRingElem::new(5u32, params.modulus());
         matrix.inner[0][0] = DCRTPoly::from_const(&params, &value);
         matrix.inner[1][1] = DCRTPoly::from_const(&params, &value);
         let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, 2);
@@ -498,7 +495,7 @@ mod tests {
 
         // Test matrix creation and equality
         let mut matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
-        let value = FinRingElem::new(5u32, params.modulus().into());
+        let value = FinRingElem::new(5u32, params.modulus());
         matrix1.inner[0][0] = DCRTPoly::from_const(&params, &value);
         matrix1.inner[1][1] = DCRTPoly::from_const(&params, &value);
 
@@ -507,7 +504,7 @@ mod tests {
 
         // Test addition
         let sum = matrix1.clone() + &matrix2;
-        let value_10 = FinRingElem::new(10u32, params.modulus().into());
+        let value_10 = FinRingElem::new(10u32, params.modulus());
         let _expected_sum = DCRTPolyMatrix::zero(&params, 2, 2);
         assert_eq!(sum.entry(0, 0).coeffs()[0], value_10);
 
@@ -523,7 +520,7 @@ mod tests {
     #[test]
     fn test_matrix_concatenation() {
         let params = DCRTPolyParams::default();
-        let value = FinRingElem::new(5u32, params.modulus().into());
+        let value = FinRingElem::new(5u32, params.modulus());
 
         let mut matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
         matrix1.inner[0][0] = DCRTPoly::from_const(&params, &value);
@@ -550,7 +547,7 @@ mod tests {
     #[test]
     fn test_matrix_tensor_product() {
         let params = DCRTPolyParams::default();
-        let value = FinRingElem::new(5u32, params.modulus().into());
+        let value = FinRingElem::new(5u32, params.modulus());
 
         let mut matrix1 = DCRTPolyMatrix::zero(&params, 2, 2);
         matrix1.inner[0][0] = DCRTPoly::from_const(&params, &value);
@@ -563,7 +560,7 @@ mod tests {
         assert_eq!(tensor.col_size(), 4);
 
         // Check that the (0,0) element is the product of the (0,0) elements
-        let value_25 = FinRingElem::new(25u32, params.modulus().into());
+        let value_25 = FinRingElem::new(25u32, params.modulus());
         assert_eq!(tensor.entry(0, 0).coeffs()[0], value_25);
     }
 

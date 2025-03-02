@@ -1,11 +1,9 @@
 use super::utils::*;
 use super::Obfuscation;
-use crate::bgg::*;
-use crate::bgg::{eval::*, sampler::*, *};
-use crate::poly::{matrix::*, sampler::*, *};
+use crate::bgg::sampler::{BGGEncodingSampler, BGGPublicKeySampler};
+use crate::poly::{matrix::*, sampler::*, Poly, PolyElem, PolyParams};
 use crate::utils::*;
-use rand::Rng;
-use rand::RngCore;
+use rand::{Rng, RngCore};
 use std::sync::Arc;
 
 pub fn obfuscate<M, S, R>(
@@ -24,7 +22,7 @@ where
     sampler.set_key(hash_key);
     let sampler = Arc::new(sampler);
     let params = Arc::new(params);
-    let dim = params.ring_dimension() as usize;
+    let dim = params.as_ref().ring_dimension() as usize;
     let packed_input_size = ceil_div(input_size, dim);
     let bgg_pubkey_sampler = BGGPublicKeySampler::new(params.clone(), sampler.clone());
     let public_data = PublicSampledData::sample(
@@ -42,7 +40,7 @@ where
     let minus_one_poly =
         M::from_poly_vec_row(params.as_ref(), vec![M::P::const_minus_one(params.as_ref())]);
     let t = t_bar.concat_columns(&[minus_one_poly]);
-    let log_q = params.modulus_bits();
+    let log_q = params.as_ref().modulus_bits();
     let a_fhe_bar = &public_data.a_fhe_bar;
     let b_fhe = {
         let muled = t_bar * a_fhe_bar;
@@ -57,11 +55,10 @@ where
     // // let bgg_pubkeys_fhe_key = bgg_pubkey_sampler.sample(TAG_BGG_PUBKEY_FHEKEY, 2)?;
     let zero_plaintexts: Vec<M::P> =
         (0..packed_input_size).map(|_| M::P::const_zero(params.as_ref())).collect();
-    let encode_input = bgg_encode_sampler.sample(
-        &public_data.pubkeys_input[0],
-        &vec![vec![<M::P as Poly>::const_one(params.as_ref())], zero_plaintexts].concat(),
-        true,
-    );
+    let mut one_and_zeros = vec![<M::P as Poly>::const_one(params.as_ref())];
+    one_and_zeros.extend(zero_plaintexts);
+    let encode_input =
+        bgg_encode_sampler.sample(&public_data.pubkeys_input[0], &one_and_zeros, true);
     let encode_fhe_key =
         bgg_encode_sampler.sample(&public_data.pubkeys_fhe_key[0], &t.get_row(1), false);
     let mut bs = vec![];
@@ -98,17 +95,17 @@ where
         let (b_next_0_trapdoor, b_next_1_trapdoor, _) = &b_trapdoors[idx + 1];
         let m_0 = {
             let ub = u_0.clone() * b_next_0;
-            sampler.preimage(b_cur_star_trapdoor, &b_cur_star, &ub)
+            sampler.preimage(b_cur_star_trapdoor, b_cur_star, &ub)
         };
         let m_1 = {
             let ub = u_1.clone() * b_next_1;
-            sampler.preimage(b_cur_star_trapdoor, &b_cur_star, &ub)
+            sampler.preimage(b_cur_star_trapdoor, b_cur_star, &ub)
         };
         m_preimages.push((m_0, m_1));
 
         let ub_star = u_star.clone() * b_next_star;
-        let n_0 = sampler.preimage(b_next_0_trapdoor, &b_next_0, &ub_star);
-        let n_1 = sampler.preimage(b_next_1_trapdoor, &b_next_1, &ub_star);
+        let n_0 = sampler.preimage(b_next_0_trapdoor, b_next_0, &ub_star);
+        let n_1 = sampler.preimage(b_next_1_trapdoor, b_next_1, &ub_star);
         n_preimages.push((n_0, n_1));
 
         let mut ks = vec![];
@@ -172,7 +169,7 @@ where
         ip_pubkey.matrix.concat_rows(&[M::zero(params.as_ref(), 2, ip_pubkey.matrix.col_size())]);
     let (_, _, b_final) = &bs[input_size];
     let (_, _, b_final_trapdoor) = &b_trapdoors[input_size];
-    let final_preimage = sampler.preimage(b_final_trapdoor, &b_final, &final_preimage_target);
+    let final_preimage = sampler.preimage(b_final_trapdoor, b_final, &final_preimage_target);
 
     Obfuscation {
         hash_key,

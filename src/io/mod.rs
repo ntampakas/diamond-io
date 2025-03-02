@@ -2,25 +2,8 @@ pub mod eval;
 pub mod obf;
 pub mod utils;
 
-use crate::{
-    bgg::{BggEncoding, BggPublicKey},
-    poly::{matrix::*, *},
-};
-// use thiserror::Error;
-
-// #[derive(Error, Debug)]
-// pub enum ObfuscationError {
-//     #[error("Sample error: {0}")]
-//     SampleError(String),
-//     #[error("Poly error: {0}")]
-//     PolyError(String),
-//     #[error("Matrix error: {0}")]
-//     MatrixError(String),
-//     #[error("Gadget error: {0}")]
-//     GadgetError(String),
-//     #[error(transparent)]
-//     BggError(#[from] BggError),
-// }
+use crate::bgg::BggEncoding;
+use crate::poly::matrix::*;
 
 #[derive(Debug, Clone)]
 pub struct Obfuscation<M: PolyMatrix> {

@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use crate::poly::{
     dcrt::{DCRTPoly, DCRTPolyMatrix, DCRTPolyParams, FinRingElem},
