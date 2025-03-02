@@ -42,5 +42,10 @@ pub trait PolyTrapdoorSampler {
     type M: PolyMatrix;
     type Trapdoor;
     fn trapdoor(&self) -> (Self::Trapdoor, Self::M);
-    fn preimage(&self, trapdoor: &Self::Trapdoor, target: &Self::M) -> Self::M;
+    fn preimage(
+        &self,
+        trapdoor: &Self::Trapdoor,
+        public_matrix: &Self::M,
+        target: &Self::M,
+    ) -> Self::M;
 }
