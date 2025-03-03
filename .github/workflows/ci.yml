@@ -59,17 +59,12 @@ jobs:
           echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/openfhe.conf
           sudo ldconfig
 
-      - name: Install clippy
-        run: rustup component add clippy
-
-      - name: Install rustfmt
-        run: rustup component add rustfmt
-
-      - name: Run clippy for native
-        run: cargo clippy --all --all-targets -- -D warnings
-
-      - name: Run fmt
-        run: cargo fmt -- --check
-
-      - name: Run tests
-        run: cargo test --all --all-targets -- --nocapture
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: taiki-e/install-action@nextest
+      - name: Install clippy and rustfmt
+        run: |
+          rustup component add clippy
+          rustup component add rustfmt
+      - uses: taiki-e/install-action@just
+      - name: Run ci
+        run: just ci
