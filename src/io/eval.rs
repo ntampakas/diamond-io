@@ -21,7 +21,7 @@ where
     let sampler = Arc::new(sampler);
     let dim = params.as_ref().ring_dimension() as usize;
     let input_size = input.len();
-    let packed_input_size = ceil_div(input_size, dim);
+    let packed_input_size = input_size.div_ceil(dim);
     let bgg_pubkey_sampler = BGGPublicKeySampler::new(params.clone(), sampler.clone());
     let public_data = PublicSampledData::sample(
         params.as_ref(),
