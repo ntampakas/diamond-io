@@ -158,10 +158,6 @@ impl<H: OutputSizeUser + digest::Digest> PolyHashSampler<[u8; 32]> for DCRTPolyH
     fn set_key(&mut self, key: [u8; 32]) {
         self._set_key(key)
     }
-
-    fn expose_key(&self) -> &[u8] {
-        self._expose_key()
-    }
 }
 
 #[cfg(test)]
@@ -173,7 +169,7 @@ mod tests {
     #[test]
     fn test_poly_hash_sampler() {
         let key = [0u8; 32];
-        let params: DCRTPolyParams = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let mut sampler = DCRTPolyHashSampler::<Keccak256>::new(key, params);
         let nrow = 100;
         let ncol = 300;
@@ -183,7 +179,6 @@ mod tests {
 
         let new_key = [1u8; 32];
         sampler.set_key(new_key);
-        sampler.expose_key();
 
         let matrix = matrix_result;
         assert_eq!(matrix.row_size(), nrow, "Matrix row count mismatch");
@@ -193,7 +188,7 @@ mod tests {
     #[test]
     fn test_poly_hash_sampler_fin_ring_dist() {
         let key = [0u8; 32];
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let mut sampler = DCRTPolyHashSampler::<Keccak256>::new(key, params);
         let nrow = 100;
         let ncol = 300;
@@ -202,7 +197,6 @@ mod tests {
 
         let new_key = [1u8; 32];
         sampler.set_key(new_key);
-        sampler.expose_key();
 
         let matrix = matrix_result;
         assert_eq!(matrix.row_size(), nrow, "Matrix row count mismatch");
