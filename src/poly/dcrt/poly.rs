@@ -186,6 +186,26 @@ impl<'a> SubAssign<&'a DCRTPoly> for DCRTPoly {
 mod tests {
     use super::*;
     use crate::poly::PolyParams;
+    use rand::prelude::*;
+
+    #[test]
+    fn test_dcrtpoly_coeffs() {
+        let mut rng = rand::rng();
+        // todo: if x=0, n=1: libc++abi: terminating due to uncaught exception of type lbcrypto::OpenFHEException: /Users/piapark/Documents/GitHub/openfhe-development/src/core/include/math/nbtheory.h:l.156:ReverseBits(): msbb value not handled:0
+        // todo: if x=1, n=2: value mismatch from_coeffs & coeffs
+        let x = rng.random_range(2..20);
+        let n = 2_i32.pow(x) as u32;
+        let params = DCRTPolyParams::new(n, 3, 51);
+        let q = params.modulus();
+        let mut coeffs: Vec<FinRingElem> = Vec::new();
+        for _ in 0..n {
+            let value = rng.random_range(0..10000);
+            coeffs.push(FinRingElem::new(value, q.clone()));
+        }
+        let poly = DCRTPoly::from_coeffs(&params, &coeffs);
+        let extracted_coeffs = poly.coeffs();
+        assert_eq!(coeffs, extracted_coeffs);
+    }
 
     #[test]
     fn test_dcrtpoly_arithmetic() {

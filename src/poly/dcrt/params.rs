@@ -45,6 +45,7 @@ impl Default for DCRTPolyParams {
 }
 
 impl DCRTPolyParams {
+    /// 2 * n = order, size = depth, bits= k
     pub fn new(n: u32, size: u32, k_res: u32) -> Self {
         let ptr_params = ffi::GenILDCRTParamsByOrderSizeBits(2 * n, size, k_res);
         let modulus = BigUint::from_str_radix(&ptr_params.GetModulus(), 10).unwrap();
