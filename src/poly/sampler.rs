@@ -29,7 +29,6 @@ pub trait PolyHashSampler<K: AsRef<[u8]>> {
     ) -> Self::M;
 
     fn set_key(&mut self, key: K);
-    fn expose_key(&self) -> &[u8];
 }
 
 pub trait PolyUniformSampler {
