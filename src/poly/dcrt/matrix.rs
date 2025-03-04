@@ -20,6 +20,7 @@ impl Debug for DCRTPolyMatrix {
         f.debug_struct("DCRTPolyMatrix")
             .field("nrow", &self.nrow)
             .field("ncol", &self.ncol)
+            .field("params", &self.params)
             .finish()
     }
 }

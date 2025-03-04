@@ -26,8 +26,7 @@ impl PolyParams for DCRTPolyParams {
     type Modulus = Arc<BigUint>;
 
     fn ring_dimension(&self) -> u32 {
-        let ring_dimension = &self.ptr_params.as_ref().GetRingDimension();
-        *ring_dimension
+        self.ptr_params.as_ref().GetRingDimension()
     }
     fn modulus(&self) -> Self::Modulus {
         self.modulus.clone()
