@@ -11,7 +11,7 @@ use std::{
     sync::Arc,
 };
 
-use super::{fin_ring::FinRingElem, params::DCRTPolyParams};
+use super::{element::FinRingElem, params::DCRTPolyParams};
 use crate::poly::{Poly, PolyParams};
 
 #[derive(Clone, Debug)]
