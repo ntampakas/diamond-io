@@ -123,7 +123,7 @@ where
             let zero_coeff = <M::P as Poly>::Elem::zero(&params.modulus());
             let mut coeffs = vec![zero_coeff; dim];
             coeffs[inserted_coeff_index] = <M::P as Poly>::Elem::one(&params.modulus());
-            let inserted_poly = M::P::from_coeffs(params.as_ref(), &coeffs);
+            let inserted_poly = M::P::from_coeffs(params.as_ref(), &coeffs).unwrap();
             let inserted_poly_gadget = {
                 let zero = <M::P as Poly>::const_zero(params.as_ref());
                 let mut polys = vec![];

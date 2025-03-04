@@ -46,7 +46,7 @@ impl<H: OutputSizeUser + digest::Digest> DCRTPolyHashSampler<H> {
         for _ in 0..total_poly {
             let coeffs = &ring_elems[offset..offset + n];
             offset += n;
-            let poly = DCRTPoly::from_coeffs(&self.params, coeffs);
+            let poly = DCRTPoly::from_coeffs(&self.params, coeffs).unwrap();
             all_polys.push(poly);
         }
 

@@ -1,5 +1,9 @@
-use num_bigint::{BigInt, BigUint};
-use num_traits::Num;
+use super::{
+    element::{FinRingElem, FinRingElemError},
+    params::DCRTPolyParams,
+};
+use crate::poly::{Poly, PolyParams};
+use num_bigint::BigUint;
 use openfhe::{
     cxx::UniquePtr,
     ffi::{self, DCRTPolyImpl},
@@ -7,12 +11,18 @@ use openfhe::{
 use std::{
     fmt::Debug,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
-    str::FromStr,
     sync::Arc,
 };
+use thiserror::Error;
 
-use super::{element::FinRingElem, params::DCRTPolyParams};
-use crate::poly::{Poly, PolyParams};
+#[derive(Error, Debug)]
+pub enum DCRTPolyError {
+    #[error("fin ring error: {0}")]
+    FinRingElem(#[from] FinRingElemError),
+
+    #[error("unmatched modulus error: expected {expected}, found {found}")]
+    UnmatchedModulus { expected: String, found: String },
+}
 
 #[derive(Clone, Debug)]
 pub struct DCRTPoly {
@@ -32,31 +42,35 @@ impl DCRTPoly {
 impl Poly for DCRTPoly {
     type Elem = FinRingElem;
     type Params = DCRTPolyParams;
+    type Error = DCRTPolyError;
 
-    fn coeffs(&self) -> Vec<Self::Elem> {
+    fn coeffs(&self) -> Result<Vec<Self::Elem>, Self::Error> {
         let coeffs = self
             .ptr_poly
             .GetCoefficients()
             .iter()
             .map(|s| {
-                FinRingElem::new(
-                    BigInt::from_str(s).unwrap(),
-                    BigUint::from_str_radix(&self.ptr_poly.GetModulus(), 10).unwrap().into(),
-                )
+                FinRingElem::from_str(s, &self.ptr_poly.GetModulus())
+                    .map_err(DCRTPolyError::FinRingElem)
             })
             .collect();
         coeffs
     }
 
-    fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Self {
+    fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Result<Self, Self::Error> {
         let mut coeffs_cxx = Vec::with_capacity(coeffs.len());
         let modulus = params.modulus();
         for coeff in coeffs {
             let coeff_modulus = coeff.modulus();
-            assert_eq!(&coeff_modulus.clone(), modulus.as_ref());
+            if coeff_modulus != modulus.as_ref() {
+                return Err(DCRTPolyError::UnmatchedModulus {
+                    expected: modulus.to_string(),
+                    found: coeff_modulus.to_string(),
+                });
+            }
             coeffs_cxx.push(coeff.value().to_string());
         }
-        DCRTPoly::new(ffi::DCRTPolyGenFromVec(params.get_params(), &coeffs_cxx))
+        Ok(DCRTPoly::new(ffi::DCRTPolyGenFromVec(params.get_params(), &coeffs_cxx)))
     }
 
     fn from_const(params: &Self::Params, constant: &Self::Elem) -> Self {
@@ -75,12 +89,12 @@ impl Poly for DCRTPoly {
     }
 
     fn const_minus_one(params: &Self::Params) -> Self {
-        let constant_value = params.modulus().as_ref() - BigUint::from(1u32);
-        DCRTPoly::new(ffi::DCRTPolyGenFromConst(params.get_params(), &constant_value.to_string()))
+        DCRTPoly::new(ffi::DCRTPolyGenFromConst(
+            params.get_params(),
+            &(params.modulus().as_ref() - BigUint::from(1u32)).to_string(),
+        ))
     }
 }
-
-// ====== Arithmetic ======
 
 impl Add for DCRTPoly {
     type Output = Self;
@@ -94,8 +108,7 @@ impl<'a> Add<&'a DCRTPoly> for DCRTPoly {
     type Output = Self;
 
     fn add(self, rhs: &'a Self) -> Self::Output {
-        let res = ffi::DCRTPolyAdd(&rhs.ptr_poly, &self.ptr_poly);
-        DCRTPoly::new(res)
+        DCRTPoly::new(ffi::DCRTPolyAdd(&rhs.ptr_poly, &self.ptr_poly))
     }
 }
 
@@ -111,8 +124,7 @@ impl<'a> Mul<&'a DCRTPoly> for DCRTPoly {
     type Output = Self;
 
     fn mul(self, rhs: &'a Self) -> Self::Output {
-        let res = ffi::DCRTPolyMul(&rhs.ptr_poly, &self.ptr_poly);
-        DCRTPoly::new(res)
+        DCRTPoly::new(ffi::DCRTPolyMul(&rhs.ptr_poly, &self.ptr_poly))
     }
 }
 
@@ -137,8 +149,7 @@ impl Neg for DCRTPoly {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        let res = self.ptr_poly.Negate();
-        DCRTPoly::new(res)
+        DCRTPoly::new(self.ptr_poly.Negate())
     }
 }
 
@@ -226,8 +237,8 @@ mod tests {
         ];
 
         // 3. Create polynomials from those coefficients.
-        let poly1 = DCRTPoly::from_coeffs(&params, &coeffs1);
-        let poly2 = DCRTPoly::from_coeffs(&params, &coeffs2);
+        let poly1 = DCRTPoly::from_coeffs(&params, &coeffs1).unwrap();
+        let poly2 = DCRTPoly::from_coeffs(&params, &coeffs2).unwrap();
 
         // 4. Test addition.
         let sum = poly1.clone() + poly2.clone();
@@ -257,20 +268,20 @@ mod tests {
         let const_poly = DCRTPoly::from_const(&params, &FinRingElem::new(123, q.clone()));
         assert_eq!(
             const_poly,
-            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(123, q.clone()); 1]),
+            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(123, q.clone()); 1]).unwrap(),
             "from_const should produce a polynomial with all coeffs = 123"
         );
         let zero_poly = DCRTPoly::const_zero(&params);
         assert_eq!(
             zero_poly,
-            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(0, q.clone()); 1]),
+            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(0, q.clone()); 1]).unwrap(),
             "const_zero should produce a polynomial with all coeffs = 0"
         );
 
         let one_poly = DCRTPoly::const_one(&params);
         assert_eq!(
             one_poly,
-            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(1, q); 1]),
+            DCRTPoly::from_coeffs(&params, &[FinRingElem::new(1, q); 1]).unwrap(),
             "one_poly should produce a polynomial with all coeffs = 1"
         );
     }

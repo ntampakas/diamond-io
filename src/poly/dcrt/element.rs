@@ -1,16 +1,17 @@
 use crate::poly::PolyElem;
-use num_bigint::{BigInt, BigUint, ToBigInt};
+use num_bigint::{BigInt, BigUint, ParseBigIntError, ToBigInt};
 use num_traits::Signed;
 use std::{
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    str::FromStr,
     sync::Arc,
 };
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum FinRingElemError {
-    #[error("Unknown plaintext for the left-hand input of multiplication: left-input index {0}, output index {1}")]
-    UnknownPlaintextForMul(usize, usize),
+    #[error("parse bigint error: {0}")]
+    ParseBigIntError(ParseBigIntError),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -30,6 +31,13 @@ impl FinRingElem {
         };
         let reduced_value = value.to_biguint().unwrap();
         Self { value: reduced_value, modulus }
+    }
+
+    pub fn from_str<S: Into<String>>(value: S, modulus: S) -> Result<Self, FinRingElemError> {
+        let value = BigInt::from_str(&value.into()).map_err(FinRingElemError::ParseBigIntError)?;
+        let modulus =
+            BigUint::from_str(&modulus.into()).map_err(FinRingElemError::ParseBigIntError)?.into();
+        Ok(Self::new(value, modulus))
     }
 
     pub fn value(&self) -> &BigUint {
@@ -59,8 +67,6 @@ impl PolyElem for FinRingElem {
         self.value < self.modulus() / 2u8
     }
 }
-
-// ====== Arithmetic ======
 
 impl Add for FinRingElem {
     type Output = Self;
@@ -150,7 +156,7 @@ impl Neg for FinRingElem {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        if self.value == BigUint::from(0u8) {
+        if self.value == BigUint::ZERO {
             self
         } else {
             Self::new(self.modulus.as_ref() - &self.value, self.modulus)
