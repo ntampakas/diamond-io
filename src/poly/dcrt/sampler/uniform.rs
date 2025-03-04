@@ -51,7 +51,7 @@ mod tests {
 
     #[test]
     fn test_ring_dist() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
 
         // Test FinRingDist
         let sampler = DCRTPolyUniformSampler::new(params.clone());
@@ -77,7 +77,7 @@ mod tests {
 
     #[test]
     fn test_gaussian_dist() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
 
         // Test GaussianDist
         let sampler = DCRTPolyUniformSampler::new(params.clone());
@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_bit_dist() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
 
         // Test BitDist
         let sampler = DCRTPolyUniformSampler::new(params.clone());

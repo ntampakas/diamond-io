@@ -16,7 +16,7 @@ pub struct DCRTPolyParams {
 impl Debug for DCRTPolyParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DCRTPolyParams")
-            .field("modulus", &self.modulus())
+            .field("modulus", &self.modulus)
             .field("ring_dimension", &self.ring_dimension())
             .finish()
     }
@@ -33,7 +33,7 @@ impl PolyParams for DCRTPolyParams {
         self.modulus.clone()
     }
     fn modulus_bits(&self) -> usize {
-        self.modulus().bits() as usize
+        self.modulus.bits() as usize
     }
 }
 
@@ -76,6 +76,13 @@ mod tests {
         let p = DCRTPolyParams::new(n, size, k_res);
         // ring dimension returning closest 2^n form
         assert_eq!(p.ring_dimension(), 16);
+        assert_eq!(p.modulus_bits(), 204);
+
+        let n = 2;
+        let size = 4;
+        let k_res = 51;
+        let p = DCRTPolyParams::new(n, size, k_res);
+        assert_eq!(p.ring_dimension(), 2);
         assert_eq!(p.modulus_bits(), 204);
 
         let n = 0;

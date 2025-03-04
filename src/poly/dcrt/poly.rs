@@ -47,7 +47,6 @@ impl Poly for DCRTPoly {
         for coeff in coeffs {
             let coeff_modulus = coeff.modulus();
             assert_eq!(coeff_modulus, modulus.as_ref());
-
             coeffs_cxx.push(coeff.value().to_string());
         }
         DCRTPoly::new(ffi::DCRTPolyGenFromVec(params.get_params(), &coeffs_cxx))
@@ -193,9 +192,10 @@ mod tests {
         let mut rng = rand::rng();
         // todo: if x=0, n=1: libc++abi: terminating due to uncaught exception of type lbcrypto::OpenFHEException: /Users/piapark/Documents/GitHub/openfhe-development/src/core/include/math/nbtheory.h:l.156:ReverseBits(): msbb value not handled:0
         // todo: if x=1, n=2: value mismatch from_coeffs & coeffs
-        let x = rng.random_range(2..20);
+        let x = rng.random_range(12..20);
+        let size = rng.random_range(1..20);
         let n = 2_i32.pow(x) as u32;
-        let params = DCRTPolyParams::new(n, 3, 51);
+        let params = DCRTPolyParams::new(n, size, 51);
         let q = params.modulus();
         let mut coeffs: Vec<FinRingElem> = Vec::new();
         for _ in 0..n {
@@ -209,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_dcrtpoly_arithmetic() {
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let q = params.modulus();
 
         // todo: replace value and modulus from param

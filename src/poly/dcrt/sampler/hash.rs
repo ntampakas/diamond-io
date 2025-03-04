@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn test_poly_hash_sampler() {
         let key = [0u8; 32];
-        let params: DCRTPolyParams = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let mut sampler = DCRTPolyHashSampler::<Keccak256>::new(key, params);
         let nrow = 100;
         let ncol = 300;
@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn test_poly_hash_sampler_fin_ring_dist() {
         let key = [0u8; 32];
-        let params = DCRTPolyParams::new(16, 4, 51);
+        let params = DCRTPolyParams::default();
         let mut sampler = DCRTPolyHashSampler::<Keccak256>::new(key, params);
         let nrow = 100;
         let ncol = 300;
