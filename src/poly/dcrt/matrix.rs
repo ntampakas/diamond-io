@@ -277,7 +277,7 @@ impl PolyMatrix for DCRTPolyMatrix {
 
         for i in 0..self.nrow {
             for j in 0..self.ncol {
-                let coeffs = self.inner[i][j].coeffs().unwrap();
+                let coeffs = self.inner[i][j].coeffs();
                 let coeff_len = coeffs.len();
                 for bit in 0..bit_length {
                     let mut bit_coeffs = Vec::with_capacity(coeff_len);
@@ -287,7 +287,7 @@ impl PolyMatrix for DCRTPolyMatrix {
                         let elem = FinRingElem::new(val, self.params.modulus());
                         bit_coeffs.push(elem);
                     }
-                    let bit_poly = DCRTPoly::from_coeffs(&self.params, &bit_coeffs).unwrap();
+                    let bit_poly = DCRTPoly::from_coeffs(&self.params, &bit_coeffs);
                     new_inner[i * bit_length + bit][j] = bit_poly;
                 }
             }
@@ -506,7 +506,7 @@ mod tests {
         let sum = matrix1.clone() + &matrix2;
         let value_10 = FinRingElem::new(10u32, params.modulus());
         let _expected_sum = DCRTPolyMatrix::zero(&params, 2, 2);
-        assert_eq!(sum.entry(0, 0).coeffs().unwrap()[0], value_10);
+        assert_eq!(sum.entry(0, 0).coeffs()[0], value_10);
 
         // Test subtraction
         let diff = matrix1.clone() - &matrix2;
@@ -561,7 +561,7 @@ mod tests {
 
         // Check that the (0,0) element is the product of the (0,0) elements
         let value_25 = FinRingElem::new(25u32, params.modulus());
-        assert_eq!(tensor.entry(0, 0).coeffs().unwrap()[0], value_25);
+        assert_eq!(tensor.entry(0, 0).coeffs()[0], value_25);
     }
 
     #[test]

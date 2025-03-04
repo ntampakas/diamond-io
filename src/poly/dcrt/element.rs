@@ -6,13 +6,6 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum FinRingElemError {
-    #[error("parse bigint error: {0}")]
-    ParseBigIntError(ParseBigIntError),
-}
 
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct FinRingElem {
@@ -33,10 +26,9 @@ impl FinRingElem {
         Self { value: reduced_value, modulus }
     }
 
-    pub fn from_str<S: Into<String>>(value: S, modulus: S) -> Result<Self, FinRingElemError> {
-        let value = BigInt::from_str(&value.into()).map_err(FinRingElemError::ParseBigIntError)?;
-        let modulus =
-            BigUint::from_str(&modulus.into()).map_err(FinRingElemError::ParseBigIntError)?.into();
+    pub fn from_str<S: Into<String>>(value: S, modulus: S) -> Result<Self, ParseBigIntError> {
+        let value = BigInt::from_str(&value.into())?;
+        let modulus = BigUint::from_str(&modulus.into())?.into();
         Ok(Self::new(value, modulus))
     }
 
@@ -167,6 +159,22 @@ impl Neg for FinRingElem {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_element_new_str() {
+        let modulus = "17";
+        let elem = FinRingElem::from_str("5", modulus).unwrap();
+        assert_eq!(elem.value(), &BigUint::from(5u8));
+        assert_eq!(elem.modulus(), &BigUint::from(17u8));
+        let elem = FinRingElem::from_str("-5", modulus).unwrap();
+        assert_eq!(elem.value(), &BigUint::from(12u8));
+        assert_eq!(elem.modulus(), &BigUint::from(17u8));
+        let elem = FinRingElem::from_str("-20", modulus).unwrap();
+        assert_eq!(elem.value(), &BigUint::from(14u8));
+        assert_eq!(elem.modulus(), &BigUint::from(17u8));
+        let is_err = FinRingElem::from_str("0xabc", modulus).is_err();
+        assert!(is_err)
+    }
 
     #[test]
     fn test_element_new() {

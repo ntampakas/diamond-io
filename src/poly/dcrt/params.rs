@@ -61,12 +61,65 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_params_initiation() {
+    fn test_params_initiation_n() {
         let n = 16;
         let size = 4;
         let k_res = 51;
         let p = DCRTPolyParams::new(n, size, k_res);
         assert_eq!(p.ring_dimension(), n);
         assert_eq!(p.modulus_bits(), 204);
+
+        let n = 20;
+        let size = 4;
+        let k_res = 51;
+        let p = DCRTPolyParams::new(n, size, k_res);
+        // ring dimension returning closest 2^n form
+        assert_eq!(p.ring_dimension(), 16);
+        assert_eq!(p.modulus_bits(), 204);
+
+        let n = 0;
+        let size = 4;
+        let k_res = 51;
+        let p = DCRTPolyParams::new(n, size, k_res);
+        assert_eq!(p.ring_dimension(), 0);
+        assert_eq!(p.modulus_bits(), 0);
+
+        let n = 1;
+        let size = 4;
+        let k_res = 51;
+        let p = DCRTPolyParams::new(n, size, k_res);
+        assert_eq!(p.ring_dimension(), 1);
+        assert_eq!(p.modulus_bits(), 204);
+    }
+
+    #[test]
+    fn test_params_initiation_size() {
+        let n = 16;
+        let size = 4;
+        let k_res = 51;
+        let p = DCRTPolyParams::new(n, size, k_res);
+        assert_eq!(p.ring_dimension(), n);
+        assert_eq!(p.modulus_bits() as u32, size * k_res);
+
+        let n = 16;
+        let size = 5;
+        let k_res = 51;
+        let p = DCRTPolyParams::new(n, size, k_res);
+        assert_eq!(p.ring_dimension(), n);
+        assert_eq!(p.modulus_bits() as u32, size * k_res);
+
+        let n = 16;
+        let size = 6;
+        let k_res = 51;
+        let p = DCRTPolyParams::new(n, size, k_res);
+        assert_eq!(p.ring_dimension(), n);
+        assert_eq!(p.modulus_bits() as u32, size * k_res);
+
+        let n = 16;
+        let size = 7;
+        let k_res = 20;
+        let p = DCRTPolyParams::new(n, size, k_res);
+        assert_eq!(p.ring_dimension(), n);
+        assert_eq!(p.modulus_bits() as u32, size * k_res);
     }
 }
