@@ -1,110 +1,71 @@
 use super::utils::*;
-use super::{Obfuscation, ObfuscationError};
-use crate::bgg::*;
-use crate::bgg::{eval::*, sampler::*, *};
-use crate::poly::gadget::PolyGadgetOps;
-use crate::poly::{matrix::*, sampler::*, *};
+use super::Obfuscation;
+use crate::bgg::sampler::BGGPublicKeySampler;
+use crate::poly::{matrix::*, sampler::*, Poly, PolyParams};
 use crate::utils::*;
 use itertools::Itertools;
-use num_traits::{One, Zero};
-use rand::Rng;
-use rand::RngCore;
 use std::sync::Arc;
 
-pub fn eval_obf<T, P, M, G, S>(
-    poly_op: P,
-    matrix_op: M,
-    gadget_op: G,
+pub fn eval_obf<M, S>(
+    params: <M::P as Poly>::Params,
     mut sampler: S,
-    obfuscation: Obfuscation<T, P, M>,
+    obfuscation: Obfuscation<M>,
     input: &[bool],
-) -> Result<Vec<bool>, ObfuscationError>
+) -> Vec<bool>
 where
-    T: PolyElemOps,
-    P: PolyOps<T>,
-    M: PolyMatrixOps<T, P>,
-    G: PolyGadgetOps<T, P, M>,
-    S: PolyHashSampler<T, P, M>,
+    M: PolyMatrix,
+    S: PolyHashSampler<[u8; 32], M = M>,
 {
-    sampler.set_key(&obfuscation.hash_key);
+    sampler.set_key(obfuscation.hash_key);
+    let params = Arc::new(params);
     let sampler = Arc::new(sampler);
-    let poly_op = Arc::new(poly_op);
-    let matrix_op = Arc::new(matrix_op);
-    let gadget_op = Arc::new(gadget_op);
-    let deg = poly_op.degree();
+    let dim = params.as_ref().ring_dimension() as usize;
     let input_size = input.len();
-    let packed_input_size = ceil_div(input_size, deg);
+    let packed_input_size = input_size.div_ceil(dim);
+    let bgg_pubkey_sampler = BGGPublicKeySampler::new(params.clone(), sampler.clone());
     let public_data = PublicSampledData::sample(
-        matrix_op.clone(),
-        gadget_op.clone(),
-        sampler.clone(),
+        params.as_ref(),
+        sampler,
+        &bgg_pubkey_sampler,
+        input_size,
         packed_input_size,
-    )?;
+    );
     let (mut ps, mut cs_input, mut cs_fhe_key) = (vec![], vec![], vec![]);
     ps.push(obfuscation.p_init.clone());
-    cs_input.push(
-        matrix_op
-            .concat_columns(
-                &obfuscation.encode_input.iter().map(|pubkey| pubkey.vector.clone()).collect_vec(),
-            )
-            .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?,
-    );
-    cs_fhe_key.push(
-        matrix_op
-            .concat_columns(
-                &obfuscation
-                    .encode_fhe_key
-                    .iter()
-                    .map(|pubkey| pubkey.vector.clone())
-                    .collect_vec(),
-            )
-            .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?,
-    );
-    let log_q = poly_op.modulus_bits();
+    let encode_inputs =
+        obfuscation.encode_input.iter().map(|pubkey| pubkey.vector.clone()).collect_vec();
+    cs_input.push(encode_inputs[0].concat_columns(&encode_inputs[1..]));
+    let encode_fhe_key =
+        obfuscation.encode_fhe_key.iter().map(|pubkey| pubkey.vector.clone()).collect_vec();
+    cs_fhe_key.push(encode_fhe_key[0].concat_columns(&encode_fhe_key[1..]));
+    let log_q = params.as_ref().modulus_bits();
     for (idx, input) in input.iter().enumerate() {
         let m =
             if *input { &obfuscation.m_preimages[idx].1 } else { &obfuscation.m_preimages[idx].0 };
-        let q = matrix_op
-            .mul(&ps[idx], &m)
-            .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
+        let q = ps[idx].clone() * m;
         let n =
             if *input { &obfuscation.n_preimages[idx].1 } else { &obfuscation.n_preimages[idx].0 };
-        let p = matrix_op.mul(&q, &n).map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
+        let p = q.clone() * n;
         let k =
             if *input { &obfuscation.k_preimages[idx].1 } else { &obfuscation.k_preimages[idx].0 };
-        let v = matrix_op.mul(&q, &k).map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
-        let v_input = matrix_op
-            .slice_columns(&v, 0, 2 * log_q * (packed_input_size + 1))
-            .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
-        let v_fhe_key = matrix_op
-            .slice_columns(
-                &v,
-                2 * log_q * (packed_input_size + 1),
-                2 * log_q * (packed_input_size + 3),
-            )
-            .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
+        let v = q * k;
+        let v_input = v.slice_columns(0, 2 * log_q * (packed_input_size + 1));
+        let v_fhe_key = v.slice_columns(
+            2 * log_q * (packed_input_size + 1),
+            2 * log_q * (packed_input_size + 3),
+        );
         let c_input = {
-            // let encode =
             let t = if *input { &public_data.t_1.0 } else { &public_data.t_0.0 };
-            let muled = matrix_op
-                .mul(&cs_input[idx], &t)
-                .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
-            matrix_op
-                .add(&muled, &v_input)
-                .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?
+            cs_input[idx].clone() * t + v_input
         };
         let c_fhe_key = {
             let t = if *input { &public_data.t_1.1 } else { &public_data.t_0.1 };
-            let muled = matrix_op
-                .mul(&cs_fhe_key[idx], &t)
-                .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?;
-            matrix_op
-                .add(&muled, &v_fhe_key)
-                .map_err(|e| ObfuscationError::MatrixError(e.to_string()))?
+            cs_fhe_key[idx].clone() * t + v_fhe_key
         };
         ps.push(p);
         cs_input.push(c_input);
         cs_fhe_key.push(c_fhe_key);
     }
-    Ok(vec![])
+    // [TODO] Operation using the final preimage.
+    vec![]
 }
