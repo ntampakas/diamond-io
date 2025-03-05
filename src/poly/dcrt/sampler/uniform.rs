@@ -6,16 +6,20 @@ use crate::poly::{
     Poly, PolyMatrix,
 };
 
-pub struct DCRTPolyUniformSampler {
-    params: DCRTPolyParams,
+pub struct DCRTPolyUniformSampler {}
+
+impl Default for DCRTPolyUniformSampler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DCRTPolyUniformSampler {
-    pub fn new(params: DCRTPolyParams) -> Self {
-        Self { params }
+    pub fn new() -> Self {
+        Self {}
     }
 
-    fn sample_poly(&self, params: &DCRTPolyParams, dist: &DistType) -> DCRTPoly {
+    pub fn sample_poly(&self, params: &DCRTPolyParams, dist: &DistType) -> DCRTPoly {
         let sampled_poly = match dist {
             DistType::FinRingDist => ffi::DCRTPolyGenFromDug(params.get_params()),
             DistType::GaussDist { sigma } => ffi::DCRTPolyGenFromDgg(params.get_params(), *sigma),
@@ -28,19 +32,24 @@ impl DCRTPolyUniformSampler {
 impl PolyUniformSampler for DCRTPolyUniformSampler {
     type M = DCRTPolyMatrix;
 
-    fn sample_uniform(&self, rows: usize, columns: usize, dist: DistType) -> Self::M {
-        let mut c: Vec<Vec<DCRTPoly>> =
-            vec![vec![DCRTPoly::const_zero(&self.params); columns]; rows];
+    fn sample_uniform(
+        &self,
+        params: &<<Self::M as PolyMatrix>::P as Poly>::Params,
+        rows: usize,
+        columns: usize,
+        dist: DistType,
+    ) -> Self::M {
+        let mut c: Vec<Vec<DCRTPoly>> = vec![vec![DCRTPoly::const_zero(params); columns]; rows];
         for row in 0..rows {
             for col in 0..columns {
-                let sampled_poly = self.sample_poly(&self.params, &dist);
+                let sampled_poly = self.sample_poly(params, &dist);
                 if sampled_poly.get_poly().is_null() {
                     panic!("Attempted to dereference a null pointer");
                 }
                 c[row][col] = sampled_poly;
             }
         }
-        DCRTPolyMatrix::from_poly_vec(&self.params, c)
+        DCRTPolyMatrix::from_poly_vec(params, c)
     }
 }
 
@@ -54,15 +63,15 @@ mod tests {
         let params = DCRTPolyParams::default();
 
         // Test FinRingDist
-        let sampler = DCRTPolyUniformSampler::new(params.clone());
-        let matrix1 = sampler.sample_uniform(20, 5, DistType::FinRingDist);
+        let sampler = DCRTPolyUniformSampler::new();
+        let matrix1 = sampler.sample_uniform(&params, 20, 5, DistType::FinRingDist);
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
 
-        let matrix2 = sampler.sample_uniform(20, 5, DistType::FinRingDist);
+        let matrix2 = sampler.sample_uniform(&params, 20, 5, DistType::FinRingDist);
 
-        let sampler2 = DCRTPolyUniformSampler::new(params);
-        let matrix3 = sampler2.sample_uniform(5, 12, DistType::FinRingDist);
+        let sampler2 = DCRTPolyUniformSampler::new();
+        let matrix3 = sampler2.sample_uniform(&params, 5, 12, DistType::FinRingDist);
         assert_eq!(matrix3.row_size(), 5);
         assert_eq!(matrix3.col_size(), 12);
 
@@ -80,15 +89,17 @@ mod tests {
         let params = DCRTPolyParams::default();
 
         // Test GaussianDist
-        let sampler = DCRTPolyUniformSampler::new(params.clone());
-        let matrix1 = sampler.sample_uniform(20, 5, DistType::GaussDist { sigma: 4.57825 });
+        let sampler = DCRTPolyUniformSampler::new();
+        let matrix1 =
+            sampler.sample_uniform(&params, 20, 5, DistType::GaussDist { sigma: 4.57825 });
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
 
-        let matrix2 = sampler.sample_uniform(20, 5, DistType::GaussDist { sigma: 4.57825 });
+        let matrix2 =
+            sampler.sample_uniform(&params, 20, 5, DistType::GaussDist { sigma: 4.57825 });
 
-        let sampler2 = DCRTPolyUniformSampler::new(params);
-        let matrix3 = sampler2.sample_uniform(5, 12, DistType::FinRingDist);
+        let sampler2 = DCRTPolyUniformSampler::new();
+        let matrix3 = sampler2.sample_uniform(&params, 5, 12, DistType::FinRingDist);
         assert_eq!(matrix3.row_size(), 5);
         assert_eq!(matrix3.col_size(), 12);
 
@@ -106,16 +117,16 @@ mod tests {
         let params = DCRTPolyParams::default();
 
         // Test BitDist
-        let sampler = DCRTPolyUniformSampler::new(params.clone());
-        let matrix1 = sampler.sample_uniform(20, 5, DistType::BitDist);
+        let sampler = DCRTPolyUniformSampler::new();
+        let matrix1 = sampler.sample_uniform(&params, 20, 5, DistType::BitDist);
         assert_eq!(matrix1.row_size(), 20);
         assert_eq!(matrix1.col_size(), 5);
         // [TODO] Test the norm of each coefficient of polynomials in the matrix.
 
-        let matrix2 = sampler.sample_uniform(20, 5, DistType::BitDist);
+        let matrix2 = sampler.sample_uniform(&params, 20, 5, DistType::BitDist);
 
-        let sampler2 = DCRTPolyUniformSampler::new(params);
-        let matrix3 = sampler2.sample_uniform(5, 12, DistType::FinRingDist);
+        let sampler2 = DCRTPolyUniformSampler::new();
+        let matrix3 = sampler2.sample_uniform(&params, 5, 12, DistType::FinRingDist);
         assert_eq!(matrix3.row_size(), 5);
         assert_eq!(matrix3.col_size(), 12);
 
@@ -138,8 +149,8 @@ mod tests {
         ) {
             let params = DCRTPolyParams::default();
             println!("Testing with: rows={}, columns={}, dist={:?}", rows, columns,  DistType::FinRingDist);
-            let s = DCRTPolyUniformSampler::new(params.clone());
-            let matrix = s.sample_uniform(rows, columns, DistType::FinRingDist);
+            let s = DCRTPolyUniformSampler::new();
+            let matrix = s.sample_uniform(&params,rows, columns, DistType::FinRingDist);
             assert!(rows > 0 && columns > 0, "Invalid dimensions");
             let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, rows);
             let decomposed = matrix.decompose();
@@ -154,8 +165,8 @@ mod tests {
         ) {
             let params = DCRTPolyParams::default();
             println!("Testing with: rows={}, columns={}, dist={:?}", rows, columns,  DistType::BitDist);
-            let s = DCRTPolyUniformSampler::new(params.clone());
-            let matrix = s.sample_uniform(rows, columns, DistType::BitDist);
+            let s = DCRTPolyUniformSampler::new();
+            let matrix = s.sample_uniform(&params,rows, columns, DistType::BitDist);
             assert!(rows > 0 && columns > 0, "Invalid dimensions");
             let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, rows);
             let decomposed = matrix.decompose();
@@ -171,8 +182,8 @@ mod tests {
         ) {
             let params = DCRTPolyParams::default();
             println!("Testing with: rows={}, columns={}, dist={:?}", rows, columns, DistType::GaussDist { sigma });
-            let s = DCRTPolyUniformSampler::new(params.clone());
-            let matrix = s.sample_uniform(rows, columns, DistType::GaussDist { sigma });
+            let s = DCRTPolyUniformSampler::new();
+            let matrix = s.sample_uniform(&params,rows, columns, DistType::GaussDist { sigma });
             assert!(rows > 0 && columns > 0, "Invalid dimensions");
             let gadget_matrix = DCRTPolyMatrix::gadget_matrix(&params, rows);
             let decomposed = matrix.decompose();
