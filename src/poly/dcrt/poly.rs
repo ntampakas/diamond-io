@@ -28,6 +28,15 @@ impl DCRTPoly {
         &self.ptr_poly
     }
 
+    pub fn modulus_switch(&self, new_params: DCRTPolyParams) -> Self {
+        let coeffs = self.coeffs();
+        let new_coeffs = coeffs
+            .iter()
+            .map(|coeff| coeff.modulus_switch(new_params.modulus()))
+            .collect::<Vec<FinRingElem>>();
+        DCRTPoly::from_coeffs(&new_params, &new_coeffs)
+    }
+
     fn poly_gen_from_vec(params: &DCRTPolyParams, values: Vec<String>) -> Self {
         DCRTPoly::new(ffi::DCRTPolyGenFromVec(
             params.ring_dimension(),
@@ -67,6 +76,7 @@ impl Poly for DCRTPoly {
         let modulus = params.modulus();
         for coeff in coeffs {
             let coeff_modulus = coeff.modulus();
+            #[cfg(debug_assertions)]
             assert_eq!(coeff_modulus, modulus.as_ref());
             coeffs_cxx.push(coeff.value().to_string());
         }

@@ -2,7 +2,8 @@ pub mod eval;
 pub mod obf;
 pub mod utils;
 
-use crate::{bgg::BggEncoding, poly::matrix::*};
+use crate::bgg::BggEncoding;
+use crate::poly::{matrix::*, polynomial::*};
 
 #[derive(Debug, Clone)]
 pub struct Obfuscation<M: PolyMatrix> {
@@ -16,4 +17,13 @@ pub struct Obfuscation<M: PolyMatrix> {
     pub n_preimages: Vec<(M, M)>,
     pub k_preimages: Vec<(M, M)>,
     pub final_preimage: M,
+}
+
+#[derive(Debug, Clone)]
+pub struct ObfuscationParams<M: PolyMatrix> {
+    pub params: <<M as PolyMatrix>::P as Poly>::Params,
+    pub modulus_switch_params: <<M as PolyMatrix>::P as Poly>::Params,
+    pub input_size: usize,
+    pub output_size: usize,
+    pub error_gauss_sigma: f64,
 }
