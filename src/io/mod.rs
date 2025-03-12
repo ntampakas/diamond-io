@@ -4,7 +4,7 @@ pub mod utils;
 
 use crate::bgg::circuit::PolyCircuit;
 use crate::bgg::BggEncoding;
-use crate::poly::{matrix::*, polynomial::*, PolyParams};
+use crate::poly::{Poly, PolyMatrix, PolyParams};
 
 #[derive(Debug, Clone)]
 pub struct Obfuscation<M: PolyMatrix> {
@@ -40,20 +40,21 @@ pub struct ObfuscationParams<M: PolyMatrix> {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
+    use super::*;
+    use crate::{
+        bgg::circuit::PolyCircuit,
+        io::{obf::obfuscate, ObfuscationParams},
+        poly::{
+            dcrt::{
+                DCRTPolyHashSampler, DCRTPolyMatrix, DCRTPolyParams, DCRTPolyTrapdoorSampler,
+                DCRTPolyUniformSampler,
+            },
+            PolyParams,
+        },
+    };
     use keccak_asm::Keccak256;
     use num_bigint::BigUint;
-
-    use crate::poly::{
-        dcrt::{
-            DCRTPolyHashSampler, DCRTPolyMatrix, DCRTPolyParams, DCRTPolyTrapdoorSampler,
-            DCRTPolyUniformSampler,
-        },
-        PolyParams,
-    };
-
-    use super::{eval::eval_obf, obf::obfuscate, *};
+    use std::sync::Arc;
 
     #[test]
     fn test_io_just_mul_enc_and_bit() {
@@ -103,7 +104,7 @@ mod test {
             .iter()
             .map(|elem| elem.value() != &BigUint::from(0u8))
             .collect::<Vec<_>>();
-        let output = eval_obf(obf_params, sampler_hash, obfuscation, &input);
+        let output = obfuscation.eval(obf_params, sampler_hash, &input);
         let total_time = start_time.elapsed();
         println!("{:?}", output);
         println!("Time for evaluation: {:?}", total_time - obfuscation_time);

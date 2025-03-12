@@ -3,7 +3,6 @@ use crate::poly::{
     sampler::DistType,
     Poly,
 };
-use memory_stats::memory_stats;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
@@ -71,10 +70,30 @@ pub fn create_bit_poly(params: &DCRTPolyParams, bit: bool) -> DCRTPoly {
     }
 }
 
-pub fn print_memory_usage(label: &str) {
-    if let Some(usage) = memory_stats() {
-        println!("{}: {} bytes", label, usage.physical_mem);
-    } else {
-        println!("Couldn't get memory stats!");
-    }
+#[macro_export]
+macro_rules! parallel_iter {
+    ($i: expr) => {{
+        #[cfg(not(feature = "parallel"))]
+        {
+            IntoIterator::into_iter($i)
+        }
+        #[cfg(feature = "parallel")]
+        {
+            rayon::iter::IntoParallelIterator::into_par_iter($i)
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! join {
+    ($a:expr, $b:expr $(,)?) => {{
+        #[cfg(not(feature = "parallel"))]
+        {
+            ($a(), $b())
+        }
+        #[cfg(feature = "parallel")]
+        {
+            rayon::join($a, $b)
+        }
+    }};
 }

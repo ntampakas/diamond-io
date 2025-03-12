@@ -9,7 +9,7 @@ const TAG_R_0: &[u8] = b"R_0";
 const TAG_R_1: &[u8] = b"R_1";
 const TAG_A_RLWE_BAR: &[u8] = b"A_RLWE_BAR";
 const TAG_BGG_PUBKEY_INPUT_PREFIX: &[u8] = b"BGG_PUBKEY_INPUT:";
-const TAG_BGG_PUBKEY_FHEKEY_PREFIX: &[u8] = b"BGG_PUBKEY_FHEKY:";
+const _TAG_BGG_PUBKEY_FHEKEY_PREFIX: &[u8] = b"BGG_PUBKEY_FHEKY:";
 const TAG_A_PRF: &[u8] = b"A_PRF:";
 
 #[derive(Debug, Clone)]
@@ -68,7 +68,7 @@ impl<S: PolyHashSampler<[u8; 32]>> PublicSampledData<S> {
         //         )
         //     })
         //     .collect_vec();
-        let identity_input = S::M::identity(params, 1 + packed_input_size, None);
+        // let identity_input = S::M::identity(params, 1 + packed_input_size, None);
         let gadget_2 = S::M::gadget_matrix(params, 2);
         // let identity_2 = S::M::identity(params, 2, None);
         let mut rgs_decomposed = vec![];
