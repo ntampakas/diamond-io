@@ -3,8 +3,8 @@ use rayon::prelude::*;
 
 use super::{element::FinRingElem, params::DCRTPolyParams};
 use crate::{
-    parallel_iter,
-    poly::{Poly, PolyParams},
+    impl_binop_with_refs, parallel_iter,
+    poly::{Poly, PolyElem, PolyParams},
 };
 use num_bigint::BigUint;
 use openfhe::{
@@ -124,6 +124,11 @@ impl Poly for DCRTPoly {
         Self::poly_gen_from_const(params, BigUint::from(2u32).pow(k as u32).to_string())
     }
 
+    fn const_max(params: &Self::Params) -> Self {
+        let coeffs = vec![FinRingElem::max_q(&params.modulus()); params.ring_dimension() as usize];
+        Self::from_coeffs(params, &coeffs)
+    }
+
     /// Decompose a polynomial of form b_0 + b_1 * x + b_2 * x^2 + ... + b_{n-1} * x^{n-1}
     /// where b_{j, h} is the h-th bit of the j-th coefficient of the polynomial.
     /// Return a vector of polynomials, where the h-th polynomial is defined as
@@ -157,45 +162,6 @@ impl PartialEq for DCRTPoly {
 }
 
 impl Eq for DCRTPoly {}
-
-/// Implements $tr for all combinations of T and &T by delegating to the &T/&T implementation.
-macro_rules! impl_binop_with_refs {
-    ($T:ty => $tr:ident::$f:ident $($t:tt)*) => {
-        impl $tr<$T> for $T {
-            type Output = $T;
-
-            #[inline]
-            fn $f(self, rhs: $T) -> Self::Output {
-                <&$T as $tr<&$T>>::$f(&self, &rhs)
-            }
-        }
-
-        impl $tr<&$T> for $T {
-            type Output = $T;
-
-            #[inline]
-            fn $f(self, rhs: &$T) -> Self::Output {
-                <&$T as $tr<&$T>>::$f(&self, rhs)
-            }
-        }
-
-        impl $tr<$T> for &$T {
-            type Output = $T;
-
-            #[inline]
-            fn $f(self, rhs: $T) -> Self::Output {
-                <&$T as $tr<&$T>>::$f(self, &rhs)
-            }
-        }
-
-        impl $tr<&$T> for &$T {
-            type Output = $T;
-
-            #[inline]
-            fn $f $($t)*
-        }
-    };
-}
 
 impl_binop_with_refs!(DCRTPoly => Add::add(self, rhs: &DCRTPoly) -> DCRTPoly {
     DCRTPoly::new(ffi::DCRTPolyAdd(&rhs.ptr_poly, &self.ptr_poly))
