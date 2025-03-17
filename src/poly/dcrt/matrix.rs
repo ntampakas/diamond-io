@@ -46,6 +46,12 @@ impl DCRTPolyMatrix {
     pub fn params(&self) -> &DCRTPolyParams {
         &self.params
     }
+
+    pub fn get_column_matrix(&self, j: usize) -> DCRTPolyMatrix {
+        let polys = self.get_column(j);
+        let column_vec: Vec<Vec<DCRTPoly>> = polys.into_iter().map(|poly| vec![poly]).collect();
+        DCRTPolyMatrix::from_poly_vec(&self.params, column_vec)
+    }
 }
 
 impl PolyMatrix for DCRTPolyMatrix {
@@ -54,13 +60,7 @@ impl PolyMatrix for DCRTPolyMatrix {
     fn from_poly_vec(params: &DCRTPolyParams, vec: Vec<Vec<DCRTPoly>>) -> Self {
         let nrow = vec.len();
         let ncol = vec[0].len();
-        let mut c: Vec<Vec<DCRTPoly>> = vec![Vec::with_capacity(ncol); nrow];
-        for (i, row) in vec.into_iter().enumerate() {
-            for element in row.into_iter() {
-                c[i].push(element);
-            }
-        }
-        DCRTPolyMatrix { inner: c, params: params.clone(), nrow, ncol }
+        DCRTPolyMatrix { inner: vec, params: params.clone(), nrow, ncol }
     }
 
     fn entry(&self, i: usize, j: usize) -> &Self::P {
@@ -71,7 +71,7 @@ impl PolyMatrix for DCRTPolyMatrix {
         self.inner[i].clone()
     }
 
-    fn get_column(&self, j: usize) -> Vec<DCRTPoly> {
+    fn get_column(&self, j: usize) -> Vec<Self::P> {
         self.inner.iter().map(|row| row[j].clone()).collect()
     }
 
@@ -346,6 +346,23 @@ impl PolyMatrix for DCRTPolyMatrix {
             slice_results.push(slice * other);
         }
         slice_results[0].clone().concat_columns(&slice_results[1..].iter().collect::<Vec<_>>())
+    }
+
+    fn mul_tensor_identity_decompose(&self, other: &Self, identity_size: usize) -> Self {
+        assert_eq!(self.ncol, other.nrow * identity_size * self.params.modulus_bits());
+        let slice_width = other.ncol;
+        let mut output = vec![DCRTPolyMatrix::zero(&self.params, 0, 0); other.ncol * identity_size];
+
+        for j in 0..other.ncol {
+            let jth_col_m = other.get_column_matrix(j);
+            let jth_col_m_decompose = jth_col_m.decompose();
+            for i in 0..identity_size {
+                let slice = self.slice(0, self.nrow, i * slice_width, (i + 1) * slice_width);
+                output[i * other.ncol + j] = slice * &jth_col_m_decompose;
+            }
+        }
+
+        output[0].clone().concat_columns(&output[1..].iter().collect::<Vec<_>>())
     }
 }
 
@@ -735,5 +752,74 @@ mod tests {
         assert_eq!(expected_result.row_size(), 2);
         assert_eq!(expected_result.col_size(), 12);
         assert_eq!(result, expected_result)
+    }
+
+    #[test]
+    fn test_mul_tensor_identity_decompose_naive() {
+        let params = DCRTPolyParams::default();
+        let sampler = DCRTPolyUniformSampler::new();
+
+        // Create matrix S (2x2516)
+        let s =
+            sampler.sample_uniform(&params, 2, 2516, crate::poly::sampler::DistType::FinRingDist);
+
+        // Create 'other' matrix (2x68)
+        let other =
+            sampler.sample_uniform(&params, 2, 68, crate::poly::sampler::DistType::FinRingDist);
+
+        // Decompose 'other' matrix
+        let other_decompose = other.decompose();
+
+        // Perform S * (I_37 ⊗ G^-1(other))
+        let result: DCRTPolyMatrix = s.mul_tensor_identity(&other_decompose, 37);
+
+        // Check dimensions
+        assert_eq!(result.row_size(), 2);
+        assert_eq!(result.col_size(), 2516);
+
+        let identity = DCRTPolyMatrix::identity(&params, 37, None);
+
+        // Check result
+        let expected_result = s * (identity.tensor(&other_decompose));
+
+        assert_eq!(expected_result.row_size(), 2);
+        assert_eq!(expected_result.col_size(), 2516);
+        assert_eq!(result, expected_result)
+    }
+
+    #[test]
+    fn test_mul_tensor_identity_decompose_optimal() {
+        let params = DCRTPolyParams::default();
+        let sampler = DCRTPolyUniformSampler::new();
+
+        // Create matrix S (2x2516)
+        let s =
+            sampler.sample_uniform(&params, 2, 2516, crate::poly::sampler::DistType::FinRingDist);
+
+        // Create 'other' matrix (2x68)
+        let other =
+            sampler.sample_uniform(&params, 2, 68, crate::poly::sampler::DistType::FinRingDist);
+
+        // Perform S * (I_37 ⊗ G^-1(other))
+        let result: DCRTPolyMatrix = s.mul_tensor_identity_decompose(&other, 37);
+
+        // // Check dimensions
+        assert_eq!(result.row_size(), 2);
+        assert_eq!(result.col_size(), 2516);
+
+        let identity = DCRTPolyMatrix::identity(&params, 37, None);
+
+        // Check result
+        let expected_result = s.clone() * (identity.tensor(&other.decompose()));
+        let expected_result_2 = s.mul_tensor_identity(&other.decompose(), 37);
+
+        assert_eq!(expected_result.row_size(), 2);
+        assert_eq!(expected_result.col_size(), 2516);
+
+        assert_eq!(expected_result_2.row_size(), 2);
+        assert_eq!(expected_result_2.col_size(), 2516);
+
+        assert_eq!(result, expected_result);
+        assert_eq!(result, expected_result_2);
     }
 }

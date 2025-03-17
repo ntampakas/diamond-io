@@ -12,7 +12,6 @@ use itertools::Itertools;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 use std::{marker::PhantomData, sync::Arc};
-use tracing::info;
 
 /// A sampler of a public key A in the BGG+ RLWE encoding scheme
 #[derive(Clone)]
@@ -51,7 +50,6 @@ where
         let log_q = params.modulus_bits();
         let columns = 2 * log_q;
         let packed_input_size = 1 + reveal_plaintexts.len(); // first slot is allocated to the constant 1 polynomial plaintext
-        info!("before all_matrix");
         let all_matrix = self.sampler.sample_hash(
             params,
             tag,
@@ -59,7 +57,6 @@ where
             columns * packed_input_size,
             DistType::FinRingDist,
         );
-        info!("all_matrix");
 
         parallel_iter!(0..packed_input_size)
             .map(|idx| {
@@ -130,7 +127,6 @@ where
             columns,
             DistType::GaussDist { sigma: self.gauss_sigma },
         );
-
         let all_public_key_matrix: S::M = public_keys[0]
             .matrix
             .concat_columns(&public_keys[1..].iter().map(|pk| &pk.matrix).collect_vec());
@@ -139,7 +135,6 @@ where
         let gadget = S::M::gadget_matrix(params, 2);
         let encoded_polys_vec = S::M::from_poly_vec_row(params, plaintexts.to_vec());
         let second_term = encoded_polys_vec.tensor(&(secret_vec.clone() * gadget));
-
         let all_vector = first_term - second_term + error;
 
         parallel_iter!(plaintexts)
