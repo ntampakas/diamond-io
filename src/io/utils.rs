@@ -1,4 +1,3 @@
-use super::ObfuscationParams;
 use crate::{
     bgg::{
         circuit::{build_circuit_ip_priv_and_pub_outputs, Evaluable, PolyCircuit},
@@ -10,6 +9,8 @@ use crate::{
 use itertools::Itertools;
 use std::{marker::PhantomData, ops::Mul};
 use tracing::info;
+
+use super::params::ObfuscationParams;
 
 const TAG_R_0: &[u8] = b"R_0";
 const TAG_R_1: &[u8] = b"R_1";
@@ -57,9 +58,9 @@ where
         let a_rlwe_bar =
             hash_sampler.sample_hash(params, TAG_A_RLWE_BAR, 1, 1, DistType::FinRingDist);
         // let reveal_plaintexts_fhe_key = vec![true; 2];
-        #[cfg(test)]
+        #[cfg(feature = "test")]
         let reveal_plaintexts = [vec![true; packed_input_size - 1], vec![true; 1]].concat();
-        #[cfg(not(test))]
+        #[cfg(not(feature = "test"))]
         let reveal_plaintexts = [vec![true; packed_input_size - 1], vec![false; 1]].concat();
         let pubkeys = (0..obf_params.input_size + 1)
             .map(|idx| {
@@ -156,6 +157,7 @@ pub fn build_final_bits_circuit<P: Poly, E: Evaluable>(
 }
 
 #[cfg(test)]
+#[cfg(feature = "test")]
 mod test {
     use super::*;
     use crate::{
