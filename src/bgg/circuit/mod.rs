@@ -395,9 +395,9 @@ mod tests {
 
         // Define a specific bit pattern
         // This will create a polynomial with coefficients:
-        // [1, 0, 1, 1, 0, 0, 1, 0, ...0]
-        // (where 1 is at positions 0, 2, 3, and 6)
-        let bits = vec![true, false, true, true, false, false, true];
+        // [1, 0, 1, 1]
+        // (where 1 is at positions 0, 2, 3, and 4)
+        let bits = vec![true, false, true, true];
         let bit_poly_gate = circuit.const_bit_poly(&bits);
         circuit.output(vec![bit_poly_gate]);
 
