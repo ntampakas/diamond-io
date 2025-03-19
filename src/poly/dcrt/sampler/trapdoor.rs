@@ -68,6 +68,12 @@ impl DCRTPolyTrapdoorSampler {
     }
 }
 
+impl Default for DCRTPolyTrapdoorSampler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
     type M = DCRTPolyMatrix;
     type Trapdoor = RLWETrapdoor;
@@ -83,7 +89,7 @@ impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
             params.crt_bits(),
             size,
             SIGMA,
-            2 as i64,
+            2_i64,
             false,
         );
         let rlwe_trapdoor = dcrt_trapdoor.get_trapdoor_pair();
@@ -187,7 +193,7 @@ impl PolyTrapdoorSampler for DCRTPolyTrapdoorSampler {
             &public_matrix_ptr,
             &trapdoor.ptr_trapdoor,
             &target_matrix_ptr,
-            2 as i64,
+            2_i64,
             SIGMA,
         );
 

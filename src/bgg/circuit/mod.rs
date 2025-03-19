@@ -429,7 +429,7 @@ mod tests {
         }
 
         // Check that remaining coefficients are 0
-        for i in bits.len()..coeffs.len() {
+        for (i, _) in coeffs.iter().enumerate().skip(bits.len()) {
             assert_eq!(
                 coeffs[i].value(),
                 &BigUint::from(0u8),

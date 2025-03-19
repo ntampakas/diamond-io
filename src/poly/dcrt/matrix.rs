@@ -300,13 +300,7 @@ impl PolyMatrix for DCRTPolyMatrix {
             inner: parallel_iter!(0..self.nrow)
                 .flat_map(|i| {
                     let decompositions: Vec<_> = parallel_iter!(0..self.ncol)
-                        .map(|j| {
-                            // log_mem();
-                            let decomposition = self.inner[i][j].decompose(&self.params);
-                            // log_mem();
-                            // info!("🔥");
-                            decomposition
-                        })
+                        .map(|j| self.inner[i][j].decompose(&self.params))
                         .collect();
                     let mut decomposed_rows = vec![Vec::with_capacity(self.ncol); bit_length];
                     for col_decomp in decompositions {

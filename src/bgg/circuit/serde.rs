@@ -91,7 +91,7 @@ impl SerializablePolyCircuit {
 
         let mut sub_circuits = BTreeMap::new();
         for (circuit_id, sub_circuit) in circuit.sub_circuits.iter() {
-            let serializable_sub_circuit = Self::from_circuit(&sub_circuit);
+            let serializable_sub_circuit = Self::from_circuit(sub_circuit);
             sub_circuits.insert(*circuit_id, serializable_sub_circuit);
         }
         Self::new(gates, sub_circuits, circuit.output_ids.clone(), circuit.num_input)
@@ -114,7 +114,7 @@ impl SerializablePolyCircuit {
                     gate_idx += 1;
                 }
                 SerializablePolyGateType::Const { bits } => {
-                    circuit.const_bit_poly(&bits);
+                    circuit.const_bit_poly(bits);
                     gate_idx += 1;
                 }
                 SerializablePolyGateType::Add => {

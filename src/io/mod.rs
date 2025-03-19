@@ -148,7 +148,7 @@ mod test {
             public_circuit: public_circuit.clone(),
             d: 2,
             encoding_sigma: 3.477984925390326e-48,
-            hardcoded_key_sigma: 7.754896427200485e+16,
+            hardcoded_key_sigma: 7.754_896_427_200_485e16,
             p_sigma: 1.550677652781115e-169,
         };
 
