@@ -45,7 +45,6 @@ where
         if ring_elems.len() < nrow * ncol * n {
             panic!("Not enough ring elements to sample hash")
         }
-
         // From field elements to nrow * ncol polynomials
         DCRTPolyMatrix::from_poly_vec(
             params,

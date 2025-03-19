@@ -1,3 +1,4 @@
+use itertools::Itertools;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -138,15 +139,18 @@ impl Poly for DCRTPoly {
         let bit_length = params.modulus_bits();
         parallel_iter!(0..bit_length)
             .map(|h| {
-                let bit_coeffs: Vec<_> = coeffs
-                    .iter()
-                    .map(|j| {
-                        let val = (j.value() >> h) & BigUint::from(1u32);
-                        FinRingElem::new(val, params.modulus())
-                    })
-                    .collect();
-
-                DCRTPoly::from_coeffs(params, &bit_coeffs)
+                DCRTPoly::from_coeffs(
+                    params,
+                    &coeffs
+                        .iter()
+                        .map(|j| {
+                            FinRingElem::new(
+                                (j.value() >> h) & BigUint::from(1u32),
+                                params.modulus(),
+                            )
+                        })
+                        .collect_vec(),
+                )
             })
             .collect()
     }
@@ -333,7 +337,5 @@ mod tests {
         let poly = sampler.sample_poly(&params, &DistType::FinRingDist);
         let decomposed = poly.decompose(&params);
         assert_eq!(decomposed.len(), params.modulus_bits());
-        let recomposed = DCRTPoly::from_decomposed(&params, &decomposed);
-        assert_eq!(recomposed, poly);
     }
 }

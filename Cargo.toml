@@ -20,11 +20,16 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 bitvec = "1"
 memory-stats = "1.2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# for now we put in test
+
 
 [dev-dependencies]
 keccak-asm = { version = "0.1.4" }
 proptest = "1.0.0"
 criterion = "0.5.0"
+
 
 [profile.dev]
 debug = "line-tables-only"

@@ -1,5 +1,6 @@
 pub mod eval;
 pub mod obf;
+// pub mod serde;
 pub mod utils;
 use crate::{
     bgg::{circuit::PolyCircuit, BggEncoding},
@@ -33,20 +34,23 @@ pub struct ObfuscationParams<M: PolyMatrix> {
     pub params: <<M as PolyMatrix>::P as Poly>::Params,
     pub switched_modulus: <<<M as PolyMatrix>::P as Poly>::Params as PolyParams>::Modulus,
     pub input_size: usize,
-    pub public_circuit: PolyCircuit<M::P>,
-    pub error_gauss_sigma: f64,
+    pub public_circuit: PolyCircuit,
+    pub d: usize,
+    pub encoding_sigma: f64,
+    pub hardcoded_key_sigma: f64,
+    pub p_sigma: f64,
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::{
-        bgg::{circuit::PolyCircuit, ErrorSimulator},
-        io::{obf::obfuscate, utils::build_final_step_circuit, ObfuscationParams},
+        bgg::circuit::PolyCircuit,
+        io::{obf::obfuscate, ObfuscationParams},
         poly::{
             dcrt::{
-                DCRTPoly, DCRTPolyHashSampler, DCRTPolyMatrix, DCRTPolyParams,
-                DCRTPolyTrapdoorSampler, DCRTPolyUniformSampler,
+                DCRTPolyHashSampler, DCRTPolyMatrix, DCRTPolyParams, DCRTPolyTrapdoorSampler,
+                DCRTPolyUniformSampler,
             },
             PolyParams,
         },
@@ -54,6 +58,7 @@ mod test {
     };
     use keccak_asm::Keccak256;
     use num_bigint::BigUint;
+    use num_traits::Num;
     use std::sync::Arc;
 
     #[test]
@@ -80,12 +85,15 @@ mod test {
             switched_modulus,
             input_size: 1,
             public_circuit: public_circuit.clone(),
-            error_gauss_sigma: 0.0,
+            d: 3,
+            encoding_sigma: 0.0,
+            hardcoded_key_sigma: 0.0,
+            p_sigma: 0.0,
         };
 
         let sampler_uniform = DCRTPolyUniformSampler::new();
         let sampler_hash = DCRTPolyHashSampler::<Keccak256>::new([0; 32]);
-        let sampler_trapdoor = DCRTPolyTrapdoorSampler::new(2, 0.0);
+        let sampler_trapdoor = DCRTPolyTrapdoorSampler::new();
         let mut rng = rand::rng();
         let obfuscation = obfuscate::<DCRTPolyMatrix, _, _, _, _>(
             obf_params.clone(),
@@ -118,10 +126,9 @@ mod test {
     fn test_io_just_mul_enc_and_bit_real_params() {
         init_tracing();
         let start_time = std::time::Instant::now();
-        let params = DCRTPolyParams::new(8192, 9, 51);
-        println!("params {:?}", params);
+        let params = DCRTPolyParams::new(8192, 7, 51);
         let log_q = params.modulus_bits();
-        let switched_modulus = Arc::new(BigUint::from(2u32).pow(449u32));
+        let switched_modulus = Arc::new(BigUint::from_str_radix("71671831749689734737838152978190216899892655911508785116799651230841339877765150252187381844012976550000", 10).unwrap());
         let mut public_circuit = PolyCircuit::new();
         {
             let inputs = public_circuit.input(log_q + 1);
@@ -134,34 +141,20 @@ mod test {
             public_circuit.output(outputs);
         }
 
-        {
-            let dummy_a_decomposed_polys =
-                DCRTPolyMatrix::from_poly_vec_column(&params, vec![DCRTPoly::const_max(&params)])
-                    .decompose();
-            let dummy_b_decomposed_polys =
-                DCRTPolyMatrix::from_poly_vec_column(&params, vec![DCRTPoly::const_max(&params)])
-                    .decompose();
-            let final_circuit = build_final_step_circuit::<_, ErrorSimulator>(
-                &params,
-                &dummy_a_decomposed_polys.get_column(0),
-                &dummy_b_decomposed_polys.get_column(0),
-                public_circuit.clone(),
-            );
-            let error_m_polys = final_circuit.simulate_error(params.ring_dimension());
-            println!("error_m_polys {:?}", error_m_polys);
-        }
-
         let obf_params = ObfuscationParams {
             params: params.clone(),
             switched_modulus,
             input_size: 1,
             public_circuit: public_circuit.clone(),
-            error_gauss_sigma: 2251799813685248.0,
+            d: 2,
+            encoding_sigma: 3.477984925390326e-48,
+            hardcoded_key_sigma: 7.754896427200485e+16,
+            p_sigma: 1.550677652781115e-169,
         };
 
         let sampler_uniform = DCRTPolyUniformSampler::new();
         let sampler_hash = DCRTPolyHashSampler::<Keccak256>::new([0; 32]);
-        let sampler_trapdoor = DCRTPolyTrapdoorSampler::new(2, 0.0);
+        let sampler_trapdoor = DCRTPolyTrapdoorSampler::new();
         let mut rng = rand::rng();
         let obfuscation = obfuscate::<DCRTPolyMatrix, _, _, _, _>(
             obf_params.clone(),
@@ -175,8 +168,6 @@ mod test {
 
         let input = [true];
         let sampler_hash = DCRTPolyHashSampler::<Keccak256>::new([0; 32]);
-        // todo: we can wrap into method prob (even store hardcoded_key as Vec<bool> which is way
-        // compact)
         let hardcoded_key = obfuscation
             .hardcoded_key
             .coeffs()

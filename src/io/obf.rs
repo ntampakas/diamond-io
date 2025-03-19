@@ -2,11 +2,12 @@ use super::{utils::*, Obfuscation, ObfuscationParams};
 use crate::{
     bgg::{
         sampler::{BGGEncodingSampler, BGGPublicKeySampler},
-        BggPublicKey,
+        BggPublicKey, BitToInt,
     },
     join,
     poly::{matrix::*, sampler::*, Poly, PolyElem, PolyParams},
 };
+use itertools::Itertools;
 use rand::{Rng, RngCore};
 use std::{ops::Mul, sync::Arc};
 
@@ -30,22 +31,24 @@ where
     let dim = obf_params.params.ring_dimension() as usize;
     let log_q = obf_params.params.modulus_bits();
     debug_assert_eq!(public_circuit.num_input(), log_q + obf_params.input_size);
+    let d = obf_params.d;
+    let d1 = d + 1;
     let hash_key = rng.random::<[u8; 32]>();
     sampler_hash.set_key(hash_key);
     let sampler_uniform = Arc::new(sampler_uniform);
     let sampler_trapdoor = Arc::new(sampler_trapdoor);
-    let bgg_pubkey_sampler = BGGPublicKeySampler::new(Arc::new(sampler_hash));
+    let bgg_pubkey_sampler = BGGPublicKeySampler::new(Arc::new(sampler_hash), d);
     let public_data = PublicSampledData::sample(&obf_params, &bgg_pubkey_sampler);
     let params = Arc::new(obf_params.params);
     let packed_input_size = public_data.packed_input_size;
     let packed_output_size = public_data.packed_output_size;
-    let s_bar =
-        sampler_uniform.sample_uniform(&params, 1, 1, DistType::BitDist).entry(0, 0).clone();
+    let s_bars =
+        sampler_uniform.sample_uniform(&params, 1, d, DistType::BitDist).get_row(0).clone();
     let bgg_encode_sampler = BGGEncodingSampler::new(
         params.as_ref(),
-        &s_bar,
+        &s_bars,
         sampler_uniform.clone(),
-        obf_params.error_gauss_sigma,
+        obf_params.encoding_sigma,
     );
     let s_init = &bgg_encode_sampler.secret_vec;
     let t_bar_matrix = sampler_uniform.sample_uniform(&params, 1, 1, DistType::FinRingDist);
@@ -55,7 +58,7 @@ where
             &params,
             1,
             1,
-            DistType::GaussDist { sigma: obf_params.error_gauss_sigma },
+            DistType::GaussDist { sigma: obf_params.hardcoded_key_sigma },
         );
         let scale = M::P::from_const(&params, &<M::P as Poly>::Elem::half_q(&params.modulus()));
         &t_bar_matrix * &public_data.a_rlwe_bar + &e - &(&hardcoded_key_matrix * &scale)
@@ -66,38 +69,43 @@ where
     #[cfg(test)]
     let hardcoded_key = hardcoded_key_matrix.entry(0, 0).clone();
 
-    let mut plaintexts: Vec<M::P> = (0..obf_params.input_size.div_ceil(dim))
+    let mut plaintexts = (0..obf_params.input_size.div_ceil(dim))
         .map(|_| M::P::const_zero(params.as_ref()))
-        .collect();
+        .collect_vec();
     plaintexts.push(t_bar.clone());
-    // let mut input_encoded_polys: Vec<<M as PolyMatrix>::P> =
-    //     vec![<M::P as Poly>::const_one(params.as_ref())];
-    // input_encoded_polys.extend(enc_hardcoded_key_polys);
-    // input_encoded_polys.extend(zero_plaintexts);
     let encodings_init = bgg_encode_sampler.sample(&params, &public_data.pubkeys[0], &plaintexts);
-    // let encode_fhe_key =
-    //     bgg_encode_sampler.sample(&params, &public_data.pubkeys_fhe_key[0], &t.get_row(0),
-    // false);
 
     let mut bs = Vec::with_capacity(obf_params.input_size);
     let mut b_trapdoors = Vec::with_capacity(obf_params.input_size);
     for _ in 0..=obf_params.input_size {
-        let (b_0_trapdoor, b_0) = sampler_trapdoor.trapdoor(&params, 4);
-        let (b_1_trapdoor, b_1) = sampler_trapdoor.trapdoor(&params, 4);
-        let (b_star_trapdoor, b_star) = sampler_trapdoor.trapdoor(&params, 4);
+        let (b_0_trapdoor, b_0) = sampler_trapdoor.trapdoor(&params, 2 * d1);
+        let (b_1_trapdoor, b_1) = sampler_trapdoor.trapdoor(&params, 2 * d1);
+        let (b_star_trapdoor, b_star) = sampler_trapdoor.trapdoor(&params, 2 * d1);
         bs.push((b_0, b_1, b_star));
         b_trapdoors.push((b_0_trapdoor, b_1_trapdoor, b_star_trapdoor));
     }
-    let m_b = 4 * (2 + log_q);
-    let identity_2 = M::identity(params.as_ref(), 2, None);
-    let u_0 = identity_2.concat_diag(&[&public_data.r_0]);
-    let u_1 = identity_2.concat_diag(&[&public_data.r_1]);
+    let m_b = (2 * d1) * (2 + log_q);
+    let p_init = {
+        let s_connect = s_init.concat_columns(&[s_init]);
+        let s_b = s_connect * &bs[0].2;
+        let error = sampler_uniform.sample_uniform(
+            &params,
+            1,
+            m_b,
+            DistType::GaussDist { sigma: obf_params.p_sigma },
+        );
+        s_b + error
+    };
+    let identity_d1 = M::identity(params.as_ref(), d1, None);
+    let u_0 = identity_d1.concat_diag(&[&public_data.r_0]);
+    let u_1 = identity_d1.concat_diag(&[&public_data.r_1]);
     let u_star = {
-        let zeros = M::zero(params.as_ref(), 2, 4);
-        let identities = identity_2.concat_columns(&[&identity_2]);
+        let zeros = M::zero(params.as_ref(), d1, 2 * d1);
+        let identities = identity_d1.concat_columns(&[&identity_d1]);
         zeros.concat_rows(&[&identities])
     };
-    let gadget_2 = M::gadget_matrix(params.as_ref(), 2);
+    let gadget_d1 = M::gadget_matrix(params.as_ref(), d1);
+
     let (mut m_preimages, mut n_preimages, mut k_preimages) = (
         Vec::with_capacity(obf_params.input_size),
         Vec::with_capacity(obf_params.input_size),
@@ -146,7 +154,7 @@ where
                 for _ in (inserted_poly_index + 1)..(packed_input_size + 1) {
                     polys.push(zero.clone());
                 }
-                M::from_poly_vec_row(params.as_ref(), polys).tensor(&gadget_2)
+                M::from_poly_vec_row(params.as_ref(), polys).tensor(&gadget_d1)
             };
             let bottom = public_data.pubkeys[idx + 1][0]
                 .concat_matrix(&public_data.pubkeys[idx + 1][1..]) -
@@ -166,8 +174,7 @@ where
     }
 
     let a_decomposed_polys = public_data.a_rlwe_bar.decompose().get_column(0);
-    let final_circuit = build_final_step_circuit::<_, BggPublicKey<M>>(
-        &params,
+    let final_circuit = build_final_bits_circuit::<M::P, BggPublicKey<M>>(
         &a_decomposed_polys,
         &enc_hardcoded_key_polys,
         public_circuit.clone(),
@@ -176,13 +183,18 @@ where
         let one = public_data.pubkeys[obf_params.input_size][0].clone();
         let input = &public_data.pubkeys[obf_params.input_size][1..];
         let eval_outputs = final_circuit.eval(params.as_ref(), one, input);
-        let mut eval_outputs_matrix = eval_outputs[0].concat_matrix(&eval_outputs[1..]);
-        let unit_vector = identity_2.slice_columns(1, 2);
-        eval_outputs_matrix = eval_outputs_matrix * unit_vector.decompose();
+        assert_eq!(eval_outputs.len(), log_q * packed_output_size);
+        let output_ints = eval_outputs
+            .chunks(log_q)
+            .map(|bits| BggPublicKey::bits_to_int(bits, &params))
+            .collect_vec();
+        let eval_outputs_matrix = output_ints[0].concat_matrix(&output_ints[1..]);
+        // let unit_vector = identity_d1.slice_columns(d, d1);
+        // eval_outputs_matrix = eval_outputs_matrix * unit_vector.decompose();
         debug_assert_eq!(eval_outputs_matrix.col_size(), packed_output_size);
         (eval_outputs_matrix + public_data.a_prf).concat_rows(&[&M::zero(
             params.as_ref(),
-            2,
+            d1,
             packed_output_size,
         )])
     };
@@ -190,17 +202,6 @@ where
     let (_, _, b_final_trapdoor) = &b_trapdoors[obf_params.input_size];
     let final_preimage =
         sampler_trapdoor.preimage(&params, b_final_trapdoor, b_final, &final_preimage_target);
-    let p_init = {
-        let s_connect = s_init.concat_columns(&[s_init]);
-        let s_b = s_connect * &bs[0].2;
-        let error = sampler_uniform.sample_uniform(
-            &params,
-            1,
-            m_b,
-            DistType::GaussDist { sigma: obf_params.error_gauss_sigma },
-        );
-        s_b + error
-    };
     Obfuscation {
         hash_key,
         enc_hardcoded_key,
