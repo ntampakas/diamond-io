@@ -1,4 +1,4 @@
-use super::{block_offsets, block_size, MmapMatrix, MmapMatrixElem, MmapMatrixParams};
+use super::{block_offsets, MmapMatrix, MmapMatrixElem, MmapMatrixParams};
 use crate::{
     parallel_iter,
     poly::{
@@ -14,7 +14,7 @@ use openfhe::{
     ffi::{GetMatrixCols, GetMatrixElement, GetMatrixRows, Matrix, MatrixGen, SetMatrixElement},
 };
 use rayon::prelude::*;
-use std::{ops::Range, path::Path};
+use std::ops::Range;
 
 impl MmapMatrixParams for DCRTPolyParams {
     fn entry_size(&self) -> usize {
@@ -37,7 +37,7 @@ impl MmapMatrixElem for DCRTPoly {
         <Self as Poly>::from_bytes(params, bytes)
     }
 
-    fn from_elem_to_bytes(&self) -> Vec<u8> {
+    fn as_elem_to_bytes(&self) -> Vec<u8> {
         self.to_bytes()
     }
 }
@@ -53,13 +53,7 @@ impl PolyMatrix for DCRTPolyMatrix {
         let mut matrix = Self::new_empty(params, nrow, ncol);
         let vec = &vec;
         let f = |row_offsets: Range<usize>, col_offsets: Range<usize>| -> Vec<Vec<Self::P>> {
-            let mut new_entries =
-                vec![vec![DCRTPoly::const_zero(params); col_offsets.len()]; row_offsets.len()];
-            let row_start = row_offsets.start;
-            for i in row_offsets {
-                new_entries[i - row_start].clone_from_slice(&vec[i][col_offsets.clone()]);
-            }
-            new_entries
+            row_offsets.into_iter().map(|i| vec[i][col_offsets.clone()].to_vec()).collect()
         };
         matrix.replace_entries(0..nrow, 0..ncol, f);
         matrix
@@ -118,10 +112,15 @@ impl PolyMatrix for DCRTPolyMatrix {
 
     fn gadget_matrix(params: &<Self::P as Poly>::Params, size: usize) -> Self {
         let bit_length = params.modulus_bits();
+        let modulus = params.modulus();
         let mut poly_vec = Vec::with_capacity(bit_length);
-        for i in 0u32..(bit_length as u32) {
-            let value = BigInt::from(2).pow(i);
-            poly_vec.push(DCRTPoly::from_const(params, &FinRingElem::new(value, params.modulus())));
+        let mut value = BigInt::from(1);
+        for _ in 0..bit_length {
+            poly_vec.push(DCRTPoly::from_const(
+                params,
+                &FinRingElem::new(value.clone(), modulus.clone()),
+            ));
+            value *= 2;
         }
         let gadget_vector = Self::from_poly_vec(params, vec![poly_vec]);
         let identity = DCRTPolyMatrix::identity(params, size, None);
@@ -143,20 +142,24 @@ impl PolyMatrix for DCRTPolyMatrix {
                         );
                         let block_row_len = next_block_row_idx - cur_block_row_idx;
                         let block_col_len = next_block_col_idx - cur_block_col_idx;
-                        let mut new_entries =
-                            vec![
-                                vec![DCRTPoly::const_zero(&self.params); block_col_len];
-                                block_row_len * bit_length
-                            ];
-                        for j in 0..block_col_len {
-                            for i in 0..block_row_len {
-                                let poly = &self_block_polys[i][j];
-                                let decomposed_polys = poly.decompose(&self.params);
-                                for (k, poly) in decomposed_polys.into_iter().enumerate() {
-                                    new_entries[i * bit_length + k][j] = poly;
-                                }
-                            }
-                        }
+                        let new_entries: Vec<Vec<DCRTPoly>> = (0..block_row_len)
+                            .flat_map(|i| {
+                                let decompositions: Vec<Vec<DCRTPoly>> = (0..block_col_len)
+                                    .map(|j| {
+                                        let poly = &self_block_polys[i][j];
+                                        poly.decompose(&self.params)
+                                    })
+                                    .collect();
+                                (0..bit_length)
+                                    .map(move |k| {
+                                        decompositions
+                                            .iter()
+                                            .map(|decomposed| decomposed[k].clone())
+                                            .collect::<Vec<_>>()
+                                    })
+                                    .collect::<Vec<Vec<DCRTPoly>>>()
+                            })
+                            .collect();
                         // This is secure because the modified entries are not overlapped among
                         // threads
                         unsafe {
@@ -195,32 +198,31 @@ impl PolyMatrix for DCRTPolyMatrix {
 
     fn mul_tensor_identity(&self, other: &Self, identity_size: usize) -> Self {
         debug_assert_eq!(self.ncol, other.nrow * identity_size);
-
         let slice_width = other.nrow;
-        let mut slice_results = Vec::with_capacity(identity_size);
 
-        for i in 0..identity_size {
-            let slice = self.slice(0, self.nrow, i * slice_width, (i + 1) * slice_width);
-            slice_results.push(slice * other);
-        }
-        slice_results[0].clone().concat_columns(&slice_results[1..].iter().collect::<Vec<_>>())
+        let slice_results = (0..identity_size)
+            .map(|i| {
+                let slice = self.slice(0, self.nrow, i * slice_width, (i + 1) * slice_width);
+                slice * other
+            })
+            .collect_vec();
+
+        slice_results[0].concat_columns(&slice_results[1..].iter().collect::<Vec<_>>())
     }
 
     fn mul_tensor_identity_decompose(&self, other: &Self, identity_size: usize) -> Self {
         let log_q = self.params.modulus_bits();
         debug_assert_eq!(self.ncol, other.nrow * identity_size * log_q);
         let slice_width = other.nrow * log_q;
-        let mut output = vec![DCRTPolyMatrix::zero(&self.params, 0, 0); other.ncol * identity_size];
 
-        for j in 0..other.ncol {
-            let jth_col_m_decompose = other.get_column_matrix_decompose(j);
-            for i in 0..identity_size {
+        let output = (0..identity_size)
+            .flat_map(|i| {
                 let slice = self.slice(0, self.nrow, i * slice_width, (i + 1) * slice_width);
-                output[i * other.ncol + j] = slice * &jth_col_m_decompose;
-            }
-        }
+                (0..other.ncol).map(move |j| &slice * &other.get_column_matrix_decompose(j))
+            })
+            .collect_vec();
 
-        output[0].clone().concat_columns(&output[1..].iter().collect::<Vec<_>>())
+        output[0].concat_columns(&output[1..].iter().collect::<Vec<_>>())
     }
 
     fn get_column_matrix_decompose(&self, j: usize) -> Self {
@@ -231,72 +233,72 @@ impl PolyMatrix for DCRTPolyMatrix {
         .decompose()
     }
 
-    fn read_from_files<P: AsRef<Path> + Send + Sync>(
-        params: &<Self::P as Poly>::Params,
-        nrow: usize,
-        ncol: usize,
-        dir_path: P,
-    ) -> Self {
-        let block_size = block_size();
-        let mut matrix = Self::new_empty(params, nrow, ncol);
-        let f = |row_offsets: Range<usize>, col_offsets: Range<usize>| -> Vec<Vec<DCRTPoly>> {
-            let mut path = dir_path.as_ref().to_path_buf();
-            path.push(format!(
-                "{}_{}.{}_{}.{}.matrix",
-                block_size, row_offsets.start, row_offsets.end, col_offsets.start, col_offsets.end
-            ));
-            let bytes =
-                std::fs::read(&path).expect(&format!("Failed to read matrix file {:?}", path));
-            let entries_bytes: Vec<Vec<Vec<u8>>> = serde_json::from_slice(&bytes).unwrap();
-            parallel_iter!(0..row_offsets.len())
-                .map(|i| {
-                    parallel_iter!(0..col_offsets.len())
-                        .map(|j| {
-                            let entry_bytes = &entries_bytes[i][j];
-                            DCRTPoly::from_compact_bytes(params, entry_bytes)
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>()
-        };
-        matrix.replace_entries(0..nrow, 0..ncol, f);
-        matrix
-    }
+    // fn read_from_files<P: AsRef<Path> + Send + Sync>(
+    //     params: &<Self::P as Poly>::Params,
+    //     nrow: usize,
+    //     ncol: usize,
+    //     dir_path: P,
+    // ) -> Self {
+    //     let block_size = block_size();
+    //     let mut matrix = Self::new_empty(params, nrow, ncol);
+    //     let f = |row_offsets: Range<usize>, col_offsets: Range<usize>| -> Vec<Vec<DCRTPoly>> {
+    //         let mut path = dir_path.as_ref().to_path_buf();
+    //         path.push(format!(
+    //             "{}_{}.{}_{}.{}.matrix",
+    //             block_size, row_offsets.start, row_offsets.end, col_offsets.start,
+    // col_offsets.end         ));
+    //         let bytes = std::fs::read(&path)
+    //             .unwrap_or_else(|_| panic!("Failed to read matrix file {:?}", path));
+    //         let entries_bytes: Vec<Vec<Vec<u8>>> = serde_json::from_slice(&bytes).unwrap();
+    //         parallel_iter!(0..row_offsets.len())
+    //             .map(|i| {
+    //                 parallel_iter!(0..col_offsets.len())
+    //                     .map(|j| {
+    //                         let entry_bytes = &entries_bytes[i][j];
+    //                         DCRTPoly::from_compact_bytes(params, entry_bytes)
+    //                     })
+    //                     .collect::<Vec<_>>()
+    //             })
+    //             .collect::<Vec<_>>()
+    //     };
+    //     matrix.replace_entries(0..nrow, 0..ncol, f);
+    //     matrix
+    // }
 
-    fn write_to_files<P: AsRef<Path> + Send + Sync>(&self, dir_path: P) {
-        let block_size = block_size();
-        let (row_offsets, col_offsets) = block_offsets(0..self.nrow, 0..self.ncol);
-        parallel_iter!(row_offsets.iter().tuple_windows().collect_vec()).for_each(
-            |(cur_block_row_idx, next_block_row_idx)| {
-                parallel_iter!(col_offsets.iter().tuple_windows().collect_vec()).for_each(
-                    |(cur_block_col_idx, next_block_col_idx)| {
-                        let entries = self.block_entries(
-                            *cur_block_row_idx..*next_block_row_idx,
-                            *cur_block_col_idx..*next_block_col_idx,
-                        );
-                        let mut path = dir_path.as_ref().to_path_buf();
-                        path.push(format!(
-                            "{}_{}.{}_{}.{}.matrix",
-                            block_size,
-                            cur_block_row_idx,
-                            next_block_row_idx,
-                            cur_block_col_idx,
-                            next_block_col_idx
-                        ));
-                        let entries_bytes: Vec<Vec<Vec<u8>>> = entries
-                            .iter()
-                            .map(|row| row.iter().map(|poly| poly.to_compact_bytes()).collect_vec())
-                            .collect_vec();
-                        serde_json::to_writer(
-                            std::fs::File::create(&path).unwrap(),
-                            &entries_bytes,
-                        )
-                        .expect(format!("Failed to write matrix file {:?}", path).as_str());
-                    },
-                );
-            },
-        );
-    }
+    // fn write_to_files<P: AsRef<Path> + Send + Sync>(&self, dir_path: P) {
+    //     let block_size = block_size();
+    //     let (row_offsets, col_offsets) = block_offsets(0..self.nrow, 0..self.ncol);
+    //     parallel_iter!(row_offsets.iter().tuple_windows().collect_vec()).for_each(
+    //         |(cur_block_row_idx, next_block_row_idx)| {
+    //             parallel_iter!(col_offsets.iter().tuple_windows().collect_vec()).for_each(
+    //                 |(cur_block_col_idx, next_block_col_idx)| {
+    //                     let entries = self.block_entries(
+    //                         *cur_block_row_idx..*next_block_row_idx,
+    //                         *cur_block_col_idx..*next_block_col_idx,
+    //                     );
+    //                     let mut path = dir_path.as_ref().to_path_buf();
+    //                     path.push(format!(
+    //                         "{}_{}.{}_{}.{}.matrix",
+    //                         block_size,
+    //                         cur_block_row_idx,
+    //                         next_block_row_idx,
+    //                         cur_block_col_idx,
+    //                         next_block_col_idx
+    //                     ));
+    //                     let entries_bytes: Vec<Vec<Vec<u8>>> = entries
+    //                         .iter()
+    //                         .map(|row| row.iter().map(|poly|
+    // poly.to_compact_bytes()).collect_vec())                         .collect_vec();
+    //                     serde_json::to_writer(
+    //                         std::fs::File::create(&path).unwrap(),
+    //                         &entries_bytes,
+    //                     )
+    //                     .unwrap_or_else(|_| panic!("Failed to write matrix file {:?}", path));
+    //                 },
+    //             );
+    //         },
+    //     );
+    // }
 }
 
 impl DCRTPolyMatrix {

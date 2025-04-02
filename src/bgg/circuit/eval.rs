@@ -23,20 +23,19 @@ impl<P: Poly> Evaluable for P {
     type Params = P::Params;
 
     fn rotate(&self, params: &Self::Params, shift: usize) -> Self {
-        let mut coeffs = self.coeffs().clone();
+        let mut coeffs = self.coeffs();
         coeffs.rotate_right(shift);
         Self::from_coeffs(params, &coeffs)
     }
 
     fn from_bits(params: &Self::Params, _: &Self, bits: &[bool]) -> Self {
-        let poly = Self::const_zero(params);
-        let mut coeffs = poly.coeffs();
-        let one_elem = <P::Elem as PolyElem>::one(&params.modulus());
-        for (i, bit) in bits.iter().enumerate() {
-            if *bit {
-                coeffs[i] = one_elem.clone();
-            }
-        }
+        let modulus = params.modulus();
+        let one_elem = <P::Elem as PolyElem>::one(&modulus);
+        let zero_elem = <P::Elem as PolyElem>::zero(&modulus);
+        let coeffs: Vec<P::Elem> = bits
+            .iter()
+            .map(|&bit| if bit { one_elem.clone() } else { zero_elem.clone() })
+            .collect();
         Self::from_coeffs(params, &coeffs)
     }
 }
