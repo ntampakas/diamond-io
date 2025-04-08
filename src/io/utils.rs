@@ -145,7 +145,8 @@ mod test {
         bgg::BitToInt,
         poly::{
             dcrt::{
-                DCRTPoly, DCRTPolyHashSampler, DCRTPolyParams, DCRTPolyUniformSampler, FinRingElem,
+                DCRTPoly, DCRTPolyHashSampler, DCRTPolyMatrix, DCRTPolyParams,
+                DCRTPolyUniformSampler, FinRingElem,
             },
             element::PolyElem,
             sampler::DistType,
@@ -153,6 +154,7 @@ mod test {
     };
     use keccak_asm::Keccak256;
     use num_bigint::BigUint;
+    use tracing_subscriber::field::debug;
 
     #[test]
     fn test_build_final_step_circuit() {
@@ -170,7 +172,6 @@ mod test {
         // 3. Generate a random hardcoded key (similar to obf.rs lines 53-65)
         let sampler_uniform = DCRTPolyUniformSampler::new();
         let hardcoded_key = sampler_uniform.sample_uniform(&params, 1, 1, DistType::BitDist);
-
         // 4. Get the public polynomial a from PublicSampledData's sample function
         let hash_sampler = DCRTPolyHashSampler::<Keccak256>::new([0; 32]);
         let a_rlwe_bar =
@@ -179,30 +180,35 @@ mod test {
         // 5. Generate RLWE ciphertext for the hardcoded key
         let t_bar = sampler_uniform.sample_uniform(&params, 1, 1, DistType::FinRingDist);
         let e = sampler_uniform.sample_uniform(&params, 1, 1, DistType::GaussDist { sigma: 0.0 });
-
         // Create a scale value (half of q)
         let modulus = params.modulus();
         let half_q = FinRingElem::half_q(&modulus.clone());
         let scale = DCRTPoly::from_const(&params, &half_q);
         let enc_hardcoded_key =
             t_bar.clone() * &a_rlwe_bar + &e - &(hardcoded_key.clone() * &scale);
+        assert_eq!(
+            (hardcoded_key.clone() * &scale).entry(0, 0),
+            (t_bar.clone() * &a_rlwe_bar - &enc_hardcoded_key).entry(0, 0)
+        );
 
         // 6. Decompose the ciphertext
-        let enc_hardcoded_key_polys =
-            enc_hardcoded_key.get_column_matrix_decompose(0).get_column(0);
+        let enc_hardcoded_key_polys: Vec<DCRTPoly> =
+            enc_hardcoded_key.entry(0, 0).decompose_bits(&params);
 
         // 7. Build the final step circuit with DCRTPoly as the Evaluable type
-        let a_decomposed_polys = a_rlwe_bar.get_column_matrix_decompose(0).get_column(0);
+        let a_decomposed_polys = a_rlwe_bar.entry(0, 0).decompose_bits(&params);
         let final_circuit = build_final_bits_circuit::<DCRTPoly, DCRTPoly>(
             &a_decomposed_polys,
             &enc_hardcoded_key_polys,
-            public_circuit,
+            public_circuit.clone(),
         );
 
         // 8. Evaluate the circuit with the decomposed ciphertext
         let one = DCRTPoly::const_one(&params);
+
         let mut inputs = vec![one.clone()];
         inputs.push(t_bar.entry(0, 0).clone());
+
         let circuit_outputs = final_circuit.eval(&params, &one, &inputs);
         // 9. Extract the hardcoded key bits
         let hardcoded_key_bits = hardcoded_key
@@ -217,6 +223,8 @@ mod test {
             .chunks(log_q)
             .map(|bits| DCRTPoly::bits_to_int(bits, &params))
             .collect_vec();
+        assert_eq!(output_ints.len(), 1);
+        assert_eq!(output_ints[0], (hardcoded_key.clone() * &scale).entry(0, 0));
         let output_bits =
             output_ints.iter().flat_map(|output| output.extract_highest_bits()).collect::<Vec<_>>();
         // 11. Verify that the output matches the hardcoded key bits
@@ -231,7 +239,7 @@ mod test {
     #[test]
     fn test_simulate_norm_final_bits_circuit() {
         // 1. Set up parameters
-        let params = DCRTPolyParams::new(4096, 12, 51);
+        let params = DCRTPolyParams::new(8192, 12, 51, 16);
         let log_q = params.modulus_bits();
 
         // 2. Create a simple public circuit that takes log_q inputs and outputs them directly
@@ -244,18 +252,21 @@ mod test {
         let a_rlwe_bar = DCRTPoly::const_max(&params);
         let enc_hardcoded_key = DCRTPoly::const_max(&params);
 
-        let a_decomposed_polys = a_rlwe_bar.decompose(&params);
-        let b_decomposed_polys = enc_hardcoded_key.decompose(&params);
+        let a_decomposed_polys = a_rlwe_bar.decompose_bits(&params);
+        let b_decomposed_polys = enc_hardcoded_key.decompose_bits(&params);
         let final_circuit = build_final_bits_circuit::<DCRTPoly, DCRTPoly>(
             &a_decomposed_polys,
             &b_decomposed_polys,
             public_circuit,
         );
 
-        let norms = final_circuit
-            .simulate_bgg_norm(params.ring_dimension(), params.ring_dimension() as usize + 1);
+        let norms = final_circuit.simulate_bgg_norm(
+            params.ring_dimension(),
+            params.base_bits(),
+            1 + params.ring_dimension() as usize,
+        );
         let norm_json = serde_json::to_string(&norms).unwrap();
-        println!("norms: {}", norm_json);
+        // println!("norms: {}", norm_json);
         use std::{fs::File, io::Write};
         let mut file = File::create("final_bits_norm.json").unwrap();
         file.write_all(norm_json.as_bytes()).unwrap();

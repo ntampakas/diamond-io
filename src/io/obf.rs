@@ -32,6 +32,7 @@ where
     let public_circuit = &obf_params.public_circuit;
     let dim = obf_params.params.ring_dimension() as usize;
     let log_q = obf_params.params.modulus_bits();
+    let log_base_q = obf_params.params.modulus_digits();
     debug_assert_eq!(public_circuit.num_input(), log_q + obf_params.input_size);
     let d = obf_params.d;
     let hash_key = rng.random::<[u8; 32]>();
@@ -80,7 +81,7 @@ where
         t_bar_matrix.clone() * &public_data.a_rlwe_bar + &e -
             &(hardcoded_key_matrix.clone() * &scale)
     };
-    let enc_hardcoded_key_polys = enc_hardcoded_key.get_column_matrix_decompose(0).get_column(0);
+    let enc_hardcoded_key_polys = enc_hardcoded_key.entry(0, 0).decompose_bits(params.as_ref());
     log_mem("Sampled enc_hardcoded_key_polys");
 
     let t_bar = t_bar_matrix.entry(0, 0);
@@ -99,7 +100,7 @@ where
     log_mem("b star trapdoor init sampled");
 
     let p_init = {
-        let m_b = (2 * (d + 1)) * (2 + log_q);
+        let m_b = (2 * (d + 1)) * (2 + log_base_q);
         let s_connect = s_init.concat_columns(&[s_init]);
         let s_b = s_connect * &b_star_cur;
         let error = sampler_uniform.sample_uniform(
@@ -227,8 +228,7 @@ where
     }
 
     let final_preimage_target = {
-        let a_decomposed_polys =
-            public_data.a_rlwe_bar.get_column_matrix_decompose(0).get_column(0);
+        let a_decomposed_polys = public_data.a_rlwe_bar.entry(0, 0).decompose_bits(params.as_ref());
         let final_circuit = build_final_bits_circuit::<M::P, BggPublicKey<M>>(
             &a_decomposed_polys,
             &enc_hardcoded_key_polys,

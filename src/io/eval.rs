@@ -80,7 +80,7 @@ where
                 expected_encoding_init
             );
         }
-        let log_q = params.as_ref().modulus_bits();
+        let log_base_q = params.as_ref().modulus_digits();
         let dim = params.as_ref().ring_dimension() as usize;
         for (idx, input) in inputs.iter().enumerate() {
             let m = if *input { &self.m_preimages[idx][1] } else { &self.m_preimages[idx][0] };
@@ -98,7 +98,7 @@ where
             let mut new_encodings = vec![];
             let inserted_poly_index = 1 + idx / dim;
             for (j, encode) in encodings[idx].iter().enumerate() {
-                let m = d1 * log_q;
+                let m = d1 * log_base_q;
                 let new_vec = new_encode_vec.slice_columns(j * m, (j + 1) * m);
                 let plaintext = if j == inserted_poly_index {
                     let inserted_coeff_index = idx % dim;
@@ -173,9 +173,8 @@ where
             }
         }
         let enc_hardcoded_key_decomposed =
-            &self.enc_hardcoded_key.get_column_matrix_decompose(0).get_column(0);
-        let a_decomposed_polys =
-            public_data.a_rlwe_bar.get_column_matrix_decompose(0).get_column(0);
+            &self.enc_hardcoded_key.entry(0, 0).decompose_bits(params.as_ref());
+        let a_decomposed_polys = public_data.a_rlwe_bar.entry(0, 0).decompose_bits(params.as_ref());
         let final_circuit = build_final_bits_circuit::<M::P, BggEncoding<M>>(
             &a_decomposed_polys,
             enc_hardcoded_key_decomposed,
@@ -187,6 +186,7 @@ where
             &last_input_encodings[0],
             &last_input_encodings[1..],
         );
+        let log_q = params.as_ref().modulus_bits();
         let output_encoding_ints = output_encodings
             .chunks(log_q)
             .map(|bits| BggEncoding::bits_to_int(bits, &params))
@@ -224,6 +224,8 @@ where
                             output_encoding_ints[0].plaintext.clone().unwrap());
                 debug_assert_eq!(output_encoding_ints[0].vector, expcted);
             }
+            debug_assert_eq!(z.size(), (1, packed_output_size));
+            debug_assert_eq!(z.entry(0, 0), output_encoding_ints[0].plaintext.clone().unwrap());
         }
         z.get_row(0).into_iter().flat_map(|p| p.extract_highest_bits()).collect_vec()
     }
