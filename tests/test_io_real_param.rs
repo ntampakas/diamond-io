@@ -29,7 +29,10 @@ mod test {
         let start_time = std::time::Instant::now();
         let params = DCRTPolyParams::new(8192, 12, 51, 16);
         let log_q = params.modulus_bits();
-        let switched_modulus = Arc::new(BigUint::from_str_radix("15829145694278690179872161345257420162248406342477557754500035589945422364945084658438108187108114830000000000000000000000000000000000000000000000000000000000000000000000000000", 10).unwrap());
+        let switched_modulus =
+Arc::new(BigUint::from_str_radix("
+15829145694278690179872161345257420162248406342477557754500035589945422364945084658438108187108114830000000000000000000000000000000000000000000000000000000000000000000000000000"
+, 10).unwrap());
         let mut public_circuit = PolyCircuit::new();
 
         // inputs: BITS(ct), eval_input
@@ -78,9 +81,6 @@ mod test {
         let output =
             obfuscation.eval::<_, DCRTPolyTrapdoorSampler>(obf_params, sampler_hash, &input);
         let total_time = start_time.elapsed();
-        info!("hardcoded key {:?}", hardcoded_key.coeffs());
-        info!("input {:?}", input);
-        info!("output {:?}", output);
         info!("Time for evaluation: {:?}", total_time - obfuscation_time);
         info!("Total time: {:?}", total_time);
         let input_poly = DCRTPoly::from_const(
