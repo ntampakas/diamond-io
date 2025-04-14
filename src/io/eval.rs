@@ -1,6 +1,6 @@
 use super::{params::ObfuscationParams, utils::*, Obfuscation};
 use crate::{
-    bgg::{sampler::BGGPublicKeySampler, BggEncoding, BitToInt},
+    bgg::{sampler::BGGPublicKeySampler, BggEncoding, DigitsToInt},
     poly::{sampler::*, Poly, PolyElem, PolyMatrix, PolyParams},
 };
 use itertools::Itertools;
@@ -169,8 +169,8 @@ where
                 assert_eq!(new_encode_vec, expcted_new_encode);
             }
         }
-        let a_decomposed = public_data.a_rlwe_bar.entry(0, 0).decompose_bits(params.as_ref());
-        let b_decomposed = &self.ct_b.entry(0, 0).decompose_bits(params.as_ref());
+        let a_decomposed = public_data.a_rlwe_bar.entry(0, 0).decompose_base(params.as_ref());
+        let b_decomposed = &self.ct_b.entry(0, 0).decompose_base(params.as_ref());
         let final_circuit = build_final_bits_circuit::<M::P, BggEncoding<M>>(
             &a_decomposed,
             b_decomposed,
@@ -182,10 +182,9 @@ where
             &last_input_encodings[0],
             &last_input_encodings[1..],
         );
-        let log_q = params.as_ref().modulus_bits();
         let output_encoding_ints = output_encodings
-            .chunks(log_q)
-            .map(|bits| BggEncoding::bits_to_int(bits, &params))
+            .chunks(log_base_q)
+            .map(|bits| BggEncoding::digits_to_int(bits, &params))
             .collect_vec();
         let output_encodings_vec =
             output_encoding_ints[0].concat_vector(&output_encoding_ints[1..]);
@@ -211,7 +210,16 @@ where
                 assert_eq!(output_encoding_ints[0].vector, expected);
             }
             assert_eq!(z.size(), (1, packed_output_size));
-            assert_eq!(z.entry(0, 0), output_encoding_ints[0].plaintext.clone().unwrap());
+            if inputs[0] {
+                assert_eq!(
+                    output_encoding_ints[0]
+                        .plaintext
+                        .clone()
+                        .unwrap()
+                        .extract_bits_with_threshold(&params),
+                    self.hardcoded_key.to_bool_vec()
+                );
+            }
         }
         z.get_row(0).into_iter().flat_map(|p| p.extract_bits_with_threshold(&params)).collect_vec()
     }

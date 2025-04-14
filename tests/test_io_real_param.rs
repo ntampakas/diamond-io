@@ -27,18 +27,18 @@ mod test {
     fn test_io_just_mul_enc_and_bit_real_params() {
         init_tracing();
         let start_time = std::time::Instant::now();
-        let params = DCRTPolyParams::new(8192, 12, 51, 16);
-        let log_q = params.modulus_bits();
-        let switched_modulus = Arc::new(BigUint::from_str_radix("15829145694278690179872161345257420162248406342477557754500035589945422364945084658438108187108114830000000000000000000000000000000000000000000000000000000000000000000000000000", 10).unwrap());
+        let params = DCRTPolyParams::new(8192, 6, 51, 20);
+        let log_base_q = params.modulus_digits();
+        let switched_modulus = Arc::new(BigUint::from_str_radix("242833611528216133864932738352844082358996736827870043467279656893386864455514587136", 10).unwrap());
         let mut public_circuit = PolyCircuit::new();
 
         // inputs: BITS(ct), eval_input
         // outputs: BITS(ct) AND eval_input
         {
-            let inputs = public_circuit.input((2 * log_q) + 1);
+            let inputs = public_circuit.input((2 * log_base_q) + 1);
             let mut outputs = vec![];
-            let eval_input = inputs[2 * log_q];
-            for ct_input in inputs[0..2 * log_q].iter() {
+            let eval_input = inputs[2 * log_base_q];
+            for ct_input in inputs[0..2 * log_base_q].iter() {
                 let muled = public_circuit.and_gate(*ct_input, eval_input);
                 outputs.push(muled);
             }
@@ -51,9 +51,9 @@ mod test {
             input_size: 1,
             public_circuit: public_circuit.clone(),
             d: 1,
-            encoding_sigma: 7.26009020373352e+51,
-            hardcoded_key_sigma: 4.652_550_537_829_127e102,
-            p_sigma: 2.9297574882928115,
+            encoding_sigma: 12.05698,
+            hardcoded_key_sigma: 40615715852990820734.97011,
+            p_sigma: 12.05698,
         };
 
         let sampler_uniform = DCRTPolyUniformSampler::new();
