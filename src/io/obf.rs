@@ -14,6 +14,7 @@ use crate::{
 };
 use itertools::Itertools;
 use rand::{Rng, RngCore};
+use rayon::{iter::ParallelIterator, slice::ParallelSlice};
 use std::sync::Arc;
 
 pub fn obfuscate<M, SU, SH, ST, R>(
@@ -198,10 +199,12 @@ where
 
             let rg = &public_data.rgs[bit];
             let top = lhs.mul_tensor_identity_decompose(rg, 1 + packed_input_size);
+            log_mem("Computed top");
             if bit != 0 {
                 coeffs[inserted_coeff_index] = <M::P as Poly>::Elem::one(&params.modulus())
             };
             let inserted_poly = M::P::from_coeffs(params.as_ref(), &coeffs);
+            log_mem("Computed inserted_poly");
             let inserted_poly_gadget = {
                 let gadget_d_plus_1 = M::gadget_matrix(&params, d + 1);
                 let zero = <M::P as Poly>::const_zero(params.as_ref());
@@ -215,8 +218,11 @@ where
                 }
                 M::from_poly_vec_row(params.as_ref(), polys).tensor(&gadget_d_plus_1)
             };
+            log_mem("Computed inserted_poly_gadget");
             let bottom = pub_key_idx[0].concat_matrix(&pub_key_idx[1..]) - &inserted_poly_gadget;
+            log_mem("Computed bottom");
             let k_target = top.concat_rows(&[&bottom]);
+            log_mem("Computed k_target");
             let k_preimage_bit =
                 sampler_trapdoor.preimage(&params, &b_bit_trapdoor_idx, &b_bit_idx, &k_target);
             log_mem("Computed k_preimage_bit");
@@ -240,9 +246,9 @@ where
         log_mem("Evaluated outputs");
         assert_eq!(eval_outputs.len(), log_base_q * packed_output_size);
         let output_ints = eval_outputs
-            .chunks(log_base_q)
+            .par_chunks(log_base_q)
             .map(|bits| BggPublicKey::digits_to_int(bits, &params))
-            .collect_vec();
+            .collect::<Vec<_>>();
         let eval_outputs_matrix = output_ints[0].concat_matrix(&output_ints[1..]);
         debug_assert_eq!(eval_outputs_matrix.col_size(), packed_output_size);
         (eval_outputs_matrix + public_data.a_prf).concat_rows(&[&M::zero(

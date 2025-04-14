@@ -126,7 +126,9 @@ impl PolyMatrix for DCRTPolyMatrix {
             let entries = self.block_entries(row_offsets, col_offsets);
             let decomposed_entries: Vec<Vec<Vec<DCRTPoly>>> = parallel_iter!(0..nrow)
                 .map(|i| {
-                    (0..ncol).map(|j| self.dcrt_decompose_poly(&entries[i][j], base_bits)).collect()
+                    parallel_iter!(0..ncol)
+                        .map(|j| self.dcrt_decompose_poly(&entries[i][j], base_bits))
+                        .collect()
                 })
                 .collect();
             parallel_iter!(0..new_nrow)
@@ -134,7 +136,7 @@ impl PolyMatrix for DCRTPolyMatrix {
                     let i = idx / log_base_q;
                     let k = idx % log_base_q;
 
-                    (0..ncol).map(|j| decomposed_entries[i][j][k].clone()).collect()
+                    parallel_iter!(0..ncol).map(|j| decomposed_entries[i][j][k].clone()).collect()
                 })
                 .collect()
         };
@@ -183,11 +185,12 @@ impl PolyMatrix for DCRTPolyMatrix {
 
         let output = (0..identity_size)
             .flat_map(|i| {
+                debug_mem(format!("mul_tensor_identity_decompose at {}", i));
                 let slice = self.slice(0, self.nrow, i * slice_width, (i + 1) * slice_width);
                 (0..other.ncol).map(move |j| &slice * &other.get_column_matrix_decompose(j))
             })
             .collect_vec();
-
+        debug_mem("mul_tensor_identity_decompose output computed".to_string());
         output[0].concat_columns(&output[1..].iter().collect::<Vec<_>>())
     }
 
