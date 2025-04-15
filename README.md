@@ -1,41 +1,34 @@
-## diamond-io
+# diamond-io
 
 Implementation of [Diamond iO](https://eprint.iacr.org/2025/236)
 
-### note
+### Note
 
-We currently have 2 different matrix implementation.
-1. by calling `mmap()` syscall, use disk space as default storage
-2. by using memory fully
+We currently support two different matrix implementations:
+1. **In-memory** (default): Uses memory for all matrix storage.
+2. **Disk-backed** (enable with `--features disk`): Uses the `mmap()` syscall to store matrices on disk.
 
-#### Full Test (with test feature)
+#### Test iO (without `test` feature)
 
-```
-cargo test -r
-```
+This disables helper logic and fields used only for testing, which are not required for iO security.
 
-#### Test iO (without test feature) 
-
-this will remove helper logic + helper fields for test which is not require for iO security.
-
-
-- dummy params
-```
-cargo test -r --test test_io_dummy_param --no-default-features (--features disk) -- --nocapture
+- **Dummy parameters**  
+```bash
+cargo test -r --test test_io_dummy_param --no-default-features -- --ignored --nocapture
 ```
 
-- real params (by default ignored)
-```
-cargo test -r --test test_io_real_param --no-default-features (--features disk) -- --ignored --nocapture
-```
-
-- with memory profiler 
-```
-uv run memory_profile.py cargo test -r --test test_io_dummy_param (--features disk)  --no-default-features
+- **Real parameters** (tests are ignored by default)  
+```bash
+cargo test -r --test test_io_real_param --no-default-features -- --ignored --nocapture
 ```
 
-#### Simulate Parameters
-##### 1. Rust part: writing a rust program to simulate a norm corresponding to the circuit you want to obfuscate. You can refer to the `test_simulate_norm_final_bits_circuit` test function as an example. 
+- **With memory profiler**  
+```bash
+uv run memory_profile.py cargo test -r --test test_io_dummy_param --no-default-features
+```
+
+### Simulate Parameters
+#### 1. Rust part: writing a rust program to simulate a norm corresponding to the circuit you want to obfuscate. You can refer to the `test_simulate_norm_final_bits_circuit` test function as an example. 
 
 1.1. Fix the ring dimension `n`, the bits of each moduli of CRT `crt_bits`, the maximum number of moduli `crt_depth`, (implying that the bits of the derived modulus `q` is bounded by `crt_bits * crt_depth`,), and the base bits for decomposition `base_bits`.
 
@@ -47,7 +40,7 @@ uv run memory_profile.py cargo test -r --test test_io_dummy_param (--features di
 
 1.5. Store norms as a json file in the same manner as `test_simulate_norm_final_bits_circuit`.
 
-##### 2. Python part: running `simulator/main.py` to get parameters satisfying correctness and security for your circuit.
+#### 2. Python part: running `simulator/main.py` to get parameters satisfying correctness and security for your circuit.
 
 2.1. Move the json file generated in Step 1.5 under the `simulator` directory.
 
