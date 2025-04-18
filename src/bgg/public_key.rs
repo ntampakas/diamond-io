@@ -96,14 +96,12 @@ impl<M: PolyMatrix> Evaluable for BggPublicKey<M> {
 }
 
 #[cfg(test)]
-#[cfg(feature = "test")]
 mod tests {
     use crate::{
         bgg::{circuit::PolyCircuit, sampler::BGGPublicKeySampler},
         poly::dcrt::{params::DCRTPolyParams, DCRTPolyHashSampler},
     };
     use keccak_asm::Keccak256;
-    use std::sync::Arc;
 
     #[test]
     fn test_pubkey_add() {
@@ -112,9 +110,8 @@ mod tests {
 
         // Create a hash sampler and BGGPublicKeySampler to be reused
         let key: [u8; 32] = rand::random();
-        let hash_sampler = Arc::new(DCRTPolyHashSampler::<Keccak256>::new(key));
         let d = 3;
-        let bgg_sampler = BGGPublicKeySampler::new(hash_sampler, d);
+        let bgg_sampler = BGGPublicKeySampler::<_, DCRTPolyHashSampler<Keccak256>>::new(key, d);
 
         // Generate random tag for sampling
         let tag: u64 = rand::random();
@@ -152,9 +149,8 @@ mod tests {
 
         // Create a hash sampler and BGGPublicKeySampler to be reused
         let key: [u8; 32] = rand::random();
-        let hash_sampler = Arc::new(DCRTPolyHashSampler::<Keccak256>::new(key));
         let d = 3;
-        let bgg_sampler = BGGPublicKeySampler::new(hash_sampler, d);
+        let bgg_sampler = BGGPublicKeySampler::<_, DCRTPolyHashSampler<Keccak256>>::new(key, d);
 
         // Generate random tag for sampling
         let tag: u64 = rand::random();
@@ -192,9 +188,8 @@ mod tests {
 
         // Create a hash sampler and BGGPublicKeySampler to be reused
         let key: [u8; 32] = rand::random();
-        let hash_sampler = Arc::new(DCRTPolyHashSampler::<Keccak256>::new(key));
         let d = 3;
-        let bgg_sampler = BGGPublicKeySampler::new(hash_sampler, d);
+        let bgg_sampler = BGGPublicKeySampler::<_, DCRTPolyHashSampler<Keccak256>>::new(key, d);
 
         // Generate random tag for sampling
         let tag: u64 = rand::random();
@@ -232,9 +227,8 @@ mod tests {
 
         // Create a hash sampler and BGGPublicKeySampler to be reused
         let key: [u8; 32] = rand::random();
-        let hash_sampler = Arc::new(DCRTPolyHashSampler::<Keccak256>::new(key));
         let d = 3;
-        let bgg_sampler = BGGPublicKeySampler::new(hash_sampler, d);
+        let bgg_sampler = BGGPublicKeySampler::<_, DCRTPolyHashSampler<Keccak256>>::new(key, d);
 
         // Generate random tag for sampling
         let tag: u64 = rand::random();
@@ -282,9 +276,8 @@ mod tests {
 
         // Create a hash sampler and BGGPublicKeySampler to be reused
         let key: [u8; 32] = rand::random();
-        let hash_sampler = Arc::new(DCRTPolyHashSampler::<Keccak256>::new(key));
         let d = 3;
-        let bgg_sampler = BGGPublicKeySampler::new(hash_sampler, d);
+        let bgg_sampler = BGGPublicKeySampler::<_, DCRTPolyHashSampler<Keccak256>>::new(key, d);
 
         // Generate random tag for sampling
         let tag: u64 = rand::random();
@@ -350,9 +343,8 @@ mod tests {
 
         // Create a hash sampler and BGGPublicKeySampler to be reused
         let key: [u8; 32] = rand::random();
-        let hash_sampler = Arc::new(DCRTPolyHashSampler::<Keccak256>::new(key));
         let d = 3;
-        let bgg_sampler = BGGPublicKeySampler::new(hash_sampler, d);
+        let bgg_sampler = BGGPublicKeySampler::<_, DCRTPolyHashSampler<Keccak256>>::new(key, d);
 
         // Generate random tag for sampling
         let tag: u64 = rand::random();
@@ -418,9 +410,8 @@ mod tests {
 
         // Create a hash sampler and BGGPublicKeySampler to be reused
         let key: [u8; 32] = rand::random();
-        let hash_sampler = Arc::new(DCRTPolyHashSampler::<Keccak256>::new(key));
         let d = 3;
-        let bgg_sampler = BGGPublicKeySampler::new(hash_sampler, d);
+        let bgg_sampler = BGGPublicKeySampler::<_, DCRTPolyHashSampler<Keccak256>>::new(key, d);
 
         // Generate random tag for sampling
         let tag: u64 = rand::random();

@@ -393,10 +393,13 @@ impl SubAssign<&DCRTPoly> for DCRTPoly {
 }
 
 #[cfg(test)]
-#[cfg(feature = "test")]
 mod tests {
     use super::*;
-    use crate::poly::{dcrt::DCRTPolyUniformSampler, sampler::DistType, PolyParams};
+    use crate::poly::{
+        dcrt::DCRTPolyUniformSampler,
+        sampler::{DistType, PolyUniformSampler},
+        PolyParams,
+    };
     use rand::prelude::*;
 
     #[test]

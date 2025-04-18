@@ -42,11 +42,8 @@ pub struct PublicSampledData<S: PolyHashSampler<[u8; 32]>> {
 }
 
 impl<S: PolyHashSampler<[u8; 32]>> PublicSampledData<S> {
-    pub fn sample(
-        obf_params: &ObfuscationParams<S::M>,
-        bgg_pubkey_sampler: &BGGPublicKeySampler<[u8; 32], S>,
-    ) -> Self {
-        let hash_sampler = &bgg_pubkey_sampler.sampler;
+    pub fn sample(obf_params: &ObfuscationParams<S::M>, hash_key: [u8; 32]) -> Self {
+        let hash_sampler = S::new();
         let params = &obf_params.params;
         let d = obf_params.d;
         let level_size = (1u64 << obf_params.level_width) as usize;
@@ -56,7 +53,7 @@ impl<S: PolyHashSampler<[u8; 32]>> PublicSampledData<S> {
         let gadget_d_plus_1 = S::M::gadget_matrix(params, d + 1);
         for i in 0..level_size {
             let tag = format!("R_{}", i).into_bytes();
-            let r_i_bar = hash_sampler.sample_hash(params, &tag, d, d, DistType::BitDist);
+            let r_i_bar = hash_sampler.sample_hash(params, hash_key, &tag, d, d, DistType::BitDist);
             let r_i = r_i_bar.concat_diag(&[&one]);
             let rg = r_i.clone() * &gadget_d_plus_1;
             rs.push(r_i);
@@ -69,10 +66,11 @@ impl<S: PolyHashSampler<[u8; 32]>> PublicSampledData<S> {
         let packed_input_size = obf_params.input_size.div_ceil(dim) + 1;
         let packed_output_size = obf_params.public_circuit.num_output() / (2 * log_base_q);
         let a_rlwe_bar =
-            hash_sampler.sample_hash(params, TAG_A_RLWE_BAR, 1, 1, DistType::FinRingDist);
+            hash_sampler.sample_hash(params, hash_key, TAG_A_RLWE_BAR, 1, 1, DistType::FinRingDist);
 
         let a_prf_raw = hash_sampler.sample_hash(
             params,
+            hash_key,
             TAG_A_PRF,
             d + 1,
             packed_output_size,
@@ -140,7 +138,6 @@ pub fn build_final_digits_circuit<P: Poly, E: Evaluable>(
 }
 
 #[cfg(test)]
-#[cfg(feature = "test")]
 mod test {
     use num_bigint::BigUint;
     use num_traits::One;
