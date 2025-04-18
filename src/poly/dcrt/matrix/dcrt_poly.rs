@@ -4,14 +4,18 @@ use crate::{
         dcrt::{cpp_matrix::CppMatrix, DCRTPoly, DCRTPolyParams},
         MatrixElem, MatrixParams, Poly, PolyMatrix, PolyParams,
     },
-    utils::debug_mem,
+    utils::{block_size, debug_mem},
 };
 use itertools::Itertools;
 use openfhe::ffi::{DCRTPolyGadgetVector, MatrixGen, SetMatrixElement};
 use rayon::prelude::*;
-use std::ops::Range;
+use std::{ops::Range, path::Path, sync::Arc};
+use tokio::fs::write;
 
 use super::base::BaseMatrix;
+
+#[cfg(feature = "disk")]
+use super::base::disk::block_offsets;
 
 impl MatrixParams for DCRTPolyParams {
     fn entry_size(&self) -> usize {
@@ -202,72 +206,92 @@ impl PolyMatrix for DCRTPolyMatrix {
         .decompose()
     }
 
-    // fn read_from_files<P: AsRef<Path> + Send + Sync>(
-    //     params: &<Self::P as Poly>::Params,
-    //     nrow: usize,
-    //     ncol: usize,
-    //     dir_path: P,
-    // ) -> Self {
-    //     let block_size = block_size();
-    //     let mut matrix = Self::new_empty(params, nrow, ncol);
-    //     let f = |row_offsets: Range<usize>, col_offsets: Range<usize>| -> Vec<Vec<DCRTPoly>> {
-    //         let mut path = dir_path.as_ref().to_path_buf();
-    //         path.push(format!(
-    //             "{}_{}.{}_{}.{}.matrix",
-    //             block_size, row_offsets.start, row_offsets.end, col_offsets.start,
-    // col_offsets.end         ));
-    //         let bytes = std::fs::read(&path)
-    //             .unwrap_or_else(|_| panic!("Failed to read matrix file {:?}", path));
-    //         let entries_bytes: Vec<Vec<Vec<u8>>> = serde_json::from_slice(&bytes).unwrap();
-    //         parallel_iter!(0..row_offsets.len())
-    //             .map(|i| {
-    //                 parallel_iter!(0..col_offsets.len())
-    //                     .map(|j| {
-    //                         let entry_bytes = &entries_bytes[i][j];
-    //                         DCRTPoly::from_compact_bytes(params, entry_bytes)
-    //                     })
-    //                     .collect::<Vec<_>>()
-    //             })
-    //             .collect::<Vec<_>>()
-    //     };
-    //     matrix.replace_entries(0..nrow, 0..ncol, f);
-    //     matrix
-    // }
+    fn read_from_files<P: AsRef<Path> + Send + Sync>(
+        params: &<Self::P as Poly>::Params,
+        nrow: usize,
+        ncol: usize,
+        dir_path: P,
+        id: &str,
+    ) -> Self {
+        let block_size = block_size();
+        let mut matrix = Self::new_empty(params, nrow, ncol);
 
-    // fn write_to_files<P: AsRef<Path> + Send + Sync>(&self, dir_path: P) {
-    //     let block_size = block_size();
-    //     let (row_offsets, col_offsets) = block_offsets(0..self.nrow, 0..self.ncol);
-    //     parallel_iter!(row_offsets.iter().tuple_windows().collect_vec()).for_each(
-    //         |(cur_block_row_idx, next_block_row_idx)| {
-    //             parallel_iter!(col_offsets.iter().tuple_windows().collect_vec()).for_each(
-    //                 |(cur_block_col_idx, next_block_col_idx)| {
-    //                     let entries = self.block_entries(
-    //                         *cur_block_row_idx..*next_block_row_idx,
-    //                         *cur_block_col_idx..*next_block_col_idx,
-    //                     );
-    //                     let mut path = dir_path.as_ref().to_path_buf();
-    //                     path.push(format!(
-    //                         "{}_{}.{}_{}.{}.matrix",
-    //                         block_size,
-    //                         cur_block_row_idx,
-    //                         next_block_row_idx,
-    //                         cur_block_col_idx,
-    //                         next_block_col_idx
-    //                     ));
-    //                     let entries_bytes: Vec<Vec<Vec<u8>>> = entries
-    //                         .iter()
-    //                         .map(|row| row.iter().map(|poly|
-    // poly.to_compact_bytes()).collect_vec())                         .collect_vec();
-    //                     serde_json::to_writer(
-    //                         std::fs::File::create(&path).unwrap(),
-    //                         &entries_bytes,
-    //                     )
-    //                     .unwrap_or_else(|_| panic!("Failed to write matrix file {:?}", path));
-    //                 },
-    //             );
-    //         },
-    //     );
-    // }
+        let f = |row_range: Range<usize>, col_range: Range<usize>| -> Vec<Vec<DCRTPoly>> {
+            let mut path = dir_path.as_ref().to_path_buf();
+            path.push(format!(
+                "{}_{}_{}.{}_{}.{}.matrix",
+                id, block_size, row_range.start, row_range.end, col_range.start, col_range.end
+            ));
+            let bytes = std::fs::read(&path)
+                .unwrap_or_else(|_| panic!("Failed to read matrix file {:?}", path));
+            let entries_bytes: Vec<Vec<Vec<u8>>> = serde_json::from_slice(&bytes).unwrap();
+
+            parallel_iter!(0..row_range.len())
+                .map(|i| {
+                    parallel_iter!(0..col_range.len())
+                        .map(|j| {
+                            let entry_bytes = &entries_bytes[i][j];
+                            DCRTPoly::from_compact_bytes(params, entry_bytes)
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        };
+        matrix.replace_entries(0..nrow, 0..ncol, f);
+        matrix
+    }
+
+    async fn write_to_files<P: AsRef<Path> + Send + Sync>(&self, dir_path: P, id: &str) {
+        let block_size = block_size();
+        #[cfg(feature = "disk")]
+        let (row_offsets, col_offsets) = block_offsets(0..self.nrow, 0..self.ncol);
+        #[cfg(not(feature = "disk"))]
+        let (row_offsets, col_offsets) = (vec![0, self.nrow], vec![0, self.ncol]);
+        let dir_path = dir_path.as_ref().to_path_buf();
+
+        let self_arc = Arc::new(self);
+        let row_windows = row_offsets.into_iter().tuple_windows().collect_vec();
+        let futures = row_windows
+            .into_iter()
+            .flat_map(|(cur_block_row_idx, next_block_row_idx)| {
+                let col_windows = col_offsets.clone().into_iter().tuple_windows().collect_vec();
+                col_windows
+                    .into_iter()
+                    .map(|(cur_block_col_idx, next_block_col_idx)| {
+                        // let id_clone = id.clone();
+                        let row_range = cur_block_row_idx..next_block_row_idx;
+                        let col_range = cur_block_col_idx..next_block_col_idx;
+                        let self_arc = Arc::clone(&self_arc);
+                        let dir_path = dir_path.clone();
+                        async move {
+                            let entries = self_arc
+                                .as_ref()
+                                .block_entries(row_range.clone(), col_range.clone());
+                            let mut path = dir_path;
+                            path.push(format!(
+                                "{}_{}_{}.{}_{}.{}.matrix",
+                                id,
+                                block_size,
+                                row_range.start,
+                                row_range.end,
+                                col_range.start,
+                                col_range.end
+                            ));
+                            let entries_bytes: Vec<Vec<Vec<u8>>> = entries
+                                .iter()
+                                .map(|row| {
+                                    row.iter().map(|poly| poly.to_compact_bytes()).collect_vec()
+                                })
+                                .collect_vec();
+                            let serialized_data = serde_json::to_vec(&entries_bytes)?;
+                            write(path, &serialized_data).await
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        futures::future::try_join_all(futures).await.expect("Failed to write all matrix blocks");
+    }
 }
 
 impl DCRTPolyMatrix {
@@ -322,15 +346,15 @@ impl DCRTPolyMatrix {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use num_bigint::BigUint;
-
     use super::*;
     use crate::poly::{
         dcrt::{DCRTPolyParams, DCRTPolyUniformSampler, FinRingElem},
-        sampler::PolyUniformSampler,
+        sampler::{DistType, PolyUniformSampler},
     };
+    use num_bigint::BigUint;
+    use rand::{rng, Rng};
+    use serial_test::serial;
+    use std::{fs, sync::Arc};
 
     #[test]
     fn test_matrix_gadget_matrix() {
@@ -703,5 +727,45 @@ mod tests {
             others.push(matrix);
         }
         matrix.concat_diag(&others[..])
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_matrix_write_read() {
+        let params = DCRTPolyParams::default();
+        let sampler = DCRTPolyUniformSampler::new();
+
+        let dists = [DistType::BitDist, DistType::FinRingDist, DistType::GaussDist { sigma: 3.0 }];
+        std::env::set_var("BLOCK_SIZE", "10");
+        for dist in dists {
+            let ncol = rng().random_range(5..=15);
+            let nrow = rng().random_range(5..=15);
+
+            // Create a random matrix
+            let matrix = sampler.sample_uniform(&params, nrow, ncol, dist);
+            let matrix_id = format!("test_matrix_{:?}", dist);
+
+            // Create a temporary directory for testing
+            let test_dir = Path::new("test_matrix_write_read");
+            if !test_dir.exists() {
+                fs::create_dir(test_dir).unwrap();
+            } else {
+                // Clean it first to ensure no old files interfere
+                fs::remove_dir_all(test_dir).unwrap();
+                fs::create_dir(test_dir).unwrap();
+            }
+
+            // Write the matrix to files
+            matrix.write_to_files(test_dir, &matrix_id).await;
+
+            // Read the matrix back
+            let read_matrix =
+                DCRTPolyMatrix::read_from_files(&params, nrow, ncol, test_dir, &matrix_id);
+
+            // Verify the matrices are equal
+            assert_eq!(matrix, read_matrix);
+
+            fs::remove_dir_all(test_dir).unwrap();
+        }
     }
 }

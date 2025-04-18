@@ -5,6 +5,7 @@ use super::{params::ObfuscationParams, Obfuscation};
 use crate::{
     bgg::{sampler::BGGPublicKeySampler, BggEncoding, DigitsToInt},
     io::utils::{build_final_digits_circuit, sample_public_key_by_id, PublicSampledData},
+    parallel_iter,
     poly::{
         sampler::{PolyHashSampler, PolyTrapdoorSampler},
         Poly, PolyElem, PolyMatrix, PolyParams,
@@ -13,11 +14,176 @@ use crate::{
 };
 use itertools::Itertools;
 use rayon::{iter::ParallelIterator, slice::ParallelSlice};
+use std::{path::Path, sync::Arc};
 
 impl<M> Obfuscation<M>
 where
     M: PolyMatrix,
 {
+    pub fn read_dir<P: AsRef<Path> + Send + Sync>(
+        obf_params: &ObfuscationParams<M>,
+        dir_path: P,
+    ) -> Self {
+        let dir_path = dir_path.as_ref().to_path_buf();
+        let b = M::read_from_files(&obf_params.params, 1, 1, &dir_path, "b");
+
+        let dim = obf_params.params.ring_dimension() as usize;
+        let packed_input_size = obf_params.input_size.div_ceil(dim) + 1;
+        let d = obf_params.d;
+        let d1 = d + 1;
+        let log_base_q = obf_params.params.modulus_digits();
+        #[cfg(feature = "debug")]
+        let reveal_plaintexts = [vec![true; packed_input_size], vec![true; 1]].concat();
+        #[cfg(not(feature = "debug"))]
+        let reveal_plaintexts = [vec![true; packed_input_size], vec![false; 1]].concat();
+        let params = Arc::new(obf_params.params.clone());
+        let encodings_init = parallel_iter!(0..packed_input_size + 1)
+            .map(|idx| {
+                BggEncoding::read_from_files(
+                    params.as_ref(),
+                    d1,
+                    log_base_q,
+                    &dir_path,
+                    &format!("encoding_init_{idx}"),
+                    reveal_plaintexts[idx],
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let m_b = (2 * d1) * (2 + log_base_q);
+        let p_init = M::read_from_files(&obf_params.params, 1, m_b, &dir_path, "p_init");
+
+        let level_size = (1u64 << obf_params.level_width) as usize;
+        let depth = obf_params.input_size / obf_params.level_width;
+        let m_preimages = parallel_iter!(0..depth)
+            .map(|level| {
+                parallel_iter!(0..level_size)
+                    .map(|num| {
+                        M::read_from_files(
+                            params.as_ref(),
+                            m_b,
+                            m_b,
+                            &dir_path,
+                            &format!("m_preimage_{level}_{num}"),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let n_preimages = parallel_iter!(0..depth)
+            .map(|level| {
+                parallel_iter!(0..level_size)
+                    .map(|num| {
+                        M::read_from_files(
+                            params.as_ref(),
+                            m_b,
+                            m_b,
+                            &dir_path,
+                            &format!("n_preimage_{level}_{num}"),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let k_columns = (1 + packed_input_size) * d1 * log_base_q;
+        let k_preimages = parallel_iter!(0..depth)
+            .map(|level| {
+                parallel_iter!(0..level_size)
+                    .map(|num| {
+                        M::read_from_files(
+                            params.as_ref(),
+                            m_b,
+                            k_columns,
+                            &dir_path,
+                            &format!("k_preimage_{level}_{num}"),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let packed_output_size = obf_params.public_circuit.num_output() / (2 * log_base_q);
+        let final_preimage = M::read_from_files(
+            &obf_params.params,
+            m_b,
+            packed_output_size,
+            &dir_path,
+            "final_preimage",
+        );
+        let hash_key = {
+            let mut path = dir_path.clone();
+            path.push("hash_key");
+            let bytes = std::fs::read(&path).expect("Failed to read hash key file");
+            let mut hash_key = [0u8; 32];
+            hash_key.copy_from_slice(&bytes);
+            hash_key
+        };
+        #[cfg(feature = "debug")]
+        let s_init = M::read_from_files(&obf_params.params, 1, d1, &dir_path, "s_init");
+
+        #[cfg(feature = "debug")]
+        let minus_t_bar = <<M as PolyMatrix>::P as Poly>::read_from_file(
+            &obf_params.params,
+            &dir_path,
+            "minus_t_bar",
+        );
+
+        #[cfg(feature = "debug")]
+        let hardcoded_key = <<M as PolyMatrix>::P as Poly>::read_from_file(
+            &obf_params.params,
+            &dir_path,
+            "hardcoded_key",
+        );
+
+        #[cfg(feature = "debug")]
+        let bs = parallel_iter!(0..depth + 1)
+            .map(|level| {
+                let mut b_nums = if level == 0 {
+                    vec![M::zero(params.as_ref(), 2 * d1, m_b); level_size]
+                } else {
+                    parallel_iter!(0..level_size)
+                        .map(|num| {
+                            M::read_from_files(
+                                params.as_ref(),
+                                2 * d1,
+                                m_b,
+                                &dir_path,
+                                &format!("b_{level}_{num}"),
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                };
+                let b_star = M::read_from_files(
+                    params.as_ref(),
+                    2 * d1,
+                    m_b,
+                    &dir_path,
+                    &format!("b_star_{level}"),
+                );
+                b_nums.push(b_star);
+                b_nums
+            })
+            .collect::<Vec<_>>();
+
+        Self {
+            b,
+            encodings_init,
+            p_init,
+            m_preimages,
+            n_preimages,
+            k_preimages,
+            hash_key,
+            final_preimage,
+            #[cfg(feature = "debug")]
+            s_init,
+            #[cfg(feature = "debug")]
+            minus_t_bar,
+            #[cfg(feature = "debug")]
+            bs,
+            #[cfg(feature = "debug")]
+            hardcoded_key,
+        }
+    }
+
     pub fn eval<SH, ST>(&self, obf_params: ObfuscationParams<M>, inputs: &[bool]) -> Vec<bool>
     where
         SH: PolyHashSampler<[u8; 32], M = M>,
@@ -205,7 +371,7 @@ where
         }
 
         let a_decomposed = public_data.a_rlwe_bar.entry(0, 0).decompose_base(&params);
-        let b_decomposed = &self.ct_b.entry(0, 0).decompose_base(&params);
+        let b_decomposed = &self.b.entry(0, 0).decompose_base(&params);
         log_mem("a,b decomposed");
         let final_circuit = build_final_digits_circuit::<M::P, BggEncoding<M>>(
             &a_decomposed,

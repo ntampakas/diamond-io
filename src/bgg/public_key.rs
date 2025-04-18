@@ -20,6 +20,28 @@ impl<M: PolyMatrix> BggPublicKey<M> {
     pub fn concat_matrix(&self, others: &[Self]) -> M {
         self.matrix.concat_columns(&others.par_iter().map(|x| &x.matrix).collect::<Vec<_>>()[..])
     }
+
+    /// Writes the public key with id to files under the given directory.
+    pub async fn write_to_files<P: AsRef<std::path::Path> + Send + Sync>(
+        &self,
+        dir_path: P,
+        id: &str,
+    ) {
+        self.matrix.write_to_files(dir_path, id).await;
+    }
+
+    /// Reads a public of given rows and cols with id from files under the given directory.
+    pub fn read_from_files<P: AsRef<std::path::Path> + Send + Sync>(
+        params: &<M::P as Poly>::Params,
+        nrow: usize,
+        ncol: usize,
+        dir_path: P,
+        id: &str,
+        reveal_plaintext: bool,
+    ) -> Self {
+        let matrix = M::read_from_files(params, nrow, ncol, dir_path, id);
+        Self { matrix, reveal_plaintext }
+    }
 }
 
 impl<M: PolyMatrix> Add for BggPublicKey<M> {
@@ -98,10 +120,14 @@ impl<M: PolyMatrix> Evaluable for BggPublicKey<M> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        bgg::{circuit::PolyCircuit, sampler::BGGPublicKeySampler},
+        bgg::{circuit::PolyCircuit, sampler::BGGPublicKeySampler, BggPublicKey},
         poly::dcrt::{params::DCRTPolyParams, DCRTPolyHashSampler},
     };
     use keccak_asm::Keccak256;
+    use rand::Rng;
+    use serial_test::serial;
+    use std::{fs, path::Path};
+    use tokio;
 
     #[test]
     fn test_pubkey_add() {
@@ -474,5 +500,70 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].matrix, expected.matrix);
         assert_eq!(result[0].reveal_plaintext, expected.reveal_plaintext);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_pubkey_write_read() {
+        // Create parameters for testing
+        let params = DCRTPolyParams::default();
+
+        // Create a hash sampler and BGGPublicKeySampler to be reused
+        let key: [u8; 32] = rand::random();
+        let d = 3;
+        let bgg_sampler = BGGPublicKeySampler::<_, DCRTPolyHashSampler<Keccak256>>::new(key, d);
+
+        // Generate random tag for sampling
+        let tag: u64 = rand::random();
+        let tag_bytes = tag.to_le_bytes();
+
+        // Create random public keys
+        let mut rng = rand::rng();
+        let reveal_plaintexts = [
+            rng.random::<bool>(),
+            rng.random::<bool>(),
+            rng.random::<bool>(),
+            rng.random::<bool>(),
+        ];
+        let pubkeys = bgg_sampler.sample(&params, &tag_bytes, &reveal_plaintexts);
+
+        // Create a temporary directory for testing
+        let test_dir = Path::new("test_pubkey_write_read");
+        if !test_dir.exists() {
+            fs::create_dir(test_dir).unwrap();
+        } else {
+            // Clean it first to ensure no old files interfere
+            fs::remove_dir_all(test_dir).unwrap();
+            fs::create_dir(test_dir).unwrap();
+        }
+
+        for (idx, pubkey) in pubkeys.iter().enumerate() {
+            // Write the public key to files
+            let id = format!("test_pubkey_{}", idx);
+            pubkey.write_to_files(test_dir, &id).await;
+
+            // Get the size of the original matrix
+            let (nrow, ncol) = pubkey.matrix.size();
+
+            let read_pk;
+
+            // Read the public key from files and verify it matches the original
+            if idx == 0 {
+                read_pk = BggPublicKey::read_from_files(&params, nrow, ncol, test_dir, &id, true);
+                assert_eq!(pubkey, &read_pk);
+            } else {
+                read_pk = BggPublicKey::read_from_files(
+                    &params,
+                    nrow,
+                    ncol,
+                    test_dir,
+                    &id,
+                    reveal_plaintexts[idx - 1],
+                );
+                assert_eq!(pubkey.matrix, read_pk.matrix);
+            }
+        }
+
+        std::fs::remove_dir_all(test_dir).unwrap();
     }
 }

@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, path::Path};
 #[cfg(feature = "cpu")]
 use std::{thread, time};
 
@@ -10,9 +10,13 @@ use crate::poly::{
 use memory_stats::memory_stats;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
+use rayon::prelude::*;
 #[cfg(feature = "cpu")]
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
+#[cfg(feature = "disk")]
+use tempfile::env::temp_dir;
 use tracing::{debug, info};
+use walkdir::WalkDir;
 
 pub fn ceil_log2(q: &BigUint) -> usize {
     assert!(!q.is_zero(), "log2 is undefined for zero");
@@ -134,6 +138,24 @@ pub fn init_tracing() {
 
 pub fn block_size() -> usize {
     env::var("BLOCK_SIZE").map(|str| str.parse::<usize>().unwrap()).unwrap_or(100)
+}
+
+/// Calculate the total size of a directory in bytes
+pub fn calculate_directory_size<P: AsRef<Path>>(path: P) -> u64 {
+    WalkDir::new(path)
+        .follow_links(false)
+        .into_iter()
+        .par_bridge()
+        .filter_map(Result::ok)
+        .filter_map(|e| e.metadata().ok())
+        .filter(|m| m.is_file())
+        .map(|m| m.len())
+        .sum()
+}
+
+#[cfg(feature = "disk")]
+pub fn calculate_tmp_size() -> u64 {
+    calculate_directory_size(temp_dir())
 }
 
 #[macro_export]
