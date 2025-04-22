@@ -22,6 +22,7 @@ def log_params_to_file(
     input_width: int,
     add_num: int,
     mul_num: int,
+    max_crt_depth: int,
     secpar: int,
     n: int,
     d: int,
@@ -56,6 +57,7 @@ def log_params_to_file(
         f"input_width={input_width}, "
         f"add_num={add_num}, "
         f"mul_num={mul_num}, "
+        f"max_crt_depth={max_crt_depth}, "
         f"secpar={secpar}, "
         f"n={n}, "
         f"d={d}, "
@@ -64,11 +66,11 @@ def log_params_to_file(
         f"base_bits={base_bits}, "
         f"q={q}, "
         f"log2(q)={log_q}, "
+        f"switched_modulus={p}, "
+        f"log2(switched_modulus)={log_p}, "
         f"encoding_sigma={stddev_e_encoding}, "
         f"hardcoded_key_sigma={stddev_e_hardcode}, "
         f"p_sigma={stddev_e_p}, "
-        f"switched_modulus={p}, "
-        f"log2(switched_modulus)={log_p}, "
         f"estimated_secpar={estimated_secpar}, "
         f"size={size} [GB]\n"
     )
@@ -94,8 +96,10 @@ def find_params(
     mul_num: int,
 ):
     for d in range(1, max_d + 1):
+        print(f"Trying d: {d}")
         found_params = []
         for base_bits in range(min_base_bits, max_base_bits + 1):
+            print(f"Trying base_bits: {base_bits}")
             config = {
                 "log_ring_dim": log2_n,
                 "max_crt_depth": max_crt_depth,
@@ -129,6 +133,8 @@ def find_params(
                     str(mul_num),
                 ]
             )
+            os.remove(config_file)
+
             n = 2**log2_n
             try:
                 (
@@ -150,6 +156,7 @@ def find_params(
                     input_width,
                     norms_path,
                 )
+                os.remove(norms_path)
                 found_params.append(
                     (
                         d,
@@ -165,6 +172,7 @@ def find_params(
                 )
             except ValueError as e:
                 print(f"ValueError: {e}")
+                os.remove(norms_path)
                 continue
         if len(found_params) > 0:
             return min(found_params, key=lambda x: x[8])
@@ -301,6 +309,12 @@ def find_params_fixed_n_d_base(
                 circuit_norms,
             )
             print(f"found p: {p}")
+            print(f"crt_depth: {crt_depth}")
+            print(f"d: {d}")
+            print(f"base_bits: {base_bits}")
+            print(f"stddev_e_encoding: {stddev_e_encoding}")
+            print(f"stddev_e_hardcode: {stddev_e_hardcode}")
+            print(f"stddev_e_p: {stddev_e_p}")
             max_crt_depth = crt_depth
             found_params.append(
                 (
@@ -331,7 +345,7 @@ def find_params_fixed_n_d_base(
         crt_bits,
         crt_depth,
         d,
-        2**base_bits,
+        base_bits,
         input_size,
         input_width,
         1,  # [TODO] output_size
@@ -548,7 +562,7 @@ def compute_obf_size(
     crt_bits: int,
     crt_depth: int,
     d: int,
-    base: int,
+    base_bits: int,
     input_size: int,
     input_width: int,
     output_size: int,
@@ -556,7 +570,12 @@ def compute_obf_size(
     size = 256
     packed_input_size = math.ceil(input_size / n)
     log_q = crt_bits * crt_depth
-    log_base_q = math.ceil(crt_bits / base) * crt_depth
+    log_base_q = math.ceil(crt_bits / base_bits) * crt_depth
+    print("base_bits", base_bits)
+    print("crt_bits", crt_bits)
+    print("crt_depth", crt_depth)
+    print("log_q", log_q)
+    print("log_base_q", log_base_q)
     m = (d + 1) * log_base_q
     print("m", m)
     m_b = 2 * (d + 1) * (log_base_q + 2)
@@ -567,6 +586,7 @@ def compute_obf_size(
     p_init_size = log_q * n * m_b
     print("p_init_size GB", p_init_size / 8 / 10**9)
     size += p_init_size
+    base = 2**base_bits
     b_norm = Decimal(compute_norm_b(n, log_base_q, d, base))
     bound_b_log = math.ceil(math.log2(b_norm))
     input_depth = math.ceil(input_size / input_width)
@@ -596,13 +616,13 @@ if __name__ == "__main__":
     log2_n = 13
     max_d = 3
     min_base_bits = 10
-    max_base_bits = 15
+    max_base_bits = 20
     crt_bits = 51
-    max_crt_depth = 10
-    input_size = 8 * 1
-    input_width = 8
-    add_num = 1
-    mul_num = 1
+    max_crt_depth = 20
+    input_size = 1
+    input_width = 1
+    add_num = 0
+    mul_num = 0
     if input_size % input_width != 0:
         raise ValueError("input_size should be divisible by input_width")
     (
@@ -628,7 +648,11 @@ if __name__ == "__main__":
         add_num,
         mul_num,
     )
+    print(f"input_size: {input_size}")
+    print(f"input_width: {input_width}")
+    print(f"crt_bits: {crt_bits}")
     print(f"crt_depth: {crt_depth}")
+    print(f"d: {d}")
     print(f"base_bits: {base_bits}")
     print(f"q: {2**(crt_bits * crt_depth)}, log_2 q: {crt_bits * crt_depth}")
     print(f"stddev_e_encoding: {stddev_e_encoding}")
@@ -643,6 +667,7 @@ if __name__ == "__main__":
         input_width,
         add_num,
         mul_num,
+        max_crt_depth,
         secpar,
         2**log2_n,
         d,
