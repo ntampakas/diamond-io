@@ -243,8 +243,11 @@ where
             log_mem(format!("new_encode at {}, {} computed", level, j));
             new_encodings.push(new_encode);
         }
+        // p_xL: p vector of the current level
         ps.push(p.clone());
+        // A_xL: input independent public key of the current level
         pub_key_cur = pub_key_level;
+        // C_xL: BGG+ encoding of the current level
         encodings.push(new_encodings);
         #[cfg(feature = "debug")]
         if obf_params.encoding_sigma == 0.0 &&
