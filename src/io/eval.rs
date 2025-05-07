@@ -91,10 +91,7 @@ where
         .collect::<Vec<_>>();
 
     #[cfg(feature = "debug")]
-    if obf_params.encoding_sigma == 0.0 &&
-        obf_params.hardcoded_key_sigma == 0.0 &&
-        obf_params.p_sigma == 0.0
-    {
+    if obf_params.hardcoded_key_sigma == 0.0 && obf_params.p_sigma == 0.0 {
         let one = M::P::const_one(&params);
         let mut plaintexts = vec![one];
         plaintexts
@@ -132,10 +129,7 @@ where
         log_mem(format!("p at {} computed ({},{})", level, p.row_size(), p.col_size()));
 
         #[cfg(feature = "debug")]
-        if obf_params.encoding_sigma == 0.0 &&
-            obf_params.hardcoded_key_sigma == 0.0 &&
-            obf_params.p_sigma == 0.0
-        {
+        if obf_params.hardcoded_key_sigma == 0.0 && obf_params.p_sigma == 0.0 {
             let r = &public_data.r[*num as usize];
             s_cur = s_cur * r;
             let plaintexts = build_poly_vec::<M>(
@@ -185,10 +179,7 @@ where
     log_mem("final_v computed");
 
     #[cfg(feature = "debug")]
-    if obf_params.encoding_sigma == 0.0 &&
-        obf_params.hardcoded_key_sigma == 0.0 &&
-        obf_params.p_sigma == 0.0
-    {
+    if obf_params.hardcoded_key_sigma == 0.0 && obf_params.p_sigma == 0.0 {
         let eval_outputs_matrix_plus_a_prf = M::read_from_files(
             &obf_params.params,
             d + 1,
@@ -228,10 +219,7 @@ where
     );
 
     #[cfg(feature = "debug")]
-    if obf_params.encoding_sigma == 0.0 &&
-        obf_params.hardcoded_key_sigma == 0.0 &&
-        obf_params.p_sigma == 0.0
-    {
+    if obf_params.hardcoded_key_sigma == 0.0 && obf_params.p_sigma == 0.0 {
         let gadget = M::gadget_matrix(&params, d + 1);
         let plaintexts = M::from_poly_vec_row(&params, polys.clone());
         let pubkey = pub_key_att[0].concat_matrix(&pub_key_att[1..]);
@@ -247,7 +235,7 @@ where
     for (j, pub_key) in pub_key_att.into_iter().enumerate() {
         let new_vec = c_att.slice_columns(j * m, (j + 1) * m);
         #[cfg(feature = "debug")]
-        {
+        if obf_params.hardcoded_key_sigma == 0.0 && obf_params.p_sigma == 0.0 {
             let new_encode: BggEncoding<M> =
                 BggEncoding::new(new_vec, pub_key, Some(polys[j].clone()));
             new_encodings.push(new_encode);
@@ -263,7 +251,6 @@ where
             new_encodings.push(new_encode);
         }
     }
-
     let output_encodings =
         final_circuit.eval::<BggEncoding<M>>(&params, &new_encodings[0], &new_encodings[1..]);
     log_mem("final_circuit evaluated");
@@ -277,10 +264,7 @@ where
     log_mem("z computed");
     debug_assert_eq!(z.size(), (1, packed_output_size));
     #[cfg(feature = "debug")]
-    if obf_params.encoding_sigma == 0.0 &&
-        obf_params.hardcoded_key_sigma == 0.0 &&
-        obf_params.p_sigma == 0.0
-    {
+    if obf_params.hardcoded_key_sigma == 0.0 && obf_params.p_sigma == 0.0 {
         let hardcoded_key = <<M as PolyMatrix>::P as Poly>::read_from_file(
             &obf_params.params,
             &dir_path,
