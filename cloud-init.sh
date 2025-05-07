@@ -6,6 +6,7 @@ trap 'poweroff' TERM EXIT INT
 GH_REPO="__GH_REPO__"
 GH_PAT="__GH_PAT__"
 RUNNER_TAG="__RUNNER_TAG__"
+#GITHUB_ORG=$(printf -- "${GH_REPO}" | awk -F '/' '{ print $1 }')
 
 # idle poweroff script
 cat >> /etc/crontab << 'EOF'
@@ -19,8 +20,11 @@ apt-get install -y curl jq git ca-certificates gnupg lsb-release
 
 # github runner
 mkdir actions-runner && cd actions-runner
-curl -o actions-runner-linux-x64-2.323.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.323.0/actions-runner-linux-x64-2.323.0.tar.gz
-tar xzf ./actions-runner-linux-x64-2.323.0.tar.gz
+LATEST_VERSION_LABEL=$(curl -H "authorization: token ${GH_PAT}" -s -X GET 'https://api.github.com/repos/actions/runner/releases/latest' | jq -r '.tag_name')
+LATEST_VERSION=$(printf -- ${LATEST_VERSION_LABEL} | cut -c 2-)
+RUNNER_FILE="actions-runner-linux-x64-${LATEST_VERSION}.tar.gz"
+curl -o $RUNNER_FILE -L https://github.com/actions/runner/releases/download/v2.323.0/actions-runner-linux-x64-2.323.0.tar.gz
+tar xzf ./$RUNNER_FILE
 
 cd /
 chown -R ubuntu actions-runner
