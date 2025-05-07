@@ -23,7 +23,7 @@ mkdir actions-runner && cd actions-runner
 LATEST_VERSION_LABEL=$(curl -H "authorization: token ${GH_PAT}" -s -X GET 'https://api.github.com/repos/actions/runner/releases/latest' | jq -r '.tag_name')
 LATEST_VERSION=$(printf -- ${LATEST_VERSION_LABEL} | cut -c 2-)
 RUNNER_FILE="actions-runner-linux-x64-${LATEST_VERSION}.tar.gz"
-curl -o $RUNNER_FILE -L https://github.com/actions/runner/releases/download/v2.323.0/actions-runner-linux-x64-2.323.0.tar.gz
+curl -o $RUNNER_FILE -L https://github.com/actions/runner/releases/download/$LATEST_VERSION_LABEL/$RUNNER_FILE
 tar xzf ./$RUNNER_FILE
 
 cd /
