@@ -6,7 +6,6 @@ trap 'poweroff' TERM EXIT INT
 GH_REPO="__GH_REPO__"
 GH_PAT="__GH_PAT__"
 RUNNER_TAG="__RUNNER_TAG__"
-#GITHUB_ORG=$(printf -- "${GH_REPO}" | awk -F '/' '{ print $1 }')
 
 # idle poweroff script
 cat >> /etc/crontab << 'EOF'
