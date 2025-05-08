@@ -19,7 +19,9 @@ INSTANCE_ID=$(aws ec2 run-instances \
   --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=drill-${RUNNER_TAG}},{Key=ProjectName,Value=devops}]" "ResourceType=volume,Tags=[{Key=ProjectName,Value=devops}]" \
   --user-data "file://.startup.sh" \
   --query "Instances[0].InstanceId" \
-  --output text) || EXIT_CODE=1
+  --output text) || { EXIT_CODE=1; exit $EXIT_CODE; }
  echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
  aws ec2 wait instance-running --instance-ids $INSTANCE_ID
  echo "EC2 instance $INSTANCE_ID is running"
+
+exit $EXIT_CODE
