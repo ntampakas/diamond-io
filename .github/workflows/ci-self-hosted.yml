@@ -44,9 +44,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
           GH_PAT: ${{ secrets.GH_PAT }}
           IMAGE_ID: ami-075686beab831bb7f
-          INSTANCE_TYPE: i4i.16xlarge
+          INSTANCE_TYPE: c7i.4xlarge
           SG: sg-02014faf3d99151dd
-          SUBNET: subnet-08729b0a66425b291
+          #SUBNET: subnet-08729b0a66425b291
         run: |
           ./run.sh ${{ github.run_id }}
 

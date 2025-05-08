@@ -5,7 +5,7 @@ set -eux
 EXIT_CODE=0
 RUNNER_TAG=$1
 
-[ "$INSTANCE_TYPE" = "i4i.16xlarge" ] && SUBNET=$(./check_availability.sh)
+SUBNET=$(./check_availability.sh)
 
 cat cloud-init.sh | sed -e "s#__GH_REPO__#${GH_REPO}#" -e "s/__GH_PAT__/${GH_PAT}/" -e "s/__RUNNER_TAG__/${RUNNER_TAG}/" > .startup.sh
 
