@@ -3,7 +3,7 @@
 # Script to check if an EC2 instance type is available in a subnet's availability zone
 
 REGION="us-west-2"
-INSTANCE_TYPE="i4i.16xlarge"
+INSTANCE_TYPE="$1"
 VPC_ID="vpc-085ffb1026b00654e"
 SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Type,Values=private" --query "Subnets[].SubnetId" --output json | jq -r '.[]')
 SELECTED_SUBNET=""
