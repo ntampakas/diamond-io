@@ -101,7 +101,7 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
         secrets.push(minus_one_poly);
         SU::M::from_poly_vec_row(&params, secrets)
     };
-    log_mem(format!("s_init ({},{}) 1x(n+1)", s_init.row_size(), s_init.col_size()));
+    log_mem(format!("s_init ({},{}) 1x(d+1)", s_init.row_size(), s_init.col_size()));
 
     /*
     =============================================================================
@@ -125,7 +125,7 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
     let (mut b_star_trapdoor_cur, mut b_star_cur) =
         sampler_trapdoor.trapdoor(&params, (1 + packed_input_size) * (d + 1));
     log_mem(format!(
-        "b star epsilon ({},{}) (n+1)xm_B and trapdoor epsilon sampled",
+        "b star epsilon ({},{}) (d+1)xm_B and trapdoor epsilon sampled",
         b_star_cur.row_size(),
         b_star_cur.col_size()
     ));
@@ -196,7 +196,7 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
     For each depth, sample K preimage at the corresponding level size.
     Level starts from 1 because we already have p_init at level 0.
     */
-
+    let one_identity = M::identity(params.as_ref(), 1, None);
     for level in 1..(depth + 1) {
         let (b_star_trapdoor_level, b_star_level) =
             sampler_trapdoor.trapdoor(&params, (1 + packed_input_size) * (d + 1));
@@ -220,17 +220,37 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
             {
                 player.play_music(format!("bgm/obf_bgm{}.mp3", (2 * level + num) % 3 + 2));
             }
-            let r = &public_data.r[num];
-            log_mem(format!("Computed R ({},{}) (n+1)x(n+1)", r.row_size(), r.col_size()));
+
+            let s_i_bar = sampler_uniform.sample_uniform(&params, d, d, DistType::BitDist);
+            let s_i_num = s_i_bar.concat_diag(&[&one_identity]);
+
+            #[cfg(feature = "debug")]
+            handles.push(store_and_drop_matrix(
+                s_i_num.clone(),
+                &dir_path,
+                &format!("s_{}_{}", level, num),
+            ));
+
+            log_mem(format!(
+                "Computed S ({},{}) (d+1)x(d+1)",
+                s_i_num.row_size(),
+                s_i_num.col_size()
+            ));
             let u = &u_nums[level - 1][num];
             log_mem(format!("Get U ({},{}) L'xL'", u.row_size(), u.col_size()));
-            let u_tensor_r = u.tensor(r);
+            let u_tensor_s = u.tensor(&s_i_num);
+            let k_target_error = sampler_uniform.sample_uniform(
+                &params,
+                (1 + packed_input_size) * (d + 1),
+                m_b,
+                DistType::GaussDist { sigma: obf_params.p_sigma },
+            );
             log_mem(format!(
-                "Computed U ⊗ R ({},{})",
-                u_tensor_r.row_size(),
-                u_tensor_r.col_size()
+                "Computed U ⊗ S ({},{})",
+                u_tensor_s.row_size(),
+                u_tensor_s.col_size()
             ));
-            let k_target = u_tensor_r * &b_star_level;
+            let k_target = (u_tensor_s * &b_star_level) + k_target_error;
             let k_preimage_num =
                 sampler_trapdoor.preimage(&params, &b_star_trapdoor_cur, &b_star_cur, &k_target);
             log_mem(format!(
@@ -300,7 +320,7 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
     log_mem("Decomposed RLWE ciphertext into {BaseDecompose(a), BaseDecompose(b)}");
     handles.push(store_and_drop_matrix(b, &dir_path, "b"));
 
-    // P_att := u_1_L' ⊗ A_att - I_L' ⊗ G_n+1
+    // P_att := u_1_L' ⊗ A_att - I_L' ⊗ G_d+1
     // computing u_1_L' ⊗ A_att
     let params = &params;
     let zeros = M::zero(
@@ -310,7 +330,7 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
     );
     let k_lhs = pub_key_att_matrix.concat_rows(&[&zeros]);
 
-    // computing I_L' ⊗ G_n+1
+    // computing I_L' ⊗ G_d+1
     let gadget = M::gadget_matrix(params, d + 1);
     let other_blocks: Vec<&M> = std::iter::repeat_n(&gadget, packed_input_size).collect();
     let k_rhs = gadget.concat_diag(&other_blocks);
