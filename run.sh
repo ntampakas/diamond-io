@@ -13,7 +13,7 @@ INSTANCE_ID=$(aws ec2 run-instances \
   --ebs-optimized \
   --instance-initiated-shutdown-behavior terminate \
   --instance-type ${INSTANCE_TYPE} \
-  --key-name devops \
+  --key-name devopsoregon \
   --security-group-ids ${SG} \
   --subnet-id ${SUBNET} \
   --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=drill-${RUNNER_TAG}},{Key=ProjectName,Value=devops}]" "ResourceType=volume,Tags=[{Key=ProjectName,Value=devops}]" \
