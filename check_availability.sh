@@ -5,6 +5,8 @@
 REGION="us-west-2"
 INSTANCE_TYPE="$1"
 VPC_ID="vpc-085ffb1026b00654e"
+#AMI_ID="ami-075686beab831bb7f"
+#SECURITY_GROUP_IDS="sg-02014faf3d99151dd"
 SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Type,Values=private" --query "Subnets[].SubnetId" --output json | jq -r '.[]')
 SELECTED_SUBNET=""
 
@@ -14,9 +16,31 @@ for SUBNET_ID in $SUBNET_IDS; do
   AZ=$(aws ec2 describe-subnets --subnet-ids "$SUBNET_ID" --region "$REGION" --query "Subnets[0].AvailabilityZone" --output text 2>/dev/null)
   [ -z "$AZ" ] && continue
 
-  IS_AVAILABLE=$(aws ec2 describe-instance-type-offerings --region "$REGION" --location-type availability-zone --filters Name=location,Values="$AZ" Name=instance-type,Values="$INSTANCE_TYPE" --query "InstanceTypeOfferings[].InstanceType" --output text 2>/dev/null)
-  [ -n "$IS_AVAILABLE" ] && { SELECTED_SUBNET="$SUBNET_ID"; break; }
+  RESULT=$(aws ec2 run-instances \
+    --region "$REGION" \
+    --instance-type "$INSTANCE_TYPE" \
+    --image-id "$IMAGE_ID" \
+    --subnet-id "$SUBNET_ID" \
+    --security-group-ids $SG \
+    --tag-specifications "ResourceType=instance,Tags=[{Key=ProjectName,Value=machina-io}]" "ResourceType=volume,Tags=[{Key=ProjectName,Value=machina-io}]" \
+    --count 1 \
+    --dry-run \
+    --query "Instances[0].InstanceId" \
+    --output text 2>&1 || echo "ERROR: $?")
+
+  if [[ "$RESULT" == *"Request would have succeeded, but DryRun flag is set"* ]]; then
+    SELECTED_SUBNET="$SUBNET_ID"
+    SELECTED_AZ="$AZ"
+    break
+  elif [[ "$RESULT" == *"InsufficientInstanceCapacity"* ]]; then
+    echo "Insufficient capacity in $AZ"
+  elif [[ "$RESULT" == *"InvalidParameterCombination"* ]]; then
+    echo "Failed to check capacity in $AZ (Invalid parameter combination: $RESULT)"
+  else
+    echo "Failed to check capacity in $AZ (Error: $RESULT)"
+  fi
 done
+
 
 if [ -n "$SELECTED_SUBNET" ]; then
   echo "$SELECTED_SUBNET"
