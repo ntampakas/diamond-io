@@ -14,8 +14,8 @@ INSTANCE_ID=$(aws ec2 run-instances \
   --instance-initiated-shutdown-behavior terminate \
   --instance-type ${INSTANCE_TYPE} \
   --key-name devops \
-  --security-group-ids sg-0e511f05c162bb458 \
-  --subnet-id subnet-0e1c657227636974b \
+  --security-group-ids ${SG} \
+  --subnet-id ${SUBNET} \
   --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=drill-${RUNNER_TAG}},{Key=ProjectName,Value=devops}]" "ResourceType=volume,Tags=[{Key=ProjectName,Value=devops}]" \
   --user-data "file://.startup.sh" \
   --query "Instances[0].InstanceId" \
