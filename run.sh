@@ -5,8 +5,6 @@ set -eux
 EXIT_CODE=0
 RUNNER_TAG=$1
 
-#SUBNET=$(./check_availability.sh ${INSTANCE_TYPE})
-
 VPC_ID="vpc-085ffb1026b00654e"
 SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Type,Values=private" --query "Subnets[].SubnetId" --output json | jq -r '.[]')
 
@@ -26,15 +24,20 @@ for SUBNET in $SUBNET_IDS; do
     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=machina-io-ephemeral-${RUNNER_TAG}},{Key=ProjectName,Value=machina-io}]" "ResourceType=volume,Tags=[{Key=ProjectName,Value=machina-io}]" \
     --user-data "file://.startup.sh" \
     --query "Instances[0].InstanceId" \
-    --output text)
-   if [ $? -eq 0 ]; then
-     echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
-     aws ec2 wait instance-running --instance-ids $INSTANCE_ID
-     echo "EC2 instance $INSTANCE_ID is running"
-     exit $EXIT_CODE
-  else
-    EXIT_CODE=1
-  fi
+    --output text 2>&1 || true)
+    if [ $? -eq 0 ] && [[ $INSTANCE_ID =~ ^i-[0-9a-f]{17}$ ]]; then
+      echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+      aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+      echo "EC2 instance $INSTANCE_ID is running"
+      exit $EXIT_CODE
+    elif echo $INSTANCE_ID | grep -q "InsufficientInstanceCapacity"; then
+      echo "Warning: Insufficient capacity for $INSTANCE_TYPE in subnet $SUBNET. Trying next subnet."
+      EXIT_CODE=1
+      continue
+    else
+      EXIT_CODE=1
+      exit $EXIT_CODE
+    fi
 done
 
 exit $EXIT_CODE
