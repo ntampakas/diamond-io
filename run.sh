@@ -26,18 +26,16 @@ for SUBNET in $SUBNET_IDS; do
     --query "Instances[0].InstanceId" \
     --output text 2>&1 || true)
     if [ $? -eq 0 ] && [[ $INSTANCE_ID =~ ^i-[0-9a-f]{17}$ ]]; then
-      echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
-      aws ec2 wait instance-running --instance-ids $INSTANCE_ID
-      echo "EC2 instance $INSTANCE_ID is running"
+      echo "INSTANCE_ID=$INSTANCE_ID" >> "$GITHUB_ENV"
+      aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
+      echo "EC2 instance $INSTANCE_ID is running in subnet $SUBNET"
       exit $EXIT_CODE
-    elif echo $INSTANCE_ID | grep -q "InsufficientInstanceCapacity"; then
+    elif echo "$INSTANCE_ID" | grep -q "InsufficientInstanceCapacity"; then
       echo "Warning: Insufficient capacity for $INSTANCE_TYPE in subnet $SUBNET. Trying next subnet."
       EXIT_CODE=1
       continue
     else
-      EXIT_CODE=1
-      exit $EXIT_CODE
+      echo "Error: Failed to launch EC2 instance with subnet $SUBNET: $INSTANCE_ID"
+      exit 1
     fi
 done
-
-exit $EXIT_CODE
