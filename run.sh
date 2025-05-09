@@ -42,5 +42,5 @@ for SUBNET in $SUBNET_IDS; do
     fi
 done
 
-echo "Error: No subnets in $SUBNET_IDS had sufficient capacity for $INSTANCE_TYPE."
+echo -e "Error: No subnets in \n $SUBNET_IDS \n had sufficient capacity for $INSTANCE_TYPE."
 exit $EXIT_CODE
