@@ -40,18 +40,18 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::490752553772:role/GH-Actions-Drill
+          role-to-assume: arn:aws:iam::490752553772:role/machina-io-assume_role-slc
           role-duration-seconds: 900
-          aws-region: eu-central-1
+          aws-region: us-west-2
 
       - name: Launch EC2 Instance
         id: launch-ec2
         env:
           GH_REPO: ${{ github.repository }}
           GH_PAT: ${{ secrets.GH_PAT }}
-          IMAGE_ID: ami-03250b0e01c28d196
+          IMAGE_ID: ami-075686beab831bb7f
           INSTANCE_TYPE: i4i.16xlarge
-          SG: sg-0e511f05c162bb458
+          SG: sg-02014faf3d99151dd
         run: |
           ./run.sh ${{ github.run_id }}
 
@@ -96,7 +96,8 @@ jobs:
         if: steps.openfhe-check.outputs.installed == 'false'
         uses: actions/checkout@v4
         with:
-          repository: openfheorg/openfhe-development
+          repository: MachinaIO/openfhe-development
+          ref: feat/improve_determinant
           path: openfhe
 
       - name: Build & install OpenFHE
