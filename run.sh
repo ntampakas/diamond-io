@@ -5,8 +5,10 @@ set -eux
 EXIT_CODE=0
 RUNNER_TAG=$1
 
-VPC_ID="vpc-085ffb1026b00654e"
-SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Type,Values=private" --query "Subnets[].SubnetId" --output json | jq -r '.[]')
+#VPC_ID="vpc-085ffb1026b00654e"
+VPC_ID="vpc-00334ffe7c9e3a2b2"
+#SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Type,Values=private" --query "Subnets[].SubnetId" --output json | jq -r '.[]')
+SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" --query "Subnets[].SubnetId" --output json | jq -r '.[]')
 
 
 cat cloud-init.sh | sed -e "s#__GH_REPO__#${GH_REPO}#" -e "s/__GH_PAT__/${GH_PAT}/" -e "s/__RUNNER_TAG__/${RUNNER_TAG}/" > .startup.sh
