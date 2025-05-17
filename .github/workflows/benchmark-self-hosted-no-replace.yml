@@ -1,0 +1,79 @@
+name: Bench-no-replace
+
+on:
+  workflow_dispatch:
+    inputs:
+      param_id:
+        description: 'Configuration ID (e.g. 36)'
+        required: true
+        default: '36'
+      data_id:
+        description: 'Data ID (e.g. 53)'
+        required: true
+        default: '53'
+      add_num:
+        description: 'Number of additions'
+        required: true
+        default: '0'
+      mul_num:
+        description: 'Number of multiplications'
+        required: true
+        default: '0'
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  launch-ec2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::490752553772:role/machina-io-assume_role-slc
+          role-duration-seconds: 900
+          aws-region: us-west-2
+
+      - name: Launch EC2 Instance
+        id: launch-ec2
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          IMAGE_ID: ami-075686beab831bb7f
+          INSTANCE_TYPE: t3.small
+          SG: sg-02014faf3d99151dd
+        run: |
+          ./run.sh ${{ github.run_id }}
+
+  bench:
+    needs: launch-ec2
+    runs-on: ["${{github.run_id}}", self-hosted]
+    timeout-minutes: 5760 #4days
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libgmp-dev libasound2-dev
+
+      - name: Sleep 25h
+        run: sleep 25h
+
+      - name: Sleep 2h
+        run: sleep 2h
+
