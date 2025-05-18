@@ -71,9 +71,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake libgmp-dev libasound2-dev
 
-      - name: Sleep 25h
-        run: sleep 25h
+      - name: Sleep 25s
+        run: sleep 25
 
-      - name: Sleep 2h
-        run: sleep 2h
+      - name: Sleep 2s
+        run: sleep 2
 
