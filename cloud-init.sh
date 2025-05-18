@@ -30,4 +30,4 @@ chown -R ubuntu actions-runner
 cd actions-runner
 #sudo -u ubuntu ./config.sh --url https://github.com/${GH_REPO} --token ${GH_RUNNER_TOKEN} --labels ${RUNNER_TAG} --ephemeral --unattended --disableupdate --replace
 sudo -u ubuntu ./config.sh --url https://github.com/${GH_REPO} --token ${GH_RUNNER_TOKEN} --labels ${RUNNER_TAG} --unattended --disableupdate --replace
-sudo -u ubuntu ./run.sh && exit 0 || exit 1
+sudo -u ubuntu ./run.sh

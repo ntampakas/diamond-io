@@ -62,20 +62,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: clippy
-
-      - name: Install build deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake libgmp-dev libasound2-dev
-
       - name: Sleep 5s
         run: sleep 5
 
       - name: Sleep 2s
         run: slsaseep 2
-
+ 
       - name: Poweroff
+        if: always()
         run: sudo poweroff
