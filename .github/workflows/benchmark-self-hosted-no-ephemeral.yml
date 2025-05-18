@@ -75,7 +75,7 @@ jobs:
         run: sleep 5
 
       - name: Sleep 2s
-        run: sleep 2
+        run: slsaseep 2
 
       - name: Poweroff
         run: sudo poweroff
