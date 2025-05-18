@@ -68,6 +68,6 @@ jobs:
       - name: Sleep 2s
         run: slsaseep 2
  
-      - name: Poweroff
-        if: always()
-        run: sudo poweroff
+      #- name: Poweroff
+        #if: always()
+        #run: sudo poweroff
