@@ -68,8 +68,7 @@ jobs:
       - name: Sleep 5s
         run: sleep 5
 
-      - name: Poweroff
+      - name: Cleanup
         if: always()
         run: |
-          GH_RUNNER_TOKEN=$(curl -s -X POST -H "Authorization: Bearer ${{ secrets.GH_PAT }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/ntampakas/diamond-io/actions/runners/registration-token | jq -r '.token')
-          ./remove.sh $GH_RUNNER_TOKEN &
+          sudo echo "*/1 * * * * root sleep 30 && pkill -15 Runner.Listener" >> /etc/crontab
