@@ -2,5 +2,5 @@
 
 sleep 30
 cd /actions-runner
-./config remove --token $1
+./config.sh remove --token $1
 sudo poweroff
