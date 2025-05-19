@@ -71,4 +71,4 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          sudo echo "*/1 * * * * root sleep 30 && pkill -15 Runner.Listener" >> /etc/crontab
+          echo "*/1 * * * * root sleep 30 && pkill -15 Runner.Listener" | sudo tee -a /etc/crontab
