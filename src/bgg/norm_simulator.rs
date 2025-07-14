@@ -1,18 +1,28 @@
 use super::circuit::{Evaluable, PolyCircuit};
-use crate::impl_binop_with_refs;
+use crate::{
+    bgg::lut::public_lut::PublicLut,
+    impl_binop_with_refs,
+    poly::{dcrt::DCRTPolyMatrix, PolyMatrix},
+};
 use itertools::Itertools;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
-use std::ops::{Add, Mul, Sub};
+use std::{
+    ops::{Add, Mul, Sub},
+    path::PathBuf,
+};
 
-impl PolyCircuit {
+impl<M: PolyMatrix> PolyCircuit<M> {
     pub fn simulate_bgg_norm(
         &self,
         dim: u32,
         base_bits: u32,
         packed_input_norms: Vec<BigUint>,
-    ) -> NormBounds {
+    ) -> NormBounds
+    where
+        NormSimulator: Evaluable<Matrix = M>,
+    {
         let one = NormSimulator::new(
             MPolyCoeffs::new(vec![BigUint::one()]),
             BigUint::one(),
@@ -30,7 +40,7 @@ impl PolyCircuit {
                 )
             })
             .collect::<Vec<_>>();
-        let outputs = self.eval(&(), &one, &inputs);
+        let outputs = self.eval(&(), &one, &inputs, None);
         NormBounds::from_norm_simulators(&outputs)
     }
 }
@@ -102,8 +112,10 @@ impl_binop_with_refs!(NormSimulator => Mul::mul(self, rhs: &NormSimulator) -> No
 
 impl Evaluable for NormSimulator {
     type Params = ();
-    fn rotate(&self, _: &Self::Params, _: usize) -> Self {
-        self.clone()
+    type Matrix = DCRTPolyMatrix;
+
+    fn rotate(self, _: &Self::Params, _: usize) -> Self {
+        self
     }
 
     fn from_digits(_: &Self::Params, one: &Self, digits: &[u32]) -> Self {
@@ -112,6 +124,15 @@ impl Evaluable for NormSimulator {
         let h_norm = one.h_norm.clone() * BigUint::from(digit_max * dim_sqrt);
         let plaintext_norm = one.plaintext_norm.clone() * BigUint::from(*digit_max);
         Self { h_norm, plaintext_norm, dim_sqrt: one.dim_sqrt, base: one.base }
+    }
+
+    fn public_lookup(
+        self,
+        _: &Self::Params,
+        _: &mut PublicLut<Self::Matrix>,
+        _: Option<(Self::Matrix, PathBuf, usize, usize)>,
+    ) -> Self {
+        todo!("norm simulator haven't implemented public_lookup")
     }
 }
 
@@ -240,7 +261,7 @@ mod tests {
     #[test]
     fn test_simulate_bgg_norm() {
         // Create a simple circuit: (input1 + input2) * input3
-        let mut circuit = PolyCircuit::new();
+        let mut circuit: PolyCircuit<DCRTPolyMatrix> = PolyCircuit::new();
         let inputs = circuit.input(3);
         let add_gate = circuit.add_gate(inputs[0], inputs[1]);
         let mul_gate = circuit.mul_gate(add_gate, inputs[2]);

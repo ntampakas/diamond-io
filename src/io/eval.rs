@@ -195,7 +195,7 @@ where
             let encoded_bits = M::from_poly_vec_row(&params, plaintexts);
             let s_connect = encoded_bits.tensor(&s_cur);
             let expected_p = s_connect * &b_stars[level];
-            assert_eq!(p, expected_p, "debug check failed at level {}", level);
+            assert_eq!(p, expected_p, "debug check failed at level {level}");
         }
 
         p_cur = p;
@@ -273,7 +273,7 @@ where
         &mut total_load,
     );
     // c_att := p * K_att
-    let c_att = p_cur * final_preimage_att;
+    let c_att = p_cur.clone() * final_preimage_att;
     log_mem(format!("Computed c_att ({}, {})", c_att.row_size(), c_att.col_size()));
     let pub_key_att = sample_public_key_by_id(&bgg_pubkey_sampler, &params, 0, &reveal_plaintexts);
     log_mem(format!("Sampled pub_key_att {} ", pub_key_att.len()));
@@ -325,8 +325,12 @@ where
             new_encodings.push(new_encode);
         }
     }
-    let output_encodings =
-        final_circuit.eval::<BggEncoding<M>>(&params, &new_encodings[0], &new_encodings[1..]);
+    let output_encodings = final_circuit.eval(
+        params.as_ref(),
+        &new_encodings[0],
+        &new_encodings[1..],
+        Some((p_cur, dir_path.clone(), m, m_b)),
+    );
     log_mem("final_circuit evaluated");
     let output_encoding_ints = output_encodings
         .par_chunks(log_base_q)
@@ -369,6 +373,6 @@ where
         }
         assert_eq!(z.size(), (1, packed_output_size));
     }
-    log_mem(format!("total loading time {:?}", total_load));
+    log_mem(format!("total loading time {total_load:?}"));
     z.get_row(0).into_iter().flat_map(|p| p.extract_bits_with_threshold(&params)).collect_vec()
 }

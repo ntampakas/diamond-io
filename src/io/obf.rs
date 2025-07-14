@@ -32,7 +32,7 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
     M: PolyMatrix + 'static,
     SU: PolyUniformSampler<M = M>,
     SH: PolyHashSampler<[u8; 32], M = M>,
-    ST: PolyTrapdoorSampler<M = M>,
+    ST: PolyTrapdoorSampler<M = M> + Send + Sync,
     R: RngCore,
     P: AsRef<Path>,
 {
@@ -187,7 +187,7 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
         u_nums.push(masks_at_level);
     }
 
-    log_mem(format!("Computed u_0, .. u_{}", depth));
+    log_mem(format!("Computed u_0, .. u_{depth}"));
     #[cfg(feature = "debug")]
     handles.push(store_and_drop_matrix(b_star_cur.clone(), &dir_path, "b_star_0"));
 
@@ -211,7 +211,7 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
         handles.push(store_and_drop_matrix(
             b_star_level.clone(),
             &dir_path,
-            &format!("b_star_{}", level),
+            &format!("b_star_{level}"),
         ));
 
         for num in 0..level_size {
@@ -228,7 +228,7 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
             handles.push(store_and_drop_matrix(
                 s_i_num.clone(),
                 &dir_path,
-                &format!("s_{}_{}", level, num),
+                &format!("s_{level}_{num}"),
             ));
 
             log_mem(format!(
@@ -280,6 +280,9 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
      4) Sample a trapdoor preimage of Y under B*_star_basis → final_preimage.
     =============================================================================
     */
+
+    // Sample input dependent random matrix B_*
+    let (b_l_plus_one_trapdoor, b_l_plus_one) = sampler_trapdoor.trapdoor(&params, d + 1);
 
     #[cfg(feature = "bgm")]
     {
@@ -353,9 +356,24 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
             public_circuit,
         );
         log_mem("Computed final_circuit");
-        let eval_outputs = final_circuit.eval(params.as_ref(), &pub_key_att[0], &pub_key_att[1..]);
+        let eval_outputs =
+            final_circuit.eval(params.as_ref(), &pub_key_att[0], &pub_key_att[1..], None);
         log_mem("Evaluated outputs");
         debug_assert_eq!(eval_outputs.len(), log_base_q * packed_output_size);
+
+        // after update the target matrix above while evaluation, now can sample preimage L_k
+        final_circuit.preimage_sample_all_lookups(
+            params,
+            &b_star_cur,
+            &b_l_plus_one,
+            &sampler_trapdoor,
+            &b_star_trapdoor_cur,
+            &b_l_plus_one_trapdoor,
+            packed_input_size + 1,
+            &dir_path,
+            &mut handles,
+        );
+
         let output_ints = eval_outputs
             .par_chunks(log_base_q)
             .map(|digits| BggPublicKey::digits_to_int(digits, params))
@@ -397,7 +415,7 @@ pub async fn obfuscate<M, SU, SH, ST, R, P>(
     join_all(handles).await;
 }
 
-fn store_and_drop_matrix<M: PolyMatrix + 'static>(
+pub fn store_and_drop_matrix<M: PolyMatrix + 'static>(
     matrix: M,
     dir_path: &Path,
     id: &str,
@@ -416,7 +434,7 @@ fn store_and_drop_matrix<M: PolyMatrix + 'static>(
 }
 
 #[cfg(feature = "debug")]
-fn store_and_drop_poly<P: Poly + 'static>(
+pub fn store_and_drop_poly<P: Poly + 'static>(
     poly: P,
     dir_path: &Path,
     id: &str,

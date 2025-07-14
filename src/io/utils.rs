@@ -68,11 +68,12 @@ impl<S: PolyHashSampler<[u8; 32]>> PublicSampledData<S> {
 pub fn build_final_digits_circuit<P: Poly, E: Evaluable>(
     a_decomposed_polys: &[P],
     b_decomposed_polys: &[P],
-    public_circuit: PolyCircuit,
-) -> PolyCircuit {
+    public_circuit: PolyCircuit<E::Matrix>,
+) -> PolyCircuit<E::Matrix> {
     let log_base_q = a_decomposed_polys.len();
     debug_assert_eq!(b_decomposed_polys.len(), log_base_q);
     let packed_eval_input_size = public_circuit.num_input() - (2 * log_base_q);
+    let lookups = public_circuit.lookups.clone();
 
     // circuit outputs the cipertext ct=(a,b) as a_base_0, b_base_0, a_base_1, b_base_1, ...
     let mut ct_output_circuit = PolyCircuit::new();
@@ -116,6 +117,7 @@ pub fn build_final_digits_circuit<P: Poly, E: Evaluable>(
             build_composite_circuit_from_public_and_fhe_dec::<E>(ct_output_circuit, log_base_q);
         let circuit_id = circuit.register_sub_circuit(sub_circuit);
         let outputs = circuit.call_sub_circuit(circuit_id, &inputs);
+        circuit.lookups = lookups;
         circuit.output(outputs);
     }
     circuit
@@ -171,7 +173,6 @@ pub fn build_poly_vec<M: PolyMatrix>(
     let bits_done = level_width * level;
     let dim = params.ring_dimension() as usize;
     let mut polys: Vec<M::P> = vec![<M::P as Poly>::const_one(params)];
-
     let mut coeffs = inputs[..bits_done]
         .iter()
         .map(|&b| {
@@ -182,7 +183,6 @@ pub fn build_poly_vec<M: PolyMatrix>(
             }
         })
         .collect::<Vec<_>>();
-
     coeffs.extend(std::iter::repeat_n(
         <M::P as Poly>::Elem::zero(&params.modulus()),
         input_size - bits_done,
@@ -267,7 +267,7 @@ mod test {
         let mut inputs = vec![one.clone()];
         inputs.push(-(t_bar_matrix.entry(0, 0)).clone());
 
-        let circuit_outputs = final_circuit.eval(&params, &one, &inputs);
+        let circuit_outputs = final_circuit.eval(&params, &one, &inputs, None);
         assert_eq!(circuit_outputs.len(), log_q);
 
         // 8. Extract the output bits

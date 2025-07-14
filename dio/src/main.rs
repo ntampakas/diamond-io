@@ -1,5 +1,5 @@
 use circuit::BenchCircuit;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use config::{RunBenchConfig, SimBenchNormConfig};
 #[cfg(feature = "disk")]
 use diamond_io::utils::calculate_tmp_size;
@@ -36,8 +36,11 @@ use std::{
 };
 use tracing::info;
 
+use crate::plt::setup_plt;
+
 pub mod circuit;
 pub mod config;
+pub mod plt;
 
 /// Simple program to obfuscate and evaluate
 #[derive(Parser, Debug)]
@@ -45,6 +48,14 @@ pub mod config;
 struct Args {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(ValueEnum, Clone, Debug)]
+enum BenchType {
+    /// The original “add/mul” benchmark
+    AddMul,
+    /// The PLT benchmark
+    Plt,
 }
 
 #[derive(Subcommand, Debug)]
@@ -59,11 +70,17 @@ enum Commands {
         #[arg(short, long, default_value = "true")]
         verify: bool,
 
-        #[arg(long)]
-        add_num: usize,
+        #[arg(long, value_enum, default_value_t = BenchType::AddMul)]
+        bench_type: BenchType,
 
-        #[arg(long)]
-        mul_num: usize,
+        #[arg(long, requires_if("add_mul", "bench_type"))]
+        add_num: Option<usize>,
+
+        #[arg(long, requires_if("add_mul", "bench_type"))]
+        mul_num: Option<usize>,
+
+        #[arg(long, requires_if("plt", "bench_type"))]
+        t_num: Option<usize>,
     },
     SimBenchNorm {
         #[arg(short, long)]
@@ -95,7 +112,7 @@ async fn main() {
     init_tracing();
     let command = Args::parse().command;
     match command {
-        Commands::RunBench { config, obf_dir, verify, add_num, mul_num } => {
+        Commands::RunBench { config, obf_dir, bench_type, add_num, mul_num, t_num, verify } => {
             let contents = fs::read_to_string(&config).unwrap();
             let dio_config: RunBenchConfig = toml::from_str(&contents).unwrap();
             let dir = Path::new(&obf_dir);
@@ -115,8 +132,21 @@ async fn main() {
             );
             let log_base_q = params.modulus_digits();
             let switched_modulus = Arc::new(dio_config.switched_modulus);
-            let public_circuit =
-                BenchCircuit::new_add_mul(add_num, mul_num, log_base_q).as_poly_circuit();
+            let (public_circuit, lut) = match bench_type {
+                BenchType::AddMul => {
+                    let add_num = add_num.unwrap();
+                    let mul_num = mul_num.unwrap();
+                    (
+                        BenchCircuit::new_add_mul(add_num, mul_num, log_base_q).as_poly_circuit(),
+                        None,
+                    )
+                }
+                BenchType::Plt => {
+                    let t_num = t_num.unwrap();
+                    let lut = setup_plt(t_num, &params, dio_config.d);
+                    (BenchCircuit::new_plt(log_base_q, lut.clone()).as_poly_circuit(), Some(lut))
+                }
+            };
 
             let obf_params = ObfuscationParams {
                 params: params.clone(),
@@ -162,19 +192,39 @@ async fn main() {
             info!("Time for evaluation: {:?}", eval_time);
             info!("Total time: {:?}", total_time);
             if verify {
-                let verify_circuit =
-                    BenchCircuit::new_add_mul_verify(add_num, mul_num).as_poly_circuit();
                 let input_coeffs: Vec<_> = input
                     .iter()
                     .cloned()
                     .map(|i| FinRingElem::constant(&params.modulus(), i as u64))
                     .collect();
                 let input_poly = DCRTPoly::from_coeffs(&params, &input_coeffs);
-                let eval = verify_circuit.eval(
-                    &params,
-                    &DCRTPoly::const_one(&params),
-                    &[hardcoded_key, input_poly],
-                );
+                let eval = match bench_type {
+                    BenchType::AddMul => {
+                        let add_num = add_num.unwrap();
+                        let mul_num = mul_num.unwrap();
+                        let verify_circuit =
+                            BenchCircuit::new_add_mul_verify(add_num, mul_num).as_poly_circuit();
+                        verify_circuit.eval(
+                            &params,
+                            &DCRTPoly::const_one(&params),
+                            &[hardcoded_key, input_poly],
+                            None,
+                        )
+                    }
+                    BenchType::Plt => {
+                        let k = input_poly.to_const_int();
+                        let lut = lut.unwrap();
+                        let (_, y_k) = lut.f.get(&k).expect("fetch x_k and y_k");
+                        let verify_circuit = BenchCircuit::new_plt_verify().as_poly_circuit();
+                        verify_circuit.eval(
+                            &params,
+                            &DCRTPoly::const_one(&params),
+                            &[hardcoded_key, y_k.clone()],
+                            None,
+                        )
+                    }
+                };
+
                 assert_eq!(eval.len(), 1);
                 /*
                     Since we are computing b' - a' * t in the decryption part of the final circuit,

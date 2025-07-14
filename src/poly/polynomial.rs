@@ -79,6 +79,8 @@ pub trait Poly:
     fn const_one(params: &Self::Params) -> Self;
     fn const_minus_one(params: &Self::Params) -> Self;
     fn const_power_of_base(params: &Self::Params, k: usize) -> Self;
+    fn const_int(params: &Self::Params, int: usize) -> Self;
+    fn from_const_int_lsb(params: &Self::Params, int: usize) -> Self;
     fn const_rotate_poly(params: &Self::Params, shift: usize) -> Self {
         let zero = Self::const_zero(params);
         let mut coeffs = zero.coeffs();
@@ -97,6 +99,7 @@ pub trait Poly:
     }
     fn to_bool_vec(&self) -> Vec<bool>;
     fn to_compact_bytes(&self) -> Vec<u8>;
+    fn to_const_int(&self) -> usize;
 
     /// Reads a polynomial with id from files under the given directory.
     fn read_from_file<P: AsRef<Path> + Send + Sync>(
@@ -105,10 +108,10 @@ pub trait Poly:
         id: &str,
     ) -> Self {
         let mut path = dir_path.as_ref().to_path_buf();
-        path.push(format!("{}.poly", id));
+        path.push(format!("{id}.poly"));
 
         let bytes = std::fs::read(&path)
-            .unwrap_or_else(|_| panic!("Failed to read polynomial file {:?}", path));
+            .unwrap_or_else(|_| panic!("Failed to read polynomial file {path:?}"));
 
         Self::from_compact_bytes(params, &bytes)
     }
@@ -120,13 +123,13 @@ pub trait Poly:
         id: &str,
     ) -> impl std::future::Future<Output = ()> + Send {
         let mut path: std::path::PathBuf = dir_path.as_ref().to_path_buf();
-        path.push(format!("{}.poly", id));
+        path.push(format!("{id}.poly"));
 
         let bytes = self.to_compact_bytes();
         async move {
             tokio::fs::write(&path, &bytes)
                 .await
-                .unwrap_or_else(|_| panic!("Failed to write polynomial file {:?}", path));
+                .unwrap_or_else(|_| panic!("Failed to write polynomial file {path:?}"));
         }
     }
 }
