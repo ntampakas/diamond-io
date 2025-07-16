@@ -9,7 +9,6 @@ use crate::{
 use bitvec::prelude::*;
 use digest::OutputSizeUser;
 use num_bigint::BigUint;
-use num_traits::Zero;
 use rayon::prelude::*;
 use std::{marker::PhantomData, ops::Range};
 
@@ -36,11 +35,12 @@ where
         ncol: usize,
         dist: DistType,
     ) -> DCRTPolyMatrix {
-        let hash_output_size = <H as digest::Digest>::output_size() * 8;
+        let out_sz = <H as digest::Digest>::output_size();
         let n = params.ring_dimension() as usize;
+        let bytes_per_poly = n.div_ceil(8);
+        let hashes_per_poly = bytes_per_poly.div_ceil(out_sz);
+        let hash_output_size = <H as digest::Digest>::output_size() * 8;
         let q = params.modulus();
-        let log_q = params.modulus_bits();
-        let num_hash_fin_per_poly = (log_q * n).div_ceil(hash_output_size);
         let num_hash_bit_per_poly = n.div_ceil(hash_output_size);
         let mut new_matrix = DCRTPolyMatrix::new_empty(params, nrow, ncol);
         let mut hasher: H = H::new();
@@ -55,29 +55,20 @@ where
                                 let mut hasher = hasher.clone();
                                 hasher.update(i.to_le_bytes());
                                 hasher.update(j.to_le_bytes());
-                                let mut local_bits = bitvec![u8, Lsb0;];
-                                for hash_idx in 0..num_hash_fin_per_poly {
-                                    let mut hasher = hasher.clone();
-                                    hasher.update((hash_idx as u64).to_le_bytes());
-                                    for &byte in hasher.finalize().iter() {
-                                        for bit_index in 0..8 {
-                                            local_bits.push((byte >> bit_index) & 1 != 0);
-                                        }
-                                    }
+                                let mut buf = vec![0u8; hashes_per_poly * out_sz];
+                                for blk in 0..hashes_per_poly {
+                                    let mut h = hasher.clone();
+                                    h.update((blk as u64).to_le_bytes()); // counter
+                                    h.finalize_into(
+                                        (&mut buf[blk * out_sz..(blk + 1) * out_sz]).into(),
+                                    );
                                 }
-                                let local_bits = local_bits.split_at(log_q * n).0;
-                                let coeffs = parallel_iter!(0..n)
-                                    .map(|coeff_idx| {
-                                        let bits =
-                                            &local_bits[coeff_idx * log_q..(coeff_idx + 1) * log_q];
-                                        let mut value = BigUint::zero();
-                                        for bit in bits.iter() {
-                                            value <<= 1;
-                                            if *bit {
-                                                value |= BigUint::from(1u32);
-                                            }
-                                        }
-                                        FinRingElem::new(value, q.clone())
+                                let bits = &buf[..bytes_per_poly];
+                                let coeffs = (0..n)
+                                    .map(|k| {
+                                        let byte = bits[k >> 3];
+                                        let bit = (byte >> (k & 7)) & 1;
+                                        FinRingElem::new(BigUint::from(bit), q.clone())
                                     })
                                     .collect::<Vec<_>>();
                                 DCRTPoly::from_coeffs(params, &coeffs)
