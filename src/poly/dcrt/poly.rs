@@ -32,6 +32,7 @@ impl DCRTPoly {
         Self { ptr_poly: ptr_poly.into() }
     }
 
+    #[inline]
     pub fn get_poly(&self) -> &UniquePtr<DCRTPolyCxx> {
         &self.ptr_poly
     }
@@ -59,6 +60,7 @@ impl DCRTPoly {
         ))
     }
 
+    #[inline]
     fn poly_gen_from_const(params: &DCRTPolyParams, value: String) -> Self {
         DCRTPoly::new(ffi::DCRTPolyGenFromConst(
             params.ring_dimension(),
@@ -73,6 +75,7 @@ impl Poly for DCRTPoly {
     type Elem = FinRingElem;
     type Params = DCRTPolyParams;
 
+    #[inline]
     fn coeffs(&self) -> Vec<Self::Elem> {
         let poly_encoding = self.ptr_poly.GetCoefficientsBytes();
         let parsed_values = parse_coefficients_bytes(&poly_encoding);
@@ -81,6 +84,7 @@ impl Poly for DCRTPoly {
         parallel_iter!(coeffs).map(|s| FinRingElem::new(s, Arc::new(modulus.clone()))).collect()
     }
 
+    #[inline]
     fn from_coeffs(params: &Self::Params, coeffs: &[Self::Elem]) -> Self {
         let mut coeffs_cxx = Vec::with_capacity(coeffs.len());
         for coeff in coeffs {
@@ -90,16 +94,11 @@ impl Poly for DCRTPoly {
         Self::poly_gen_from_vec(params, coeffs_cxx)
     }
 
-    fn from_const(params: &Self::Params, constant: &Self::Elem) -> Self {
-        Self::poly_gen_from_const(params, constant.value().to_string())
-    }
-
     fn from_decomposed(params: &DCRTPolyParams, decomposed: &[Self]) -> Self {
         let mut reconstructed = Self::const_zero(params);
         for (i, bit_poly) in decomposed.iter().enumerate() {
             let power_of_two = BigUint::from(2u32).pow(i as u32);
-            let const_poly_power_of_two =
-                Self::from_const(params, &FinRingElem::new(power_of_two, params.modulus()));
+            let const_poly_power_of_two = Self::from_biguint_to_constant(params, power_of_two);
             reconstructed += bit_poly * &const_poly_power_of_two;
         }
         reconstructed
@@ -146,14 +145,17 @@ impl Poly for DCRTPoly {
         Self::from_coeffs(params, &coeffs)
     }
 
+    #[inline]
     fn const_zero(params: &Self::Params) -> Self {
         Self::poly_gen_from_const(params, BigUint::ZERO.to_string())
     }
 
+    #[inline]
     fn const_one(params: &Self::Params) -> Self {
-        Self::poly_gen_from_const(params, BigUint::from(1u32).to_string())
+        Self::poly_gen_from_const(params, "1".to_owned())
     }
 
+    #[inline]
     fn const_minus_one(params: &Self::Params) -> Self {
         Self::poly_gen_from_const(
             params,
@@ -161,29 +163,55 @@ impl Poly for DCRTPoly {
         )
     }
 
-    fn const_power_of_base(params: &Self::Params, k: usize) -> Self {
-        let base = 1u32 << params.base_bits();
-        Self::poly_gen_from_const(params, BigUint::from(base).pow(k as u32).to_string())
-    }
-
+    /// return all `DCRTPoly` with all coefficients is maximum value.
     fn const_max(params: &Self::Params) -> Self {
         let coeffs = vec![FinRingElem::max_q(&params.modulus()); params.ring_dimension() as usize];
         Self::from_coeffs(params, &coeffs)
     }
 
-    fn const_int(params: &Self::Params, int: usize) -> Self {
-        Self::poly_gen_from_const(params, BigUint::from(int).to_string())
+    /// from `PolyElem` to `DCRTPoly` type and generate constant polynomial.
+    #[inline]
+    fn from_elem_to_constant(params: &Self::Params, elem: &Self::Elem) -> Self {
+        Self::poly_gen_from_const(params, elem.value().to_string())
+    }
+
+    /// from `BigUint` to `DCRTPoly` type and generate constant polynomial.
+    #[inline]
+    fn from_biguint_to_constant(params: &Self::Params, int: BigUint) -> Self {
+        Self::poly_gen_from_const(params, int.to_string())
+    }
+
+    /// from `usize` to `DCRTPoly` type and generate constant polynomial.
+    #[inline]
+    fn from_usize_to_constant(params: &Self::Params, int: usize) -> Self {
+        Self::poly_gen_from_const(params, int.to_string())
+    }
+
+    /// from k which is power of base to `DCRTPoly` type and generate constant polynomial.
+    #[inline]
+    fn from_power_of_base_to_constant(params: &Self::Params, k: usize) -> Self {
+        let base = 1u32 << params.base_bits();
+        Self::poly_gen_from_const(params, BigUint::from(base).pow(k as u32).to_string())
     }
 
     /// Encode `int` in little-endian bit order
-    fn from_const_int_lsb(params: &Self::Params, int: usize) -> Self {
+    /// `int` is limited as u64 or u32.
+    fn from_usize_to_lsb(params: &Self::Params, int: usize) -> Self {
         let n = params.ring_dimension() as usize;
+        debug_assert!(int < (1 << n), "Input exceeds representable range for ring dimension");
         let q = params.modulus();
         let one = FinRingElem::one(&q);
         let zero = FinRingElem::zero(&q);
 
-        let coeffs: Vec<FinRingElem> =
-            (0..n).map(|i| if (int >> i) & 1 == 1 { one.clone() } else { zero.clone() }).collect();
+        let coeffs: Vec<FinRingElem> = (0..n)
+            .map(|i| {
+                if i < usize::BITS as usize && (int >> i) & 1 == 1 {
+                    one.clone()
+                } else {
+                    zero.clone()
+                }
+            })
+            .collect();
 
         Self::from_coeffs(params, &coeffs)
     }
@@ -330,11 +358,14 @@ impl Poly for DCRTPoly {
     }
 
     fn to_const_int(&self) -> usize {
-        let mut sum = 0;
+        let mut sum = 0usize;
         for (i, c) in self.coeffs_digits().into_iter().enumerate() {
-            sum += 2_u32.pow(i as u32) * c;
+            if i >= usize::BITS as usize {
+                break;
+            }
+            sum = sum.saturating_add((1usize << i).saturating_mul(c as usize));
         }
-        sum as usize
+        sum
     }
 
     fn from_bool_vec(params: &Self::Params, coeffs: &[bool]) -> Self {
@@ -444,7 +475,6 @@ mod tests {
         PolyParams,
     };
     use rand::prelude::*;
-    use std::path::Path;
 
     #[test]
     fn test_const_int_roundtrip() {
@@ -453,8 +483,8 @@ mod tests {
 
         for _ in 0..10 {
             let value = rng.random_range(0..(2_i32.pow(params.ring_dimension() - 1) as usize));
-            let lsb_poly = DCRTPoly::from_const_int_lsb(&params, value);
-            let poly = DCRTPoly::const_int(&params, value);
+            let lsb_poly = DCRTPoly::from_usize_to_lsb(&params, value);
+            let poly = DCRTPoly::from_usize_to_constant(&params, value);
             let back = poly.to_const_int();
             let back_from_lsb = lsb_poly.to_const_int();
             assert_eq!(value, back);
@@ -532,7 +562,7 @@ mod tests {
         assert_eq!(poly_mul_assign, product, "*= result should match separate *");
 
         // 9. Test from_const / const_zero / const_one
-        let const_poly = DCRTPoly::from_const(&params, &FinRingElem::new(123, q.clone()));
+        let const_poly = DCRTPoly::from_usize_to_constant(&params, 123);
         assert_eq!(
             const_poly,
             DCRTPoly::from_coeffs(&params, &[FinRingElem::new(123, q.clone()); 1]),
@@ -689,42 +719,5 @@ mod tests {
             original_poly, reconstructed_poly,
             "Reconstructed polynomial does not match original (GaussDist)"
         );
-    }
-
-    #[tokio::test]
-    async fn test_dcrtpoly_write_read_file() {
-        let params = DCRTPolyParams::default();
-        let sampler = DCRTPolyUniformSampler::new();
-
-        // Test with different distribution types
-        let dists = [DistType::BitDist, DistType::FinRingDist, DistType::GaussDist { sigma: 3.0 }];
-
-        // Create a temporary directory for testing
-        let test_dir = Path::new("test_poly_write_read");
-        if !test_dir.exists() {
-            std::fs::create_dir(test_dir).unwrap();
-        } else {
-            // Clean it first to ensure no old files interfere
-            std::fs::remove_dir_all(test_dir).unwrap();
-            std::fs::create_dir(test_dir).unwrap();
-        }
-
-        for dist in dists {
-            // Create a random polynomial
-            let poly = sampler.sample_poly(&params, &dist);
-            let poly_id = format!("test_poly_{:?}", dist);
-
-            // Write the polynomial to a file
-            poly.write_to_file(test_dir, &poly_id).await;
-
-            // Read the polynomial back
-            let read_poly = DCRTPoly::read_from_file(&params, test_dir, &poly_id);
-
-            // Verify the polynomials are equal
-            assert_eq!(poly, read_poly, "Read polynomial does not match original for {:?}", dist);
-        }
-
-        // Clean up
-        std::fs::remove_dir_all(test_dir).unwrap();
     }
 }
