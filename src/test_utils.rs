@@ -86,7 +86,8 @@ pub async fn test_io_common(
         _,
         _,
     >(obf_params.clone(), hardcoded_key.clone(), &mut rng, &dir_path)
-    .await;
+    .await
+    .expect("obfuscation fail");
     let obfuscation_time = start_time.elapsed();
     info!("Time to obfuscate: {:?}", obfuscation_time);
 
@@ -178,7 +179,8 @@ pub async fn test_io_plt(
         _,
         _,
     >(obf_params.clone(), hardcoded_key.clone(), &mut rng, &dir_path)
-    .await;
+    .await
+    .expect("obfuscation fail");
     let obfuscation_time = start_time.elapsed();
     info!("Time to obfuscate: {:?}", obfuscation_time);
 
@@ -213,8 +215,7 @@ fn setup_lsb_constant_binary_plt(t_n: usize, params: &DCRTPolyParams) -> PublicL
         );
     }
 
-    let plt = PublicLut::<DCRTPoly>::new(f);
-    plt
+    PublicLut::<DCRTPoly>::new(f)
 }
 
 pub fn setup_lsb_plt(t_n: usize, params: &DCRTPolyParams) -> PublicLut<DCRTPoly> {
@@ -227,8 +228,7 @@ pub fn setup_lsb_plt(t_n: usize, params: &DCRTPolyParams) -> PublicLut<DCRTPoly>
         );
     }
 
-    let plt = PublicLut::<DCRTPoly>::new(f);
-    plt
+    PublicLut::<DCRTPoly>::new(f)
 }
 
 pub fn setup_constant_plt(t_n: usize, params: &DCRTPolyParams) -> PublicLut<DCRTPoly> {
@@ -242,6 +242,5 @@ pub fn setup_constant_plt(t_n: usize, params: &DCRTPolyParams) -> PublicLut<DCRT
         );
     }
 
-    let plt = PublicLut::<DCRTPoly>::new(f);
-    plt
+    PublicLut::<DCRTPoly>::new(f)
 }
