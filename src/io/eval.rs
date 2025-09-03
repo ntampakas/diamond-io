@@ -7,7 +7,7 @@ use itertools::Itertools;
 use mxx::parallel_iter;
 use mxx::{
     bgg::{digits_to_int::DigitsToInt, encoding::BggEncoding, sampler::BGGPublicKeySampler},
-    lookup::simple_eval::SimpleBggEncodingPltEvaluator,
+    lookup::lwe_eval::LweBggEncodingPltEvaluator,
     matrix::PolyMatrix,
     poly::{Poly, PolyParams},
     sampler::{PolyHashSampler, PolyTrapdoorSampler},
@@ -54,8 +54,8 @@ where
         hash_key.copy_from_slice(&bytes);
         hash_key
     };
-
-    let bgg_pubkey_sampler = BGGPublicKeySampler::<_, SH>::new(hash_key, d);
+    // explictly sample d+1 public keys
+    let bgg_pubkey_sampler = BGGPublicKeySampler::<_, SH>::new(hash_key, d + 1);
     let public_data = PublicSampledData::<SH>::sample(&obf_params, hash_key);
     log_mem("Sampled public data");
     let packed_input_size = public_data.packed_input_size;
@@ -341,7 +341,7 @@ where
         }
     }
     let bgg_encoding_plt_evaluator =
-        SimpleBggEncodingPltEvaluator::<M, SH>::new(hash_key, dir_path.clone(), p_l_plus_one);
+        LweBggEncodingPltEvaluator::<M, SH>::new(hash_key, dir_path.clone(), p_l_plus_one);
     let output_encodings = final_circuit.eval(
         params.as_ref(),
         &new_encodings[0],
