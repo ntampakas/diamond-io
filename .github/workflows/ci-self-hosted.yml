@@ -29,7 +29,6 @@ jobs:
       - run: cargo +nightly fmt --all --check
 
   run-on-self-hosted:
-    needs: launch-ec2
     runs-on: [ci-self-hosted, self-hosted]
     strategy:
         fail-fast: false
